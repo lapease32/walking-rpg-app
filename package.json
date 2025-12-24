@@ -2,7 +2,7 @@
   "name": "walking-rpg-app",
   "version": "1.0.0",
   "description": "Location-based RPG app with random creature encounters while walking",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
     "start": "react-native start",
     "android": "react-native run-android",

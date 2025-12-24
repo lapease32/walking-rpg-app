@@ -1,31 +1,63 @@
 import Geolocation from '@react-native-community/geolocation';
+import { Location } from '../models/Encounter';
+
+export interface GeolocationPosition {
+  coords: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    altitude: number | null;
+    heading: number | null;
+    speed: number | null;
+  };
+  timestamp: number;
+}
+
+export interface LocationData extends Location {
+  accuracy: number;
+  altitude: number | null;
+  heading: number | null;
+  speed: number;
+  timestamp: number;
+}
+
+export interface GeolocationError {
+  code: number;
+  message: string;
+}
+
+export interface DistanceData {
+  incremental: number;
+  total: number;
+}
+
+type LocationUpdateCallback = (location: LocationData) => void;
+type DistanceUpdateCallback = (distanceData: DistanceData) => void;
 
 /**
  * Location Service
  * Handles GPS tracking, distance calculation, and movement monitoring
  */
 class LocationService {
-  constructor() {
-    this.watchId = null;
-    this.currentLocation = null;
-    this.previousLocation = null;
-    this.totalDistance = 0; // meters
-    this.onLocationUpdate = null;
-    this.onDistanceUpdate = null;
-    this.isTracking = false;
-    this.config = {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 10000,
-      distanceFilter: 5, // Minimum distance (in meters) to trigger update
-    };
-  }
+  private watchId: number | null = null;
+  private currentLocation: LocationData | null = null;
+  private previousLocation: LocationData | null = null;
+  private totalDistance: number = 0; // meters
+  private onLocationUpdate: LocationUpdateCallback | null = null;
+  private onDistanceUpdate: DistanceUpdateCallback | null = null;
+  private isTracking: boolean = false;
+  private config = {
+    enableHighAccuracy: true,
+    timeout: 15000,
+    maximumAge: 10000,
+    distanceFilter: 5, // Minimum distance (in meters) to trigger update
+  };
 
   /**
    * Calculate distance between two coordinates using Haversine formula
    * Returns distance in meters
    */
-  calculateDistance(lat1, lon1, lat2, lon2) {
+  calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371e3; // Earth's radius in meters
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
@@ -43,23 +75,23 @@ class LocationService {
   /**
    * Get current location (one-time)
    */
-  getCurrentLocation() {
+  getCurrentLocation(): Promise<LocationData> {
     return new Promise((resolve, reject) => {
       Geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
+        (position: GeolocationPosition) => {
+          const location: LocationData = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             altitude: position.coords.altitude,
             heading: position.coords.heading,
-            speed: position.coords.speed,
+            speed: position.coords.speed || 0,
             timestamp: position.timestamp,
           };
           this.currentLocation = location;
           resolve(location);
         },
-        (error) => {
+        (error: GeolocationError) => {
           reject(error);
         },
         this.config
@@ -70,7 +102,10 @@ class LocationService {
   /**
    * Start tracking location continuously
    */
-  startTracking(onLocationUpdate, onDistanceUpdate) {
+  startTracking(
+    onLocationUpdate: LocationUpdateCallback,
+    onDistanceUpdate: DistanceUpdateCallback
+  ): void {
     if (this.isTracking) {
       console.warn('Location tracking is already active');
       return;
@@ -94,8 +129,8 @@ class LocationService {
 
     // Watch for position changes
     this.watchId = Geolocation.watchPosition(
-      (position) => {
-        const location = {
+      (position: GeolocationPosition) => {
+        const location: LocationData = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
@@ -118,7 +153,7 @@ class LocationService {
           if (distance < 1000 && distance > 0) {
             // Ignore if more than 1km (likely GPS error)
             this.totalDistance += distance;
-            
+
             if (this.onDistanceUpdate) {
               this.onDistanceUpdate({
                 incremental: distance,
@@ -135,7 +170,7 @@ class LocationService {
           this.onLocationUpdate(location);
         }
       },
-      (error) => {
+      (error: GeolocationError) => {
         console.error('Location tracking error:', error);
         // Handle different error codes
         if (error.code === 1) {
@@ -153,7 +188,7 @@ class LocationService {
   /**
    * Stop tracking location
    */
-  stopTracking() {
+  stopTracking(): void {
     if (this.watchId !== null) {
       Geolocation.clearWatch(this.watchId);
       this.watchId = null;
@@ -166,28 +201,28 @@ class LocationService {
   /**
    * Get current location (from cache)
    */
-  getCurrentLocationCached() {
+  getCurrentLocationCached(): LocationData | null {
     return this.currentLocation;
   }
 
   /**
    * Get total distance traveled
    */
-  getTotalDistance() {
+  getTotalDistance(): number {
     return this.totalDistance;
   }
 
   /**
    * Reset distance counter
    */
-  resetDistance() {
+  resetDistance(): void {
     this.totalDistance = 0;
   }
 
   /**
    * Get current speed in km/h
    */
-  getCurrentSpeed() {
+  getCurrentSpeed(): number {
     if (!this.currentLocation || !this.currentLocation.speed) {
       return 0;
     }
@@ -198,7 +233,7 @@ class LocationService {
   /**
    * Check if user is walking (speed between 3-8 km/h)
    */
-  isWalking() {
+  isWalking(): boolean {
     const speed = this.getCurrentSpeed();
     return speed >= 3 && speed <= 8;
   }

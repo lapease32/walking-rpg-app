@@ -1,11 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
+interface DistanceDisplayProps {
+  distance: number;
+  unit?: 'km' | 'mi';
+}
+
 /**
  * Display component for showing distance traveled
  */
-export default function DistanceDisplay({ distance, unit = 'km' }) {
-  const formatDistance = (meters) => {
+export default function DistanceDisplay({
+  distance,
+  unit = 'km',
+}: DistanceDisplayProps) {
+  const formatDistance = (meters: number): string => {
     if (unit === 'km') {
       const km = meters / 1000;
       return km.toFixed(2);
@@ -15,7 +23,7 @@ export default function DistanceDisplay({ distance, unit = 'km' }) {
     return miles.toFixed(2);
   };
 
-  const formatShortDistance = (meters) => {
+  const formatShortDistance = (meters: number): string => {
     if (meters >= 1000) {
       return formatDistance(meters) + (unit === 'km' ? ' km' : ' mi');
     }
