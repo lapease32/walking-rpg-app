@@ -1,0 +1,364 @@
+  $ /Users/lancepease/.nvm/versions/node/v18.20.8/bin/node -p require.resolve(     "react-native/scripts/react_native_pods.rb",     {paths: [process.argv[1]]},   ) /Users/lancepease/Java Projects/Walking App/ios
+  /Users/lancepease/Java Projects/Walking App/node_modules/react-native/scripts/react_native_pods.rb
+  $ /Users/lancepease/.nvm/versions/node/v18.20.8/bin/node -p require.resolve(     "@react-native-community/cli-platform-ios/native_modules.rb",     {paths: [process.argv[1]]},   ) /Users/lancepease/Java Projects/Walking App/node_modules/react-native/scripts
+  /Users/lancepease/Java Projects/Walking App/node_modules/react-native/node_modules/@react-native-community/cli-platform-ios/native_modules.rb
+  $ /Users/lancepease/.nvm/versions/node/v18.20.8/bin/node -e try {console.log(require('@react-native-community/cli').bin);} catch (e) {console.log(require('react-native/cli').bin);}
+  /Users/lancepease/Java Projects/Walking App/node_modules/@react-native-community/cli/build/bin.js
+Auto-linking React Native modules for target `WalkingRPGTemp`: RNCAsyncStorage, RNPermissions, and react-native-geolocation
+Framework build type is static library
+  $ /bin/mkdir -p ./build/generated/ios
+[Codegen] Generating ./build/generated/ios/React-Codegen.podspec.json
+  Preparing
+
+Analyzing dependencies
+
+Inspecting targets to integrate
+  Using `ARCHS` setting to build architectures of target `Pods-WalkingRPGTemp`: (``)
+  Using `ARCHS` setting to build architectures of target `Pods-WalkingRPGTemp-WalkingRPGTempTests`: (``)
+
+Fetching external sources
+-> Fetching podspec for `DoubleConversion` from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`
+-> Fetching podspec for `FBLazyVector` from `../node_modules/react-native/Libraries/FBLazyVector`
+-> Fetching podspec for `FBReactNativeSpec` from `../node_modules/react-native/React/FBReactNativeSpec`
+[Codegen] Found FBReactNativeSpec
+-> Fetching podspec for `RCT-Folly` from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`
+-> Fetching podspec for `RCTRequired` from `../node_modules/react-native/Libraries/RCTRequired`
+-> Fetching podspec for `RCTTypeSafety` from `../node_modules/react-native/Libraries/TypeSafety`
+-> Fetching podspec for `RNCAsyncStorage` from `../node_modules/@react-native-async-storage/async-storage`
+-> Fetching podspec for `RNPermissions` from `../node_modules/react-native-permissions`
+-> Fetching podspec for `React` from `../node_modules/react-native/`
+-> Fetching podspec for `React-Codegen` from `build/generated/ios`
+-> Fetching podspec for `React-Core` from `../node_modules/react-native/`
+-> Fetching podspec for `React-CoreModules` from `../node_modules/react-native/React/CoreModules`
+-> Fetching podspec for `React-NativeModulesApple` from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`
+-> Fetching podspec for `React-RCTActionSheet` from `../node_modules/react-native/Libraries/ActionSheetIOS`
+-> Fetching podspec for `React-RCTAnimation` from `../node_modules/react-native/Libraries/NativeAnimation`
+-> Fetching podspec for `React-RCTAppDelegate` from `../node_modules/react-native/Libraries/AppDelegate`
+-> Fetching podspec for `React-RCTBlob` from `../node_modules/react-native/Libraries/Blob`
+-> Fetching podspec for `React-RCTImage` from `../node_modules/react-native/Libraries/Image`
+-> Fetching podspec for `React-RCTLinking` from `../node_modules/react-native/Libraries/LinkingIOS`
+-> Fetching podspec for `React-RCTNetwork` from `../node_modules/react-native/Libraries/Network`
+-> Fetching podspec for `React-RCTSettings` from `../node_modules/react-native/Libraries/Settings`
+-> Fetching podspec for `React-RCTText` from `../node_modules/react-native/Libraries/Text`
+-> Fetching podspec for `React-RCTVibration` from `../node_modules/react-native/Libraries/Vibration`
+-> Fetching podspec for `React-callinvoker` from `../node_modules/react-native/ReactCommon/callinvoker`
+-> Fetching podspec for `React-cxxreact` from `../node_modules/react-native/ReactCommon/cxxreact`
+-> Fetching podspec for `React-debug` from `../node_modules/react-native/ReactCommon/react/debug`
+-> Fetching podspec for `React-hermes` from `../node_modules/react-native/ReactCommon/hermes`
+-> Fetching podspec for `React-jsi` from `../node_modules/react-native/ReactCommon/jsi`
+-> Fetching podspec for `React-jsiexecutor` from `../node_modules/react-native/ReactCommon/jsiexecutor`
+-> Fetching podspec for `React-jsinspector` from `../node_modules/react-native/ReactCommon/jsinspector`
+-> Fetching podspec for `React-logger` from `../node_modules/react-native/ReactCommon/logger`
+-> Fetching podspec for `React-perflogger` from `../node_modules/react-native/ReactCommon/reactperflogger`
+-> Fetching podspec for `React-rncore` from `../node_modules/react-native/ReactCommon`
+[Codegen] Found rncore
+-> Fetching podspec for `React-runtimeexecutor` from `../node_modules/react-native/ReactCommon/runtimeexecutor`
+-> Fetching podspec for `React-runtimescheduler` from `../node_modules/react-native/ReactCommon/react/renderer/runtimescheduler`
+-> Fetching podspec for `React-utils` from `../node_modules/react-native/ReactCommon/react/utils`
+-> Fetching podspec for `ReactCommon` from `../node_modules/react-native/ReactCommon`
+-> Fetching podspec for `Yoga` from `../node_modules/react-native/ReactCommon/yoga`
+-> Fetching podspec for `boost` from `../node_modules/react-native/third-party-podspecs/boost.podspec`
+-> Fetching podspec for `glog` from `../node_modules/react-native/third-party-podspecs/glog.podspec`
+-> Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
+[Hermes] Using the release tarball from Maven Central
+-> Fetching podspec for `react-native-geolocation` from `../node_modules/@react-native-community/geolocation`
+
+Resolving dependencies of `Podfile`
+  CDN: trunk Relative path: CocoaPods-version.yml exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_0_9_9.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/0/9/9/libevent/2.1.12/libevent.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_3_2_5.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.252.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_a_e_a.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/e/a/Flipper/0.273.0/Flipper.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_5_6_4.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/5/6/4/Flipper-Boost-iOSX/1.76.0.1.11/Flipper-Boost-iOSX.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_3_3_c.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/3/c/Flipper-DoubleConversion/3.2.0.1/Flipper-DoubleConversion.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_3_4_e.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/4/e/Flipper-Fmt/7.1.7/Flipper-Fmt.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_5_7_2.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/5/7/2/Flipper-Folly/2.6.10/Flipper-Folly.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_2_7_2.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/2/7/2/Flipper-Glog/0.5.0.5/Flipper-Glog.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_d_6_6.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/d/6/6/Flipper-PeerTalk/0.0.4/Flipper-PeerTalk.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_e_d_6.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/e/d/6/OpenSSL-Universal/3.3.3001/OpenSSL-Universal.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_a_9_3.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/9/3/SocketRocket/0.7.1/SocketRocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_7_6_3.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/7/6/3/fmt/7.1.3/fmt.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/4/e/Flipper-Fmt/7.1.7/Flipper-Fmt.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/7/6/3/fmt/6.2.1/fmt.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/9/3/SocketRocket/0.6.1/SocketRocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/5/7/2/Flipper-Folly/2.6.10/Flipper-Folly.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/3/c/Flipper-DoubleConversion/3.2.0.1/Flipper-DoubleConversion.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/2/7/2/Flipper-Glog/0.5.0.5/Flipper-Glog.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/2/7/2/Flipper-Glog/0.5.0.5/Flipper-Glog.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/3/c/Flipper-DoubleConversion/3.2.0.1/Flipper-DoubleConversion.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/9/3/SocketRocket/0.6.1/SocketRocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/9/3/SocketRocket/0.6.0/SocketRocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/e/a/Flipper/0.182.0/Flipper.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/a/e/a/Flipper/0.182.0/Flipper.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/5/7/2/Flipper-Folly/2.6.10/Flipper-Folly.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/e/d/6/OpenSSL-Universal/1.1.1100/OpenSSL-Universal.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/d/6/6/Flipper-PeerTalk/0.0.4/Flipper-PeerTalk.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_1_d_4.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.5/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/d/6/6/Flipper-PeerTalk/0.0.4/Flipper-PeerTalk.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: all_pods_versions_9_4_7.txt exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/9/4/7/YogaKit/2.0.1/YogaKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/5/6/4/Flipper-Boost-iOSX/1.76.0.1.11/Flipper-Boost-iOSX.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/5/6/4/Flipper-Boost-iOSX/1.76.0.1.11/Flipper-Boost-iOSX.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/0/9/9/libevent/2.1.12/libevent.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/3/2/5/FlipperKit/0.182.0/FlipperKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/0/9/9/libevent/2.1.12/libevent.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/9/4/7/YogaKit/1.18.1/YogaKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/9/4/7/YogaKit/1.18.0/YogaKit.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.5/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.4/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.3/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.2/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.1/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+  CDN: trunk Relative path: Specs/1/d/4/CocoaAsyncSocket/7.6.0/CocoaAsyncSocket.podspec.json exists! Returning local because checking is only performed in repo update
+
+Comparing resolved specification to the sandbox manifest
+  A CocoaAsyncSocket
+  A DoubleConversion
+  A FBLazyVector
+  A FBReactNativeSpec
+  A Flipper
+  A Flipper-Boost-iOSX
+  A Flipper-DoubleConversion
+  A Flipper-Fmt
+  A Flipper-Folly
+  A Flipper-Glog
+  A Flipper-PeerTalk
+  A FlipperKit
+  A OpenSSL-Universal
+  A RCT-Folly
+  A RCTRequired
+  A RCTTypeSafety
+  A RNCAsyncStorage
+  A RNPermissions
+  A React
+  A React-Codegen
+  A React-Core
+  A React-CoreModules
+  A React-NativeModulesApple
+  A React-RCTActionSheet
+  A React-RCTAnimation
+  A React-RCTAppDelegate
+  A React-RCTBlob
+  A React-RCTImage
+  A React-RCTLinking
+  A React-RCTNetwork
+  A React-RCTSettings
+  A React-RCTText
+  A React-RCTVibration
+  A React-callinvoker
+  A React-cxxreact
+  A React-debug
+  A React-hermes
+  A React-jsi
+  A React-jsiexecutor
+  A React-jsinspector
+  A React-logger
+  A React-perflogger
+  A React-rncore
+  A React-runtimeexecutor
+  A React-runtimescheduler
+  A React-utils
+  A ReactCommon
+  A SocketRocket
+  A Yoga
+  A YogaKit
+  A boost
+  A fmt
+  A glog
+  A hermes-engine
+  A libevent
+  A react-native-geolocation
+
+Downloading dependencies
+
+-> Installing CocoaAsyncSocket (7.6.5)
+  > Copying CocoaAsyncSocket from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/CocoaAsyncSocket/7.6.5-065fd` to `Pods/CocoaAsyncSocket`
+
+-> Installing DoubleConversion (1.1.6)
+  > Copying DoubleConversion from `/Users/lancepease/Library/Caches/CocoaPods/Pods/External/DoubleConversion/77f51e588bfe0e5c4fa6e9c580da62c6-5189b` to `Pods/DoubleConversion`
+
+-> Installing FBLazyVector (0.72.6)
+
+-> Installing FBReactNativeSpec (0.72.6)
+ > Running prepare command
+   $ /bin/bash -c  set -e mkdir -p ../../../../ios/build/generated/ios/./FBReactNativeSpec && touch -a ../../../../ios/build/generated/ios/./FBReactNativeSpec/FBReactNativeSpec.h ../../../../ios/build/generated/ios/./FBReactNativeSpec/FBReactNativeSpec-generated.mm
+
+-> Installing Flipper (0.182.0)
+  > Copying Flipper from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper/0.182.0-6edb7` to `Pods/Flipper`
+
+-> Installing Flipper-Boost-iOSX (1.76.0.1.11)
+  > Copying Flipper-Boost-iOSX from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper-Boost-iOSX/1.76.0.1.11-fd1e2` to `Pods/Flipper-Boost-iOSX`
+
+-> Installing Flipper-DoubleConversion (3.2.0.1)
+  > Copying Flipper-DoubleConversion from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper-DoubleConversion/3.2.0.1-2dc99` to `Pods/Flipper-DoubleConversion`
+
+-> Installing Flipper-Fmt (7.1.7)
+  > Copying Flipper-Fmt from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper-Fmt/7.1.7-60cbd` to `Pods/Flipper-Fmt`
+
+-> Installing Flipper-Folly (2.6.10)
+  > Copying Flipper-Folly from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper-Folly/2.6.10-58484` to `Pods/Flipper-Folly`
+
+-> Installing Flipper-Glog (0.5.0.5)
+  > Copying Flipper-Glog from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper-Glog/0.5.0.5-70c50` to `Pods/Flipper-Glog`
+
+-> Installing Flipper-PeerTalk (0.0.4)
+  > Copying Flipper-PeerTalk from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/Flipper-PeerTalk/0.0.4-116d8` to `Pods/Flipper-PeerTalk`
+
+-> Installing FlipperKit (0.182.0)
+  > Copying FlipperKit from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/FlipperKit/0.182.0-2efad` to `Pods/FlipperKit`
+
+-> Installing OpenSSL-Universal (1.1.1100)
+  > Copying OpenSSL-Universal from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/OpenSSL-Universal/1.1.1100-ebc35` to `Pods/OpenSSL-Universal`
+
+-> Installing RCT-Folly (2021.07.22.00)
+  > Copying RCT-Folly from `/Users/lancepease/Library/Caches/CocoaPods/Pods/External/RCT-Folly/b957572a7e21d425b31cc1761b00a672-8dc08` to `Pods/RCT-Folly`
+
+-> Installing RCTRequired (0.72.6)
+
+-> Installing RCTTypeSafety (0.72.6)
+
+-> Installing RNCAsyncStorage (1.24.0)
+
+-> Installing RNPermissions (3.10.1)
+
+-> Installing React (0.72.6)
+
+-> Installing React-Codegen (0.72.6)
+
+-> Installing React-Core (0.72.6)
+
+-> Installing React-CoreModules (0.72.6)
+
+-> Installing React-NativeModulesApple (0.72.6)
+
+-> Installing React-RCTActionSheet (0.72.6)
+
+-> Installing React-RCTAnimation (0.72.6)
+
+-> Installing React-RCTAppDelegate (0.72.6)
+
+-> Installing React-RCTBlob (0.72.6)
+
+-> Installing React-RCTImage (0.72.6)
+
+-> Installing React-RCTLinking (0.72.6)
+
+-> Installing React-RCTNetwork (0.72.6)
+
+-> Installing React-RCTSettings (0.72.6)
+
+-> Installing React-RCTText (0.72.6)
+
+-> Installing React-RCTVibration (0.72.6)
+
+-> Installing React-callinvoker (0.72.6)
+
+-> Installing React-cxxreact (0.72.6)
+
+-> Installing React-debug (0.72.6)
+
+-> Installing React-hermes (0.72.6)
+
+-> Installing React-jsi (0.72.6)
+
+-> Installing React-jsiexecutor (0.72.6)
+
+-> Installing React-jsinspector (0.72.6)
+
+-> Installing React-logger (0.72.6)
+
+-> Installing React-perflogger (0.72.6)
+
+-> Installing React-rncore (0.72.6)
+ > Running prepare command
+   $ /bin/bash -c  set -e mkdir -p ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore && touch -a ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/ComponentDescriptors.h ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/EventEmitters.cpp ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/EventEmitters.h ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/Props.cpp ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/Props.h ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/States.cpp ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/States.h ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/RCTComponentViewHelpers.h ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/ShadowNodes.cpp ../../../ios/../node_modules/react-native/ReactCommon/react/renderer/components/rncore/ShadowNodes.h
+
+-> Installing React-runtimeexecutor (0.72.6)
+
+-> Installing React-runtimescheduler (0.72.6)
+
+-> Installing React-utils (0.72.6)
+
+-> Installing ReactCommon (0.72.6)
+
+-> Installing SocketRocket (0.6.1)
+  > Copying SocketRocket from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/SocketRocket/0.6.1-f32cd` to `Pods/SocketRocket`
+
+-> Installing Yoga (1.14.0)
+
+-> Installing YogaKit (1.18.1)
+  > Copying YogaKit from `/Users/lancepease/Library/Caches/CocoaPods/Pods/Release/YogaKit/1.18.1-f7828` to `Pods/YogaKit`
+
+-> Installing boost (1.76.0)
+ > Http download
+   $ /usr/bin/curl -f -L -o /var/folders/vj/8fk38kqd6r57jr0w_0zv_67c0000gn/T/d20251224-4531-fd833m/file.tbz https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2 --create-dirs --netrc-optional --retry 2 -A 'CocoaPods/1.16.2 cocoapods-downloader/2.1'
+     % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                    Dload  Upload   Total   Spent    Left  Speed
+        0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0   100   138  100   138    0     0    323      0 --:--:-- --:--:-- --:--:--   324
+        0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0   100 11446  100 11446    0     0  12300      0 --:--:-- --:--:-- --:--:-- 29885
+
+[!] Error installing boost
+Verification checksum was incorrect, expected f0397ba6e982c4450f27bf32a2a83292aba035b827a5623a14636ea583318c41, got 1c162b579a423fa6876c6c5bc16d39ab4bc05e28898977a0a6af345f523f6357
+
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-downloader-2.1/lib/cocoapods-downloader/remote_file.rb:146:in 'Pod::Downloader::RemoteFile#compare_hash'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-downloader-2.1/lib/cocoapods-downloader/remote_file.rb:162:in 'Pod::Downloader::RemoteFile#verify_sha256_hash'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-downloader-2.1/lib/cocoapods-downloader/remote_file.rb:169:in 'Pod::Downloader::RemoteFile#verify_checksum'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-downloader-2.1/lib/cocoapods-downloader/remote_file.rb:26:in 'Pod::Downloader::RemoteFile#download!'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-downloader-2.1/lib/cocoapods-downloader/base.rb:83:in 'block in Pod::Downloader::Base#download'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader.rb:159:in 'block in ui_action'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/user_interface.rb:64:in 'Pod::UserInterface.section'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader.rb:158:in 'ui_action'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-downloader-2.1/lib/cocoapods-downloader/base.rb:81:in 'Pod::Downloader::Base#download'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader.rb:110:in 'Pod::Downloader.download_source'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader.rb:77:in 'Pod::Downloader.download_request'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader/cache.rb:256:in 'Pod::Downloader::Cache#download'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader/cache.rb:239:in 'block in Pod::Downloader::Cache#uncached_pod'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader/cache.rb:266:in 'Pod::Downloader::Cache#in_tmpdir'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader/cache.rb:238:in 'Pod::Downloader::Cache#uncached_pod'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader/cache.rb:33:in 'Pod::Downloader::Cache#download_pod'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/downloader.rb:42:in 'Pod::Downloader.download'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer/pod_source_downloader.rb:69:in 'Pod::Installer::PodSourceDownloader#download!'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer/pod_source_installer.rb:117:in 'Pod::Installer::PodSourceInstaller#download_source'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer/pod_source_installer.rb:67:in 'Pod::Installer::PodSourceInstaller#install!'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:621:in 'Pod::Installer#install_source_of_pod'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:539:in 'block (2 levels) in Pod::Installer#install_pod_sources'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/user_interface.rb:86:in 'Pod::UserInterface.titled_section'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:538:in 'block in Pod::Installer#install_pod_sources'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:535:in 'Array#each'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:535:in 'Pod::Installer#install_pod_sources'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:258:in 'block in Pod::Installer#download_dependencies'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/user_interface.rb:64:in 'Pod::UserInterface.section'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:257:in 'Pod::Installer#download_dependencies'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/installer.rb:163:in 'Pod::Installer#install!'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/command/install.rb:52:in 'Pod::Command::Install#run'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/claide-1.1.0/lib/claide/command.rb:334:in 'CLAide::Command.run'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/lib/cocoapods/command.rb:52:in 'Pod::Command.run'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems/cocoapods-1.16.2/bin/pod:55:in '<top (required)>'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/bin/pod:25:in 'Kernel#load'
+/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/bin/pod:25:in '<main>'
