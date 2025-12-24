@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [currentEncounter, setCurrentEncounter] = useState(null);
   const [showEncounterModal, setShowEncounterModal] = useState(false);
+  const [debugMode, setDebugMode] = useState(__DEV__); // Enable by default in dev mode
 
   // Load player data on mount
   useEffect(() => {
@@ -137,6 +138,91 @@ export default function HomeScreen() {
     setCurrentEncounter(null);
   };
 
+  // Debug: Force an encounter
+  const forceEncounter = () => {
+    const location = currentLocation || {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      timestamp: Date.now(),
+    };
+    const encounter = EncounterService.forceEncounter(
+      location,
+      player?.level || 1
+    );
+    setCurrentEncounter(encounter);
+    setShowEncounterModal(true);
+  };
+
+  // Debug: Simulate movement (add fake distance)
+  const simulateMovement = () => {
+    const fakeDistance = 100; // meters
+    const distanceData = {
+      incremental: fakeDistance,
+      total: currentDistance + fakeDistance,
+    };
+    
+    // Update distance
+    setCurrentDistance(distanceData.total);
+    
+    // Update player distance
+    if (player) {
+      const updatedPlayer = new Player(player.toJSON());
+      updatedPlayer.addDistance(fakeDistance);
+      setPlayer(updatedPlayer);
+      savePlayerData(updatedPlayer);
+    }
+
+    // Check for encounters
+    const location = currentLocation || {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      timestamp: Date.now(),
+    };
+    
+    const encounter = EncounterService.processDistanceUpdate(
+      distanceData,
+      location,
+      player?.level || 1
+    );
+
+    if (encounter) {
+      setCurrentEncounter(encounter);
+      setShowEncounterModal(true);
+    } else {
+      Alert.alert(
+        'Movement Simulated',
+        `Added ${fakeDistance}m. Distance: ${distanceData.total.toFixed(0)}m`
+      );
+    }
+  };
+
+  // Debug: Simulate location update
+  const simulateLocationUpdate = () => {
+    const baseLat = currentLocation?.latitude || 37.7749;
+    const baseLon = currentLocation?.longitude || -122.4194;
+    
+    // Move slightly (simulate walking ~10 meters)
+    const newLocation = {
+      latitude: baseLat + (Math.random() - 0.5) * 0.0001, // ~10m variation
+      longitude: baseLon + (Math.random() - 0.5) * 0.0001,
+      accuracy: 10,
+      altitude: 0,
+      heading: Math.random() * 360,
+      speed: 1.5, // ~5.4 km/h (walking speed in m/s)
+      timestamp: Date.now(),
+    };
+    
+    setCurrentLocation(newLocation);
+    handleLocationUpdate(newLocation);
+    
+    // Also simulate a small distance update
+    const distanceData = {
+      incremental: 10,
+      total: currentDistance + 10,
+    };
+    handleDistanceUpdate(distanceData);
+  };
+
   if (!player) {
     return (
       <SafeAreaView style={styles.container}>
@@ -197,6 +283,52 @@ export default function HomeScreen() {
           <Text style={styles.infoText}>
             Walk around to trigger random creature encounters!
           </Text>
+
+          {/* Debug Mode Controls */}
+          {debugMode && (
+            <View style={styles.debugContainer}>
+              <Text style={styles.debugTitle}>🐛 Debug Mode</Text>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={simulateLocationUpdate}
+              >
+                <Text style={styles.debugButtonText}>
+                  Simulate Location Update
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.debugButton}
+                onPress={simulateMovement}
+              >
+                <Text style={styles.debugButtonText}>
+                  Simulate 100m Movement
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.debugButton, styles.forceEncounterButton]}
+                onPress={forceEncounter}
+              >
+                <Text style={styles.debugButtonText}>
+                  Force Encounter
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.debugToggle}
+                onPress={() => setDebugMode(false)}
+              >
+                <Text style={styles.debugToggleText}>Hide Debug</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!debugMode && (
+            <TouchableOpacity
+              style={styles.debugToggle}
+              onPress={() => setDebugMode(true)}
+            >
+              <Text style={styles.debugToggleText}>Show Debug Mode</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -293,6 +425,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  debugContainer: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  debugTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#856404',
+  },
+  debugButton: {
+    padding: 12,
+    backgroundColor: '#ffc107',
+    borderRadius: 6,
+    marginVertical: 4,
+    alignItems: 'center',
+  },
+  forceEncounterButton: {
+    backgroundColor: '#ff9800',
+    marginTop: 8,
+  },
+  debugButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  debugToggle: {
+    padding: 8,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  debugToggleText: {
+    color: '#999',
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });
 

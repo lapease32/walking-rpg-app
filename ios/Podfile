@@ -17,7 +17,8 @@ prepare_react_native_project!
 #   dependencies: {
 #     ...(process.env.NO_FLIPPER ? { 'react-native-flipper': { platforms: { ios: null } } } : {}),
 # ```
-flipper_config = ENV['NO_FLIPPER'] == "1" ? FlipperConfiguration.disabled : FlipperConfiguration.enabled
+# Disable Flipper to avoid compilation errors - it's only needed for debugging
+flipper_config = FlipperConfiguration.disabled
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
@@ -74,5 +75,20 @@ target 'WalkingRPGTemp' do
       :mac_catalyst_enabled => false
     )
     __apply_Xcode_12_5_M1_post_install_workaround(installer)
+    
+    # Fix FlipperKit compilation errors
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        # Suppress specific warnings that cause build failures in FlipperKit
+        if target.name == 'FlipperKit'
+          config.build_settings['GCC_WARN_64_TO_32_BIT_CONVERSION'] = 'NO'
+          config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
+          config.build_settings['WARNING_CFLAGS'] << '-Wno-shorten-64-to-32'
+          config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'
+        end
+      end
+    end
   end
 end
