@@ -126,10 +126,72 @@ export default function HomeScreen() {
     }
   };
 
-  // Handle encounter fight (placeholder)
+  // Handle encounter fight
   const handleFight = (): void => {
-    Alert.alert('Combat System', 'Combat system coming soon!');
-    // TODO: Implement combat system
+    if (!currentEncounter || !player) {
+      return;
+    }
+
+    const creature = currentEncounter.creature;
+    
+    // Check if creature is already defeated
+    if (creature.isDefeated()) {
+      handleVictory();
+      return;
+    }
+
+    // Calculate damage: player attack - creature defense (minimum 1)
+    const damage = player.calculateDamage(creature.defense);
+    
+    // Apply damage to creature
+    creature.takeDamage(damage);
+
+    // Update encounter with damaged creature
+    const updatedEncounter = new Encounter({
+      creature: creature,
+      location: currentEncounter.location,
+      timestamp: currentEncounter.timestamp,
+      playerLevel: currentEncounter.playerLevel,
+      status: currentEncounter.status,
+    });
+    
+    setCurrentEncounter(updatedEncounter);
+
+    // Check if creature is defeated
+    if (creature.isDefeated()) {
+      handleVictory();
+    }
+  };
+
+  // Handle victory when creature is defeated
+  const handleVictory = (): void => {
+    if (!currentEncounter || !player) {
+      return;
+    }
+
+    const updatedPlayer = new Player(player.toJSON());
+    updatedPlayer.defeatCreature();
+    updatedPlayer.incrementEncounters();
+    
+    const expGain = currentEncounter.creature.getExperienceReward();
+    const levelsGained = updatedPlayer.addExperience(expGain);
+
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
+    setShowEncounterModal(false);
+    setCurrentEncounter(null);
+
+    if (levelsGained > 0) {
+      Alert.alert(
+        'Victory & Level Up!',
+        `You defeated ${currentEncounter.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!`
+      );
+    } else {
+      Alert.alert(
+        'Victory!',
+        `You defeated ${currentEncounter.creature.name} and gained ${expGain} XP!`
+      );
+    }
   };
 
   // Handle encounter flee
@@ -347,6 +409,7 @@ export default function HomeScreen() {
       <EncounterModal
         encounter={currentEncounter}
         visible={showEncounterModal}
+        playerAttack={player?.attack}
         onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}

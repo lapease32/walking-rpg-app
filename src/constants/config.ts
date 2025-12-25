@@ -31,6 +31,14 @@ export const PLAYER_CONFIG = {
   STARTING_LEVEL: 1,
   STARTING_EXPERIENCE: 0,
 
+  // Starting combat stats
+  STARTING_ATTACK: 20,
+  STARTING_DEFENSE: 5,
+
+  // Stats increase per level
+  ATTACK_PER_LEVEL: 3,
+  DEFENSE_PER_LEVEL: 2,
+
   // Experience calculation
   BASE_EXPERIENCE_MULTIPLIER: 100,
   EXPERIENCE_POWER: 1.5,
