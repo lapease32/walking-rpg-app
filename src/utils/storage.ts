@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PlayerData } from '../models/Player';
 
 /**
  * Storage utilities for persisting player data
@@ -6,12 +7,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEYS = {
   PLAYER_DATA: '@walking_rpg:player_data',
   SETTINGS: '@walking_rpg:settings',
-};
+} as const;
+
+export interface AppSettings {
+  [key: string]: any;
+}
 
 /**
  * Save player data to local storage
  */
-export async function savePlayerData(player) {
+export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<boolean> {
   try {
     const jsonData = JSON.stringify(player.toJSON());
     await AsyncStorage.setItem(STORAGE_KEYS.PLAYER_DATA, jsonData);
@@ -25,11 +30,11 @@ export async function savePlayerData(player) {
 /**
  * Load player data from local storage
  */
-export async function loadPlayerData() {
+export async function loadPlayerData(): Promise<PlayerData | null> {
   try {
     const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.PLAYER_DATA);
     if (jsonData) {
-      return JSON.parse(jsonData);
+      return JSON.parse(jsonData) as PlayerData;
     }
     return null;
   } catch (error) {
@@ -41,7 +46,7 @@ export async function loadPlayerData() {
 /**
  * Save app settings
  */
-export async function saveSettings(settings) {
+export async function saveSettings(settings: AppSettings): Promise<boolean> {
   try {
     const jsonData = JSON.stringify(settings);
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, jsonData);
@@ -55,11 +60,11 @@ export async function saveSettings(settings) {
 /**
  * Load app settings
  */
-export async function loadSettings() {
+export async function loadSettings(): Promise<AppSettings | null> {
   try {
     const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (jsonData) {
-      return JSON.parse(jsonData);
+      return JSON.parse(jsonData) as AppSettings;
     }
     return null;
   } catch (error) {
@@ -71,7 +76,7 @@ export async function loadSettings() {
 /**
  * Clear all app data
  */
-export async function clearAllData() {
+export async function clearAllData(): Promise<boolean> {
   try {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.PLAYER_DATA,

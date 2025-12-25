@@ -7,17 +7,33 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { Encounter } from '../models/Encounter';
+import { Rarity } from '../models/Creature';
+
+interface EncounterModalProps {
+  encounter: Encounter | null;
+  visible: boolean;
+  onCatch: () => void;
+  onFight: () => void;
+  onFlee: () => void;
+}
 
 /**
  * Modal component for displaying creature encounters
  */
-export default function EncounterModal({ encounter, visible, onCatch, onFight, onFlee }) {
+export default function EncounterModal({
+  encounter,
+  visible,
+  onCatch,
+  onFight,
+  onFlee,
+}: EncounterModalProps) {
   if (!encounter || !encounter.creature) {
     return null;
   }
 
   const creature = encounter.creature;
-  const rarityColors = {
+  const rarityColors: Record<Rarity, string> = {
     common: '#9E9E9E',
     uncommon: '#4CAF50',
     rare: '#2196F3',
@@ -40,7 +56,9 @@ export default function EncounterModal({ encounter, visible, onCatch, onFight, o
             <Text style={styles.title}>Wild Creature Encountered!</Text>
 
             <View style={[styles.creatureCard, { borderColor: rarityColor }]}>
-              <View style={[styles.rarityBadge, { backgroundColor: rarityColor }]}>
+              <View
+                style={[styles.rarityBadge, { backgroundColor: rarityColor }]}
+              >
                 <Text style={styles.rarityText}>
                   {creature.rarity.toUpperCase()}
                 </Text>

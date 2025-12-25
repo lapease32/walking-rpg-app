@@ -1,10 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Player } from '../models/Player';
+
+interface PlayerStatsProps {
+  player: Player | null;
+}
 
 /**
  * Component to display player statistics
  */
-export default function PlayerStats({ player }) {
+export default function PlayerStats({ player }: PlayerStatsProps) {
   if (!player) {
     return null;
   }

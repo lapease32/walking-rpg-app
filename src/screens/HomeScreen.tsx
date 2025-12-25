@@ -8,9 +8,11 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import LocationService from '../services/LocationService';
+import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import { Player } from '../models/Player';
+import { Encounter } from '../models/Encounter';
+import { Location } from '../models/Encounter';
 import { savePlayerData, loadPlayerData } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
@@ -20,20 +22,20 @@ import EncounterModal from '../components/EncounterModal';
  * Main home screen with location tracking and encounter handling
  */
 export default function HomeScreen() {
-  const [player, setPlayer] = useState(null);
-  const [isTracking, setIsTracking] = useState(false);
-  const [currentDistance, setCurrentDistance] = useState(0);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [currentEncounter, setCurrentEncounter] = useState(null);
-  const [showEncounterModal, setShowEncounterModal] = useState(false);
-  const [debugMode, setDebugMode] = useState(__DEV__); // Enable by default in dev mode
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [isTracking, setIsTracking] = useState<boolean>(false);
+  const [currentDistance, setCurrentDistance] = useState<number>(0);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
+  const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
+  const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
 
   // Load player data on mount
   useEffect(() => {
     initializePlayer();
   }, []);
 
-  const initializePlayer = async () => {
+  const initializePlayer = async (): Promise<void> => {
     try {
       const savedData = await loadPlayerData();
       if (savedData) {
@@ -51,12 +53,12 @@ export default function HomeScreen() {
   };
 
   // Handle location updates
-  const handleLocationUpdate = (location) => {
+  const handleLocationUpdate = (location: LocationData): void => {
     setCurrentLocation(location);
   };
 
   // Handle distance updates
-  const handleDistanceUpdate = (distanceData) => {
+  const handleDistanceUpdate = (distanceData: DistanceData): void => {
     const { incremental, total } = distanceData;
     setCurrentDistance(total);
 
@@ -70,9 +72,13 @@ export default function HomeScreen() {
 
     // Check for encounters
     if (currentLocation) {
+      const location: Location = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+      };
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
-        currentLocation,
+        location,
         player?.level || 1
       );
 
@@ -84,19 +90,19 @@ export default function HomeScreen() {
   };
 
   // Start tracking
-  const startTracking = () => {
+  const startTracking = (): void => {
     LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
     setIsTracking(true);
   };
 
   // Stop tracking
-  const stopTracking = () => {
+  const stopTracking = (): void => {
     LocationService.stopTracking();
     setIsTracking(false);
   };
 
   // Handle encounter catch
-  const handleCatch = () => {
+  const handleCatch = (): void => {
     if (currentEncounter && player) {
       const updatedPlayer = new Player(player.toJSON());
       updatedPlayer.catchCreature();
@@ -121,13 +127,13 @@ export default function HomeScreen() {
   };
 
   // Handle encounter fight (placeholder)
-  const handleFight = () => {
+  const handleFight = (): void => {
     Alert.alert('Combat System', 'Combat system coming soon!');
     // TODO: Implement combat system
   };
 
   // Handle encounter flee
-  const handleFlee = () => {
+  const handleFlee = (): void => {
     if (currentEncounter && player) {
       const updatedPlayer = new Player(player.toJSON());
       updatedPlayer.incrementEncounters();
@@ -139,12 +145,16 @@ export default function HomeScreen() {
   };
 
   // Debug: Force an encounter
-  const forceEncounter = () => {
-    const location = currentLocation || {
-      latitude: 37.7749,
-      longitude: -122.4194,
-      timestamp: Date.now(),
-    };
+  const forceEncounter = (): void => {
+    const location: Location = currentLocation
+      ? {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        }
+      : {
+          latitude: 37.7749,
+          longitude: -122.4194,
+        };
     const encounter = EncounterService.forceEncounter(
       location,
       player?.level || 1
@@ -154,16 +164,16 @@ export default function HomeScreen() {
   };
 
   // Debug: Simulate movement (add fake distance)
-  const simulateMovement = () => {
+  const simulateMovement = (): void => {
     const fakeDistance = 100; // meters
-    const distanceData = {
+    const distanceData: DistanceData = {
       incremental: fakeDistance,
       total: currentDistance + fakeDistance,
     };
-    
+
     // Update distance
     setCurrentDistance(distanceData.total);
-    
+
     // Update player distance
     if (player) {
       const updatedPlayer = new Player(player.toJSON());
@@ -173,12 +183,16 @@ export default function HomeScreen() {
     }
 
     // Check for encounters
-    const location = currentLocation || {
-      latitude: 37.7749,
-      longitude: -122.4194,
-      timestamp: Date.now(),
-    };
-    
+    const location: Location = currentLocation
+      ? {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        }
+      : {
+          latitude: 37.7749,
+          longitude: -122.4194,
+        };
+
     const encounter = EncounterService.processDistanceUpdate(
       distanceData,
       location,
@@ -197,12 +211,12 @@ export default function HomeScreen() {
   };
 
   // Debug: Simulate location update
-  const simulateLocationUpdate = () => {
+  const simulateLocationUpdate = (): void => {
     const baseLat = currentLocation?.latitude || 37.7749;
     const baseLon = currentLocation?.longitude || -122.4194;
-    
+
     // Move slightly (simulate walking ~10 meters)
-    const newLocation = {
+    const newLocation: LocationData = {
       latitude: baseLat + (Math.random() - 0.5) * 0.0001, // ~10m variation
       longitude: baseLon + (Math.random() - 0.5) * 0.0001,
       accuracy: 10,
@@ -211,12 +225,12 @@ export default function HomeScreen() {
       speed: 1.5, // ~5.4 km/h (walking speed in m/s)
       timestamp: Date.now(),
     };
-    
+
     setCurrentLocation(newLocation);
     handleLocationUpdate(newLocation);
-    
+
     // Also simulate a small distance update
-    const distanceData = {
+    const distanceData: DistanceData = {
       incremental: 10,
       total: currentDistance + 10,
     };
@@ -308,9 +322,7 @@ export default function HomeScreen() {
                 style={[styles.debugButton, styles.forceEncounterButton]}
                 onPress={forceEncounter}
               >
-                <Text style={styles.debugButtonText}>
-                  Force Encounter
-                </Text>
+                <Text style={styles.debugButtonText}>Force Encounter</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.debugToggle}

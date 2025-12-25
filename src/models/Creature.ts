@@ -2,7 +2,51 @@
  * Creature Model
  * Represents a creature that can be encountered in the game
  */
+
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface CreatureTemplate {
+  id: string;
+  name: string;
+  type: string;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  speed: number;
+  rarity: Rarity;
+  description?: string;
+  encounterRate: number;
+}
+
+export interface CreatureConstructorParams {
+  id: string;
+  name: string;
+  type: string;
+  level?: number;
+  hp?: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  speed: number;
+  rarity?: Rarity;
+  description?: string;
+  encounterRate?: number;
+}
+
 export class Creature {
+  id: string;
+  name: string;
+  type: string;
+  level: number;
+  hp: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  speed: number;
+  rarity: Rarity;
+  description: string;
+  encounterRate: number;
+
   constructor({
     id,
     name,
@@ -13,15 +57,15 @@ export class Creature {
     attack,
     defense,
     speed,
-    rarity = 'common', // common, uncommon, rare, epic, legendary
+    rarity = 'common',
     description,
-    encounterRate = 0.5, // Base probability (0-1)
-  }) {
+    encounterRate = 0.5,
+  }: CreatureConstructorParams) {
     this.id = id;
     this.name = name;
     this.type = type;
     this.level = level;
-    this.hp = hp || maxHp;
+    this.hp = hp ?? maxHp;
     this.maxHp = maxHp;
     this.attack = attack;
     this.defense = defense;
@@ -34,8 +78,8 @@ export class Creature {
   /**
    * Get rarity multiplier for rewards
    */
-  getRarityMultiplier() {
-    const multipliers = {
+  getRarityMultiplier(): number {
+    const multipliers: Record<Rarity, number> = {
       common: 1.0,
       uncommon: 1.5,
       rare: 2.0,
@@ -48,7 +92,7 @@ export class Creature {
   /**
    * Calculate experience reward based on creature stats
    */
-  getExperienceReward() {
+  getExperienceReward(): number {
     const baseExp = 10 * this.level;
     return Math.floor(baseExp * this.getRarityMultiplier());
   }
@@ -56,14 +100,14 @@ export class Creature {
   /**
    * Check if creature is defeated
    */
-  isDefeated() {
+  isDefeated(): boolean {
     return this.hp <= 0;
   }
 
   /**
    * Take damage
    */
-  takeDamage(amount) {
+  takeDamage(amount: number): number {
     const actualDamage = Math.max(0, amount - this.defense);
     this.hp = Math.max(0, this.hp - actualDamage);
     return actualDamage;
@@ -74,7 +118,7 @@ export class Creature {
  * Predefined creature templates
  * You can expand this with more creatures
  */
-export const CREATURE_TEMPLATES = [
+export const CREATURE_TEMPLATES: CreatureTemplate[] = [
   {
     id: 'forest_sprite',
     name: 'Forest Sprite',
@@ -140,14 +184,17 @@ export const CREATURE_TEMPLATES = [
 /**
  * Create a creature instance from a template with random level variation
  */
-export function createCreatureFromTemplate(template, playerLevel = 1) {
+export function createCreatureFromTemplate(
+  template: CreatureTemplate,
+  playerLevel: number = 1
+): Creature {
   // Level variation: ±2 levels from player level, minimum 1
   const levelVariation = Math.floor(Math.random() * 5) - 2;
   const level = Math.max(1, playerLevel + levelVariation);
-  
+
   // Scale stats based on level
   const levelMultiplier = 1 + (level - 1) * 0.1;
-  
+
   return new Creature({
     ...template,
     level,
