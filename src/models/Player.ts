@@ -167,6 +167,27 @@ export class Player {
   }
 
   /**
+   * Force level up (debug function)
+   * Directly increments level and adjusts stats without requiring XP
+   */
+  forceLevelUp(): void {
+    this.level += 1;
+    this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
+    this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+  }
+
+  /**
+   * Reset level to 1 (debug function)
+   * Resets level, experience, and recalculates stats
+   */
+  resetLevel(): void {
+    this.level = 1;
+    this.experience = 0;
+    this.attack = PLAYER_CONFIG.STARTING_ATTACK;
+    this.defense = PLAYER_CONFIG.STARTING_DEFENSE;
+  }
+
+  /**
    * Get player stats as an object
    */
   getStats(): PlayerStats {

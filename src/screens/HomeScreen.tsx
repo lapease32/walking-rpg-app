@@ -318,6 +318,72 @@ export default function HomeScreen() {
     handleDistanceUpdate(distanceData);
   };
 
+  // Debug: Force level up
+  const forceLevelUp = (): void => {
+    if (!player) {
+      return;
+    }
+
+    const updatedPlayer = new Player(player.toJSON());
+    updatedPlayer.forceLevelUp();
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
+    Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
+  };
+
+  // Debug: Add XP manually (with preset amounts)
+  const addManualXP = (amount: number): void => {
+    if (!player) {
+      return;
+    }
+
+    const updatedPlayer = new Player(player.toJSON());
+    const levelsGained = updatedPlayer.addExperience(amount);
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
+
+    if (levelsGained > 0) {
+      Alert.alert(
+        'XP Added & Level Up!',
+        `Added ${amount} XP!\nGained ${levelsGained} level(s)!\nYou are now level ${updatedPlayer.level}!`
+      );
+    } else {
+      Alert.alert(
+        'XP Added',
+        `Added ${amount} XP!\nCurrent XP: ${updatedPlayer.experience}/${updatedPlayer.getExperienceForNextLevel()}`
+      );
+    }
+  };
+
+  // Debug: Reset level
+  const resetLevel = (): void => {
+    if (!player) {
+      return;
+    }
+
+    Alert.alert(
+      'Reset Level',
+      'Are you sure you want to reset to level 1? This will reset your level, XP, and combat stats.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            const updatedPlayer = new Player(player.toJSON());
+            updatedPlayer.resetLevel();
+            setPlayer(updatedPlayer);
+            savePlayerData(updatedPlayer);
+            Alert.alert('Level Reset', 'You have been reset to level 1.');
+          },
+        },
+      ]
+    );
+  };
+
   if (!player) {
     return (
       <SafeAreaView style={styles.container}>
@@ -404,6 +470,39 @@ export default function HomeScreen() {
                 onPress={forceEncounter}
               >
                 <Text style={styles.debugButtonText}>Force Encounter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.debugButton, styles.levelControlButton]}
+                onPress={forceLevelUp}
+              >
+                <Text style={styles.debugButtonText}>Force Level Up</Text>
+              </TouchableOpacity>
+              <View style={styles.xpButtonContainer}>
+                <Text style={styles.xpButtonLabel}>Add XP:</Text>
+                <TouchableOpacity
+                  style={[styles.debugButton, styles.xpButton]}
+                  onPress={() => addManualXP(100)}
+                >
+                  <Text style={styles.debugButtonText}>+100 XP</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.debugButton, styles.xpButton]}
+                  onPress={() => addManualXP(500)}
+                >
+                  <Text style={styles.debugButtonText}>+500 XP</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.debugButton, styles.xpButton]}
+                  onPress={() => addManualXP(1000)}
+                >
+                  <Text style={styles.debugButtonText}>+1000 XP</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.debugButton, styles.resetButton]}
+                onPress={resetLevel}
+              >
+                <Text style={styles.debugButtonText}>Reset Level</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.debugToggle}
@@ -544,6 +643,28 @@ const styles = StyleSheet.create({
   forceEncounterButton: {
     backgroundColor: '#ff9800',
     marginTop: 8,
+  },
+  levelControlButton: {
+    backgroundColor: '#4CAF50',
+    marginTop: 8,
+  },
+  resetButton: {
+    backgroundColor: '#F44336',
+    marginTop: 8,
+  },
+  xpButtonContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  xpButtonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#856404',
+    marginBottom: 8,
+  },
+  xpButton: {
+    backgroundColor: '#2196F3',
+    marginVertical: 2,
   },
   debugButtonText: {
     color: '#000',
