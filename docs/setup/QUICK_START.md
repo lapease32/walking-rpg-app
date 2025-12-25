@@ -59,52 +59,65 @@ npm run android
 ## Key Files to Customize
 
 ### Add More Creatures
-Edit `src/models/Creature.js`:
+Edit `src/models/Creature.ts`:
 - Add to `CREATURE_TEMPLATES` array
 - Define stats, rarity, description
+- TypeScript types ensure type safety
 
 ### Adjust Encounter Rates
-Edit `src/constants/config.js`:
+Edit `src/constants/config.ts`:
 - `MIN_ENCOUNTER_DISTANCE`: Minimum meters before encounter
 - `ENCOUNTER_CHANCE_PER_METER`: Probability per meter
 - `MIN_TIME_BETWEEN_ENCOUNTERS`: Cooldown in milliseconds
 
 ### Modify Player Progression
-Edit `src/models/Player.js`:
+Edit `src/models/Player.ts`:
 - `getExperienceForNextLevel()`: Change leveling formula
 - Adjust experience rewards in `Creature.getExperienceReward()`
+- Modify combat stats scaling (`ATTACK_PER_LEVEL`, `DEFENSE_PER_LEVEL`)
 
 ## Common Tasks
 
 ### Force an Encounter (Testing)
-In `HomeScreen.js`, add:
-```javascript
-const testEncounter = () => {
-  const location = LocationService.getCurrentLocationCached();
-  const encounter = EncounterService.forceEncounter(location, player.level);
+In `src/screens/HomeScreen.tsx`, the `forceEncounter` function is already available in debug mode:
+```typescript
+const forceEncounter = (): void => {
+  const location: Location = currentLocation
+    ? {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+      }
+    : {
+        latitude: 37.7749,
+        longitude: -122.4194,
+      };
+  const encounter = EncounterService.forceEncounter(
+    location,
+    player?.level || 1
+  );
   setCurrentEncounter(encounter);
   setShowEncounterModal(true);
 };
 ```
 
 ### Change Distance Units
-Edit `src/components/DistanceDisplay.js`:
-```javascript
+Edit `src/components/DistanceDisplay.tsx`:
+```typescript
 <DistanceDisplay distance={currentDistance} unit="mi" /> // miles
 ```
 
 ### Adjust GPS Accuracy
-Edit `src/services/LocationService.js`:
+Edit `src/services/LocationService.ts`:
 - `distanceFilter`: Lower = more updates (battery drain)
 - `enableHighAccuracy`: False = better battery
 
 ## Next Features to Build
 
-1. **Combat System** - Turn-based battles
-2. **Creature Collection** - Inventory/caught creatures list
-3. **Location Biomes** - Different creatures by area type
-4. **Map View** - Visual map with location markers
-5. **Daily Quests** - Goals and challenges
+1. **Creature Collection** - Inventory/caught creatures list (combat system already implemented)
+2. **Location Biomes** - Different creatures by area type
+3. **Map View** - Visual map with location markers
+4. **Daily Quests** - Goals and challenges
+5. **Enhanced Combat** - Creature attacks and special abilities
 
 ## Troubleshooting
 

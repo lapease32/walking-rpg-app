@@ -44,7 +44,7 @@ This document explains the architecture and design decisions for the Walking RPG
 
 ## Core Components
 
-### 1. Location Service (`LocationService.js`)
+### 1. Location Service (`LocationService.ts`)
 
 **Purpose**: Handles all GPS-related functionality
 
@@ -53,6 +53,7 @@ This document explains the architecture and design decisions for the Walking RPG
 - Distance calculation using Haversine formula
 - Movement speed detection
 - Distance filtering to avoid GPS jumps
+- TypeScript interfaces for type safety
 
 **How It Works**:
 1. Starts watching position with configurable accuracy
@@ -65,7 +66,7 @@ This document explains the architecture and design decisions for the Walking RPG
 - `enableHighAccuracy`: True for precise tracking
 - Filters GPS jumps > 1000m
 
-### 2. Encounter Service (`EncounterService.js`)
+### 2. Encounter Service (`EncounterService.ts`)
 
 **Purpose**: Manages random encounter generation
 
@@ -74,6 +75,7 @@ This document explains the architecture and design decisions for the Walking RPG
 - Probability calculation
 - Time-based cooldowns
 - Creature selection from templates
+- TypeScript types for encounter data
 
 **How It Works**:
 1. Tracks distance since last encounter
@@ -90,26 +92,31 @@ IF distance_since_last >= 50m AND time_since_last >= 30s:
         generate_encounter()
 ```
 
-### 3. Data Models
+### 3. Data Models (TypeScript Classes)
 
-#### Player (`Player.js`)
-- Tracks level, experience, statistics
+#### Player (`Player.ts`)
+- TypeScript class with typed interfaces
+- Tracks level, experience, attack, defense, statistics
 - Calculates experience needed for level ups
-- Manages player progression
+- Manages player progression and combat stats
 - Serializable for local storage
+- Combat damage calculation methods
 
-#### Creature (`Creature.js`)
+#### Creature (`Creature.ts`)
+- TypeScript class with typed interfaces
 - Defines creature properties (HP, attack, defense, speed)
-- Rarity system (common to legendary)
+- Rarity system (common to legendary) with TypeScript union types
 - Level-based stat scaling
 - Experience reward calculation
+- Damage handling methods
 
-#### Encounter (`Encounter.js`)
+#### Encounter (`Encounter.ts`)
+- TypeScript class with typed interfaces
 - Represents an active encounter
 - Links creature to location
 - Manages encounter state (active, caught, defeated, fled)
 
-### 4. Storage System (`storage.js`)
+### 4. Storage System (`storage.ts`)
 
 **Purpose**: Persist player data locally
 

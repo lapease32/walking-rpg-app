@@ -12,28 +12,30 @@ Similar to Pokémon GO, this app:
 
 ## Architecture
 
+Built with **TypeScript** and **React Native** for type safety and better developer experience.
+
 ### Core Components
 
-1. **Location Tracking Service** (`src/services/LocationService.js`)
+1. **Location Tracking Service** (`src/services/LocationService.ts`)
    - Continuously tracks user's GPS position
-   - Calculates distance traveled
+   - Calculates distance traveled using Haversine formula
    - Monitors movement speed
 
-2. **Encounter System** (`src/services/EncounterService.js`)
+2. **Encounter System** (`src/services/EncounterService.ts`)
    - Generates random encounters based on distance thresholds
    - Manages encounter probability and timing
    - Handles creature selection logic
 
-3. **Data Models**
-   - `Creature`: Defines creature types, stats, and properties
-   - `Encounter`: Represents an active encounter with a creature
-   - `Player`: Tracks player stats, level, inventory
+3. **Data Models** (TypeScript classes)
+   - `Creature` (`src/models/Creature.ts`): Defines creature types, stats, rarity, and properties
+   - `Encounter` (`src/models/Encounter.ts`): Represents an active encounter with a creature
+   - `Player` (`src/models/Player.ts`): Tracks player stats, level, experience, attack, defense, and inventory
 
-4. **UI Components**
-   - Map view showing current location
-   - Encounter screen for creature interactions
-   - Stats/profile screen
-   - Main navigation
+4. **UI Components** (React Native with TypeScript)
+   - `HomeScreen` (`src/screens/HomeScreen.tsx`): Main screen with location tracking and encounter handling
+   - `EncounterModal` (`src/components/EncounterModal.tsx`): Modal for creature encounters
+   - `PlayerStats` (`src/components/PlayerStats.tsx`): Displays player statistics
+   - `DistanceDisplay` (`src/components/DistanceDisplay.tsx`): Shows distance traveled
 
 ## Documentation
 
@@ -48,6 +50,7 @@ Similar to Pokémon GO, this app:
 ### Prerequisites
 
 - Node.js (v16 or higher)
+- TypeScript knowledge (project is fully typed)
 - React Native development environment
 - iOS: Xcode (for iOS simulator/device)
 - Android: Android Studio (for Android emulator/device)
@@ -78,34 +81,52 @@ For detailed setup instructions, see the [Setup Guide](docs/setup/SETUP.md).
 ```
 walking-rpg-app/
 ├── src/
-│   ├── models/          # Data models (Creature, Player, Encounter)
-│   ├── services/        # Core services (Location, Encounter)
+│   ├── models/          # TypeScript data models
+│   │   ├── Creature.ts
+│   │   ├── Encounter.ts
+│   │   └── Player.ts
+│   ├── services/        # Core services
+│   │   ├── LocationService.ts
+│   │   └── EncounterService.ts
 │   ├── components/      # Reusable UI components
+│   │   ├── DistanceDisplay.tsx
+│   │   ├── EncounterModal.tsx
+│   │   └── PlayerStats.tsx
 │   ├── screens/         # Screen components
+│   │   └── HomeScreen.tsx
 │   ├── utils/           # Utility functions
+│   │   └── storage.ts
 │   └── constants/       # App constants and configuration
-├── App.js               # Main app entry point
+│       └── config.ts
+├── App.tsx              # Main app entry point (TypeScript)
+├── tsconfig.json        # TypeScript configuration
 └── package.json
 ```
 
-## Features (Current Foundation)
+## Features (Implemented)
 
-- ✅ Location tracking with distance calculation
-- ✅ Random encounter generation system
-- ✅ Creature data models with stats
-- ✅ Basic encounter triggering logic
-- ✅ Player progress tracking
+- ✅ Location tracking with distance calculation (Haversine formula)
+- ✅ Random encounter generation system based on distance traveled
+- ✅ Creature data models with stats, rarity levels, and level scaling
+- ✅ Combat system with turn-based fighting mechanics
+- ✅ Player progression system (leveling, experience, stats)
+- ✅ Player combat stats (attack, defense) that scale with level
+- ✅ Creature defeat rewards with experience points
+- ✅ Local data persistence using AsyncStorage
+- ✅ Encounter modal with creature details and combat options
+- ✅ Player stats display with combat stats
 
 ## Future Enhancements
 
-- [ ] Combat system for encounters
-- [ ] Creature collection/inventory
-- [ ] Leveling and progression system
+- [ ] Creature collection/inventory system
 - [ ] Different encounter types based on location/biome
-- [ ] Offline mode with local storage
+- [ ] Creature catching mechanics (currently only defeat is implemented)
+- [ ] Enhanced combat with creature attacks and special abilities
 - [ ] Social features (friends, leaderboards)
 - [ ] Daily challenges and quests
 - [ ] Visual map with nearby encounters
+- [ ] Item system and equipment
+- [ ] Multiple creature types per encounter
 
 ## Permissions
 
