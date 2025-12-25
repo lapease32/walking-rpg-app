@@ -36,6 +36,17 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
         </Text>
       </View>
 
+      <View style={styles.combatStats}>
+        <View style={styles.combatStatItem}>
+          <Text style={styles.combatStatValue}>{stats.attack}</Text>
+          <Text style={styles.combatStatLabel}>⚔️ Attack</Text>
+        </View>
+        <View style={styles.combatStatItem}>
+          <Text style={styles.combatStatValue}>{stats.defense}</Text>
+          <Text style={styles.combatStatLabel}>🛡️ Defense</Text>
+        </View>
+      </View>
+
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{stats.totalDistance.toFixed(1)} m</Text>
@@ -100,6 +111,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+  combatStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  combatStatItem: {
+    alignItems: 'center',
+  },
+  combatStatValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  combatStatLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
   },
   statsGrid: {
     flexDirection: 'row',

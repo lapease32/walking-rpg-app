@@ -3,11 +3,15 @@
  * Tracks player stats, progress, and inventory
  */
 
+import { PLAYER_CONFIG } from '../constants/config';
+
 export interface PlayerData {
   id: string;
   name: string;
   level: number;
   experience: number;
+  attack: number;
+  defense: number;
   totalDistance: number;
   totalEncounters: number;
   creaturesCaught: number;
@@ -21,6 +25,8 @@ export interface PlayerStats {
   level: number;
   experience: number;
   experienceForNextLevel: number;
+  attack: number;
+  defense: number;
   totalDistance: number;
   totalEncounters: number;
   creaturesCaught: number;
@@ -32,6 +38,8 @@ export interface PlayerConstructorParams {
   name?: string;
   level?: number;
   experience?: number;
+  attack?: number;
+  defense?: number;
   totalDistance?: number;
   totalEncounters?: number;
   creaturesCaught?: number;
@@ -44,6 +52,8 @@ export class Player {
   name: string;
   level: number;
   experience: number;
+  attack: number;
+  defense: number;
   totalDistance: number;
   totalEncounters: number;
   creaturesCaught: number;
@@ -55,6 +65,8 @@ export class Player {
     name = 'Adventurer',
     level = 1,
     experience = 0,
+    attack,
+    defense,
     totalDistance = 0,
     totalEncounters = 0,
     creaturesCaught = 0,
@@ -65,6 +77,12 @@ export class Player {
     this.name = name;
     this.level = level;
     this.experience = experience;
+    
+    // Calculate attack and defense based on level if not provided
+    // Base stats + stats per level
+    this.attack = attack ?? (PLAYER_CONFIG.STARTING_ATTACK + (level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL);
+    this.defense = defense ?? (PLAYER_CONFIG.STARTING_DEFENSE + (level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL);
+    
     this.totalDistance = totalDistance;
     this.totalEncounters = totalEncounters;
     this.creaturesCaught = creaturesCaught;
@@ -100,10 +118,24 @@ export class Player {
       this.experience -= expNeeded;
       this.level += 1;
       levelsGained += 1;
+      
+      // Increase stats on level up
+      this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
+      this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+      
       expNeeded = this.getExperienceForNextLevel();
     }
 
     return levelsGained;
+  }
+
+  /**
+   * Calculate damage dealt to a creature
+   * Damage = player attack - creature defense (minimum 1)
+   */
+  calculateDamage(creatureDefense: number): number {
+    const damage = this.attack - creatureDefense;
+    return Math.max(1, damage); // Minimum 1 damage
   }
 
   /**
@@ -144,6 +176,8 @@ export class Player {
       level: this.level,
       experience: this.experience,
       experienceForNextLevel: this.getExperienceForNextLevel(),
+      attack: this.attack,
+      defense: this.defense,
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
       creaturesCaught: this.creaturesCaught,
@@ -160,6 +194,8 @@ export class Player {
       name: this.name,
       level: this.level,
       experience: this.experience,
+      attack: this.attack,
+      defense: this.defense,
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
       creaturesCaught: this.creaturesCaught,

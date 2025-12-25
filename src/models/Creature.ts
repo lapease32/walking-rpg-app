@@ -106,11 +106,10 @@ export class Creature {
 
   /**
    * Take damage
+   * Note: amount should already account for defense (calculated by Player.calculateDamage)
    */
-  takeDamage(amount: number): number {
-    const actualDamage = Math.max(0, amount - this.defense);
-    this.hp = Math.max(0, this.hp - actualDamage);
-    return actualDamage;
+  takeDamage(amount: number): void {
+    this.hp = Math.max(0, this.hp - amount);
   }
 }
 

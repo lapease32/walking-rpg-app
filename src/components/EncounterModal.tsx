@@ -13,6 +13,7 @@ import { Rarity } from '../models/Creature';
 interface EncounterModalProps {
   encounter: Encounter | null;
   visible: boolean;
+  playerAttack?: number;
   onCatch: () => void;
   onFight: () => void;
   onFlee: () => void;
@@ -24,6 +25,7 @@ interface EncounterModalProps {
 export default function EncounterModal({
   encounter,
   visible,
+  playerAttack,
   onCatch,
   onFight,
   onFlee,
@@ -42,6 +44,12 @@ export default function EncounterModal({
   };
 
   const rarityColor = rarityColors[creature.rarity] || '#9E9E9E';
+  const isDefeated = creature.isDefeated();
+  
+  // Calculate expected damage if player attacks
+  const expectedDamage = playerAttack 
+    ? Math.max(1, playerAttack - creature.defense)
+    : 0;
 
   return (
     <Modal
@@ -105,18 +113,33 @@ export default function EncounterModal({
             </View>
           </ScrollView>
 
+          {isDefeated && (
+            <View style={styles.defeatedBanner}>
+              <Text style={styles.defeatedText}>DEFEATED!</Text>
+            </View>
+          )}
+
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.catchButton]}
+              style={[styles.button, styles.catchButton, isDefeated && styles.buttonDisabled]}
               onPress={onCatch}
+              disabled={isDefeated}
             >
               <Text style={styles.buttonText}>Catch</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.fightButton]}
+              style={[styles.button, styles.fightButton, isDefeated && styles.buttonDisabled]}
               onPress={onFight}
+              disabled={isDefeated}
             >
-              <Text style={styles.buttonText}>Fight</Text>
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonText}>
+                  {isDefeated ? 'Defeated' : 'Fight'}
+                </Text>
+                {!isDefeated && expectedDamage > 0 && (
+                  <Text style={styles.damageHint}>~{expectedDamage} dmg</Text>
+                )}
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.fleeButton]}
@@ -245,10 +268,35 @@ const styles = StyleSheet.create({
   fleeButton: {
     backgroundColor: '#9E9E9E',
   },
+  buttonContent: {
+    alignItems: 'center',
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  damageHint: {
+    color: '#fff',
+    fontSize: 11,
+    marginTop: 2,
+    opacity: 0.9,
+  },
+  defeatedBanner: {
+    backgroundColor: '#FF5722',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  defeatedText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 2,
   },
 });
 
