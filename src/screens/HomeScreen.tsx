@@ -32,11 +32,19 @@ export default function HomeScreen() {
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
+  
+  // Ref to track current player state for async callbacks
+  const playerRef = useRef<Player | null>(null);
 
   // Load player data on mount
   useEffect(() => {
     initializePlayer();
   }, []);
+
+  // Keep playerRef in sync with player state
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
 
   const initializePlayer = async (): Promise<void> => {
     try {
@@ -373,7 +381,12 @@ export default function HomeScreen() {
           text: 'Reset',
           style: 'destructive',
           onPress: () => {
-            const updatedPlayer = new Player(player.toJSON());
+            // Use ref to get current player state at confirmation time, not when dialog was shown
+            const currentPlayer = playerRef.current;
+            if (!currentPlayer) {
+              return;
+            }
+            const updatedPlayer = new Player(currentPlayer.toJSON());
             updatedPlayer.resetLevel();
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
