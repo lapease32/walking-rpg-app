@@ -35,6 +35,14 @@ Similar to Pokémon GO, this app:
    - Stats/profile screen
    - Main navigation
 
+## Documentation
+
+📚 **All documentation has been organized into the [`docs/`](docs/) directory:**
+
+- **[Setup Guides](docs/setup/)** - Installation and configuration instructions
+- **[Troubleshooting](docs/troubleshooting/)** - Solutions to common issues
+- **[Quick Start](docs/setup/QUICK_START.md)** - Get up and running quickly
+
 ## Getting Started
 
 ### Prerequisites
@@ -62,6 +70,8 @@ npm run ios
 # Run on Android
 npm run android
 ```
+
+For detailed setup instructions, see the [Setup Guide](docs/setup/SETUP.md).
 
 ## Project Structure
 
