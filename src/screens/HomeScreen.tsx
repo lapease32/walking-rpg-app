@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,9 @@ export default function HomeScreen() {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
+  
+  // Ref to prevent multiple victory processing for the same encounter
+  const victoryProcessedRef = useRef<boolean>(false);
 
   // Load player data on mount
   useEffect(() => {
@@ -85,6 +88,7 @@ export default function HomeScreen() {
       if (encounter) {
         setCurrentEncounter(encounter);
         setShowEncounterModal(true);
+        victoryProcessedRef.current = false; // Reset victory flag for new encounter
       }
     }
   };
@@ -132,6 +136,11 @@ export default function HomeScreen() {
       return;
     }
 
+    // Prevent multiple victory processing for the same encounter
+    if (victoryProcessedRef.current) {
+      return;
+    }
+
     const creature = currentEncounter.creature;
     
     // Check if creature is already defeated
@@ -168,6 +177,14 @@ export default function HomeScreen() {
     if (!currentEncounter || !player) {
       return;
     }
+
+    // Prevent multiple victory processing for the same encounter
+    if (victoryProcessedRef.current) {
+      return;
+    }
+
+    // Mark victory as being processed
+    victoryProcessedRef.current = true;
 
     const updatedPlayer = new Player(player.toJSON());
     updatedPlayer.defeatCreature();
@@ -223,6 +240,7 @@ export default function HomeScreen() {
     );
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
+    victoryProcessedRef.current = false; // Reset victory flag for new encounter
   };
 
   // Debug: Simulate movement (add fake distance)
@@ -264,6 +282,7 @@ export default function HomeScreen() {
     if (encounter) {
       setCurrentEncounter(encounter);
       setShowEncounterModal(true);
+      victoryProcessedRef.current = false; // Reset victory flag for new encounter
     } else {
       Alert.alert(
         'Movement Simulated',
