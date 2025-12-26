@@ -35,6 +35,14 @@ export default function CombatModal({
     HEAVY: 0,
   });
 
+  // Use ref for synchronous cooldown checks to prevent race conditions
+  // State is async, so rapid taps can bypass cooldown if we only check state
+  const cooldownsRef = useRef<Record<AttackType, number>>({
+    BASIC: 0,
+    STRONG: 0,
+    HEAVY: 0,
+  });
+
   // Track the current encounter to detect when it changes
   const encounterRef = useRef<number | null>(null);
 
@@ -44,11 +52,13 @@ export default function CombatModal({
       const encounterId = encounter.timestamp;
       // If this is a different encounter, reset cooldowns
       if (encounterRef.current !== encounterId) {
-        setCooldowns({
+        const resetCooldowns = {
           BASIC: 0,
           STRONG: 0,
           HEAVY: 0,
-        });
+        };
+        setCooldowns(resetCooldowns);
+        cooldownsRef.current = resetCooldowns;
         encounterRef.current = encounterId;
       }
     }
@@ -72,6 +82,11 @@ export default function CombatModal({
           }
         });
 
+        // Update ref synchronously to keep it in sync with state
+        if (changed) {
+          cooldownsRef.current = updated;
+        }
+
         return changed ? updated : prev;
       });
     }, 100);
@@ -88,14 +103,18 @@ export default function CombatModal({
   const playerDefeated = player.isDefeated();
 
   const handleAttack = (attackType: AttackType) => {
-    if (cooldowns[attackType] > 0 || isDefeated || playerDefeated) {
+    // Check ref synchronously to prevent race conditions from rapid taps
+    // State updates are async, so multiple rapid taps could all read state as 0
+    if (cooldownsRef.current[attackType] > 0 || isDefeated || playerDefeated) {
       return;
     }
 
-    // Set cooldown
+    // Set cooldown in both ref (synchronous) and state (for UI updates)
+    const cooldownMs = ATTACK_TYPES[attackType].cooldownMs;
+    cooldownsRef.current[attackType] = cooldownMs;
     setCooldowns((prev) => ({
       ...prev,
-      [attackType]: ATTACK_TYPES[attackType].cooldownMs,
+      [attackType]: cooldownMs,
     }));
 
     onAttack(attackType);
