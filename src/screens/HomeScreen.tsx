@@ -276,7 +276,7 @@ export default function HomeScreen() {
 
     // Check if creature is defeated
     if (creature.isDefeated()) {
-      handleVictory();
+      handleVictory(updatedPlayer);
     } else if (updatedPlayer.isDefeated()) {
       // Handle player defeat - heal immediately before showing alert
       // This ensures healing happens even if alert is dismissed on Android
@@ -305,8 +305,11 @@ export default function HomeScreen() {
   };
 
   // Handle victory when creature is defeated
-  const handleVictory = (): void => {
-    if (!currentEncounter || !player) {
+  const handleVictory = (playerToUse?: Player): void => {
+    // Use provided player or fall back to state player
+    const basePlayer = playerToUse || player;
+    
+    if (!currentEncounter || !basePlayer) {
       return;
     }
 
@@ -318,7 +321,7 @@ export default function HomeScreen() {
     // Mark victory as being processed
     victoryProcessedRef.current = true;
 
-    const updatedPlayer = new Player(player.toJSON());
+    const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
     updatedPlayer.incrementEncounters();
     
