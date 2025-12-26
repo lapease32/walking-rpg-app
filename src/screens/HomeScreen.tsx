@@ -521,32 +521,6 @@ export default function HomeScreen() {
       timestamp: Date.now(),
     };
     
-    // Check for auto-flee BEFORE updating location (use refs to get current state)
-    const currentEncounterState = encounterRef.current;
-    const isMinimized = isMinimizedRef.current;
-    const isInCombat = showCombatModalRef.current; // Use ref to avoid stale closure
-    
-    if (currentEncounterState && isMinimized && !isInCombat) {
-      const encounterLocation = currentEncounterState.location;
-      const distanceFromEncounter = LocationService.calculateDistance(
-        encounterLocation.latitude,
-        encounterLocation.longitude,
-        newLocation.latitude,
-        newLocation.longitude
-      );
-      
-      // Auto-flee if user travels more than the threshold distance
-      if (distanceFromEncounter > ENCOUNTER_CONFIG.AUTO_FLEE_DISTANCE) {
-        Alert.alert(
-          'Encounter Ended',
-          `You traveled too far from the encounter location. The ${currentEncounterState.creature.name} has fled.`,
-          [{ text: 'OK' }]
-        );
-        handleFlee();
-        return; // Don't process movement after auto-flee
-      }
-    }
-    
     // Create distance data with location (location will be set in handleDistanceUpdate)
     const distanceData: DistanceData = {
       incremental: fakeDistance,
