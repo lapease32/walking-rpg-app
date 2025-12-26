@@ -147,8 +147,13 @@ export default function HomeScreen() {
 
   // Handle distance updates
   const handleDistanceUpdate = (distanceData: DistanceData): void => {
-    const { incremental, total } = distanceData;
+    const { incremental, total, location } = distanceData;
     setCurrentDistance(total);
+
+    // Update location ref immediately to ensure it's current for any checks
+    // LocationService calls this before handleLocationUpdate, so we need the location from distanceData
+    currentLocationRef.current = location;
+    setCurrentLocation(location);
 
     // Use ref to get current player state (avoids stale closure)
     const currentPlayer = playerRef.current;
@@ -162,19 +167,18 @@ export default function HomeScreen() {
     }
 
     // Check if encounter is minimized and user has traveled too far
-    // Use refs to avoid stale closure issues
+    // Use refs to avoid stale closure issues, and location from distanceData (current GPS position)
     const currentEncounterState = encounterRef.current;
     const isMinimized = isMinimizedRef.current;
-    const currentLocationState = currentLocationRef.current; // Use ref to avoid stale closure
     const isInCombat = showCombatModalRef.current; // Use ref to avoid stale closure
     
-    if (currentEncounterState && isMinimized && currentLocationState && !isInCombat) {
+    if (currentEncounterState && isMinimized && location && !isInCombat) {
       const encounterLocation = currentEncounterState.location;
       const distanceFromEncounter = LocationService.calculateDistance(
         encounterLocation.latitude,
         encounterLocation.longitude,
-        currentLocationState.latitude,
-        currentLocationState.longitude
+        location.latitude,
+        location.longitude
       );
       
       // Auto-flee if user travels more than the threshold distance
@@ -196,12 +200,12 @@ export default function HomeScreen() {
       return;
     }
 
-    // Check for encounters (use ref to avoid stale closure)
-    const locationForEncounter = currentLocationRef.current;
-    if (locationForEncounter) {
-      const location: Location = {
-        latitude: locationForEncounter.latitude,
-        longitude: locationForEncounter.longitude,
+    // Check for encounters (use location from distanceData, which is the current GPS position)
+    const currentLocationData = location;
+    if (currentLocationData) {
+      const locationForEncounter: Location = {
+        latitude: currentLocationData.latitude,
+        longitude: currentLocationData.longitude,
       };
       
       // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
@@ -211,7 +215,7 @@ export default function HomeScreen() {
       
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
-        location,
+        locationForEncounter,
         currentPlayer?.level || 1
       );
 
@@ -404,10 +408,11 @@ export default function HomeScreen() {
 
   // Handle victory when creature is defeated
   const handleVictory = (playerToUse?: Player): void => {
-    // Use provided player or fall back to state player
-    const basePlayer = playerToUse || player;
+    // Use provided player or fall back to ref player (avoids stale closure)
+    const basePlayer = playerToUse || playerRef.current;
+    const currentEncounterState = encounterRef.current;
     
-    if (!currentEncounter || !basePlayer) {
+    if (!currentEncounterState || !basePlayer) {
       return;
     }
 
@@ -423,7 +428,7 @@ export default function HomeScreen() {
     updatedPlayer.defeatCreature();
     updatedPlayer.incrementEncounters();
     
-    const expGain = currentEncounter.creature.getExperienceReward();
+    const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
 
     setPlayer(updatedPlayer);
@@ -436,12 +441,12 @@ export default function HomeScreen() {
     if (levelsGained > 0) {
       Alert.alert(
         'Victory & Level Up!',
-        `You defeated ${currentEncounter.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!`
+        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!`
       );
     } else {
       Alert.alert(
         'Victory!',
-        `You defeated ${currentEncounter.creature.name} and gained ${expGain} XP!`
+        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!`
       );
     }
   };
@@ -541,17 +546,15 @@ export default function HomeScreen() {
       }
     }
     
-    // Update location (also update ref synchronously to avoid stale closures)
-    currentLocationRef.current = newLocation;
-    setCurrentLocation(newLocation);
-    
-    // Create distance data
+    // Create distance data with location (location will be set in handleDistanceUpdate)
     const distanceData: DistanceData = {
       incremental: fakeDistance,
       total: currentDistance + fakeDistance,
+      location: newLocation, // Include location so handleDistanceUpdate uses current position
     };
 
     // Call handleDistanceUpdate which will update player distance and check for encounters
+    // handleDistanceUpdate will update the location ref and state
     handleDistanceUpdate(distanceData);
   };
 
@@ -571,14 +574,13 @@ export default function HomeScreen() {
       timestamp: Date.now(),
     };
 
-    setCurrentLocation(newLocation);
-    handleLocationUpdate(newLocation);
-
     // Also simulate a small distance update
     const distanceData: DistanceData = {
       incremental: 10,
       total: currentDistance + 10,
+      location: newLocation, // Include location so handleDistanceUpdate uses current position
     };
+    // handleDistanceUpdate will update the location ref and state
     handleDistanceUpdate(distanceData);
   };
 
