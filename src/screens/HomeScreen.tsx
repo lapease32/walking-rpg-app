@@ -48,6 +48,7 @@ export default function HomeScreen() {
   // Ref to track encounter state for async callbacks (to avoid stale closures)
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
+  const currentLocationRef = useRef<LocationData | null>(null);
 
   // Load player data on mount
   useEffect(() => {
@@ -66,6 +67,10 @@ export default function HomeScreen() {
   useEffect(() => {
     isMinimizedRef.current = isEncounterModalMinimized;
   }, [isEncounterModalMinimized]);
+  
+  useEffect(() => {
+    currentLocationRef.current = currentLocation;
+  }, [currentLocation]);
 
   // Initialize encounter chance display
   useEffect(() => {
@@ -131,6 +136,7 @@ export default function HomeScreen() {
 
   // Handle location updates
   const handleLocationUpdate = (location: LocationData): void => {
+    currentLocationRef.current = location; // Update ref synchronously to avoid stale closures
     setCurrentLocation(location);
   };
 
@@ -154,14 +160,15 @@ export default function HomeScreen() {
     // Use refs to avoid stale closure issues
     const currentEncounterState = encounterRef.current;
     const isMinimized = isMinimizedRef.current;
+    const currentLocationState = currentLocationRef.current; // Use ref to avoid stale closure
     
-    if (currentEncounterState && isMinimized && currentLocation && !showCombatModal) {
+    if (currentEncounterState && isMinimized && currentLocationState && !showCombatModal) {
       const encounterLocation = currentEncounterState.location;
       const distanceFromEncounter = LocationService.calculateDistance(
         encounterLocation.latitude,
         encounterLocation.longitude,
-        currentLocation.latitude,
-        currentLocation.longitude
+        currentLocationState.latitude,
+        currentLocationState.longitude
       );
       
       // Auto-flee if user travels more than the threshold distance
@@ -176,11 +183,12 @@ export default function HomeScreen() {
       }
     }
 
-    // Check for encounters
-    if (currentLocation) {
+    // Check for encounters (use ref to avoid stale closure)
+    const locationForEncounter = currentLocationRef.current;
+    if (locationForEncounter) {
       const location: Location = {
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
+        latitude: locationForEncounter.latitude,
+        longitude: locationForEncounter.longitude,
       };
       
       // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
@@ -518,7 +526,8 @@ export default function HomeScreen() {
       }
     }
     
-    // Update location (this will trigger handleLocationUpdate)
+    // Update location (also update ref synchronously to avoid stale closures)
+    currentLocationRef.current = newLocation;
     setCurrentLocation(newLocation);
     
     // Create distance data
