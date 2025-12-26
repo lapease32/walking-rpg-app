@@ -29,8 +29,10 @@ export default function HomeScreen() {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
-  const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability
+  const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
   const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
+  const [isTimeBlocking, setIsTimeBlocking] = useState<boolean>(false); // Whether time constraint is blocking encounters
+  const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
@@ -50,9 +52,37 @@ export default function HomeScreen() {
 
   // Initialize encounter chance display
   useEffect(() => {
-    const currentProbability = EncounterService.getCurrentEncounterProbability();
+    // Use distance-based probability for display (shows probability even when time constraint blocks it)
+    const currentProbability = EncounterService.getDistanceBasedProbability();
     setEncounterChance(currentProbability);
+    const blocking = EncounterService.isTimeConstraintBlocking();
+    setIsTimeBlocking(blocking);
+    setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
   }, []);
+
+  // Update time remaining countdown every second when time constraint is blocking
+  useEffect(() => {
+    if (!isTimeBlocking) {
+      return; // No interval needed if not blocking
+    }
+
+    // Update function
+    const updateTimeRemaining = () => {
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      const remaining = EncounterService.getTimeRemainingUntilEncounter();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(remaining);
+    };
+
+    // Update immediately (don't wait for first interval tick)
+    updateTimeRemaining();
+
+    // Then update every second
+    const interval = setInterval(updateTimeRemaining, 1000);
+
+    // Cleanup interval on unmount or when blocking stops
+    return () => clearInterval(interval);
+  }, [isTimeBlocking]);
 
   const initializePlayer = async (): Promise<void> => {
     try {
@@ -96,8 +126,10 @@ export default function HomeScreen() {
         longitude: currentLocation.longitude,
       };
       
-      // Get probability before processing (in case encounter occurs and resets tracking)
-      const probabilityBeforeEncounter = EncounterService.getCurrentEncounterProbability();
+      // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
+      const probabilityThatWillBeUsed = EncounterService.getProbabilityAfterIncremental(
+        distanceData.incremental
+      );
       
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
@@ -112,16 +144,26 @@ export default function HomeScreen() {
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
         // Store the probability that was used when this encounter occurred
-        setLastEncounterChance(probabilityBeforeEncounter);
+        setLastEncounterChance(probabilityThatWillBeUsed);
+        // Update time blocking state (encounter just occurred, so time constraint is now active)
+        const blocking = EncounterService.isTimeConstraintBlocking();
+        setIsTimeBlocking(blocking);
+        setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
       } else {
-        // Update encounter chance display
-        const currentProbability = EncounterService.getCurrentEncounterProbability();
+        // Update encounter chance display (use distance-based for debugging visibility)
+        const currentProbability = EncounterService.getDistanceBasedProbability();
         setEncounterChance(currentProbability);
+        const blocking = EncounterService.isTimeConstraintBlocking();
+        setIsTimeBlocking(blocking);
+        setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
       }
     } else {
-      // Update encounter chance even without location
-      const currentProbability = EncounterService.getCurrentEncounterProbability();
+      // Update encounter chance even without location (use distance-based for debugging visibility)
+      const currentProbability = EncounterService.getDistanceBasedProbability();
       setEncounterChance(currentProbability);
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
     }
   };
 
@@ -307,8 +349,10 @@ export default function HomeScreen() {
           longitude: -122.4194,
         };
 
-    // Get probability before processing (in case encounter occurs and resets tracking)
-    const probabilityBeforeEncounter = EncounterService.getCurrentEncounterProbability();
+    // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
+    const probabilityThatWillBeUsed = EncounterService.getProbabilityAfterIncremental(
+      distanceData.incremental
+    );
     
     const encounter = EncounterService.processDistanceUpdate(
       distanceData,
@@ -323,11 +367,18 @@ export default function HomeScreen() {
       // Encounter generated - distance tracking was reset, so chance is now 0
       setEncounterChance(0);
       // Store the probability that was used when this encounter occurred
-      setLastEncounterChance(probabilityBeforeEncounter);
+      setLastEncounterChance(probabilityThatWillBeUsed);
+      // Update time blocking state (encounter just occurred, so time constraint is now active)
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
     } else {
-      // Update encounter chance display
-      const currentProbability = EncounterService.getCurrentEncounterProbability();
+      // Update encounter chance display (use distance-based for debugging visibility)
+      const currentProbability = EncounterService.getDistanceBasedProbability();
       setEncounterChance(currentProbability);
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
       Alert.alert(
         'Movement Simulated',
         `Added ${fakeDistance}m. Distance: ${distanceData.total.toFixed(0)}m`
@@ -500,9 +551,16 @@ export default function HomeScreen() {
               <Text style={styles.debugTitle}>🐛 Debug Mode</Text>
               <View style={styles.encounterChanceContainer}>
                 <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
-                <Text style={styles.encounterChanceValue}>
-                  {(encounterChance * 100).toFixed(2)}%
-                </Text>
+                <View style={styles.encounterChanceValueContainer}>
+                  <Text style={styles.encounterChanceValue}>
+                    {(encounterChance * 100).toFixed(2)}%
+                  </Text>
+                  {isTimeBlocking && (
+                    <Text style={styles.timeBlockingText}>
+                      (Blocked: {timeRemaining}s)
+                    </Text>
+                  )}
+                </View>
               </View>
               {lastEncounterChance !== null && (
                 <View style={styles.encounterChanceContainer}>
@@ -712,10 +770,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#856404',
   },
+  encounterChanceValueContainer: {
+    alignItems: 'flex-end',
+  },
   encounterChanceValue: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#856404',
+  },
+  timeBlockingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#F44336',
+    marginTop: 2,
   },
   debugButton: {
     padding: 12,

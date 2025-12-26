@@ -95,15 +95,67 @@ class EncounterService {
   }
 
   /**
-   * Get encounter probability for current distance
+   * Get encounter probability based on distance only (ignoring time constraint)
+   * Useful for debugging to see what the probability would be
    */
-  getCurrentEncounterProbability(): number {
+  getDistanceBasedProbability(): number {
     if (this.distanceSinceLastEncounter < this.minEncounterDistance) {
-      return 0;
+      return 0; // Distance constraint not met
     }
+    
     const extraDistance =
       this.distanceSinceLastEncounter - this.minEncounterDistance;
     return Math.min(1, extraDistance * this.encounterChancePerMeter);
+  }
+
+  /**
+   * Get encounter probability for current distance (includes time constraint check)
+   * This returns the probability that will actually be used in processDistanceUpdate
+   */
+  getCurrentEncounterProbability(): number {
+    // Check time constraint first (same as processDistanceUpdate)
+    const timeSinceLastEncounter = this.lastEncounterTime
+      ? Date.now() - this.lastEncounterTime
+      : Infinity;
+    
+    if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
+      return 0; // Time constraint not met
+    }
+    
+    // If time constraint is met, return distance-based probability
+    return this.getDistanceBasedProbability();
+  }
+
+  /**
+   * Get encounter probability that would result after adding incremental distance (ignoring time constraint)
+   * Useful for debugging to see what the probability would be
+   */
+  getDistanceBasedProbabilityAfterIncremental(incrementalDistance: number): number {
+    const distanceAfterIncremental = this.distanceSinceLastEncounter + incrementalDistance;
+    if (distanceAfterIncremental < this.minEncounterDistance) {
+      return 0; // Distance constraint not met
+    }
+    
+    const extraDistance = distanceAfterIncremental - this.minEncounterDistance;
+    return Math.min(1, extraDistance * this.encounterChancePerMeter);
+  }
+
+  /**
+   * Get encounter probability that would result after adding incremental distance
+   * This is used to calculate the probability that will actually be used in processDistanceUpdate
+   */
+  getProbabilityAfterIncremental(incrementalDistance: number): number {
+    // Check time constraint first (same as processDistanceUpdate)
+    const timeSinceLastEncounter = this.lastEncounterTime
+      ? Date.now() - this.lastEncounterTime
+      : Infinity;
+    
+    if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
+      return 0; // Time constraint not met
+    }
+    
+    // If time constraint is met, return distance-based probability after incremental
+    return this.getDistanceBasedProbabilityAfterIncremental(incrementalDistance);
   }
 
   /**
@@ -137,6 +189,30 @@ class EncounterService {
     if (config.minTimeBetweenEncounters !== undefined) {
       this.minTimeBetweenEncounters = config.minTimeBetweenEncounters;
     }
+  }
+
+  /**
+   * Check if time constraint is currently blocking encounters
+   */
+  isTimeConstraintBlocking(): boolean {
+    if (!this.lastEncounterTime) {
+      return false; // No previous encounter, time constraint not blocking
+    }
+    const timeSinceLastEncounter = Date.now() - this.lastEncounterTime;
+    return timeSinceLastEncounter < this.minTimeBetweenEncounters;
+  }
+
+  /**
+   * Get time remaining until encounters can occur again (in seconds)
+   * Returns 0 if time constraint is not blocking
+   */
+  getTimeRemainingUntilEncounter(): number {
+    if (!this.lastEncounterTime) {
+      return 0; // No previous encounter
+    }
+    const timeSinceLastEncounter = Date.now() - this.lastEncounterTime;
+    const remaining = this.minTimeBetweenEncounters - timeSinceLastEncounter;
+    return Math.max(0, Math.ceil(remaining / 1000)); // Convert to seconds
   }
 
   /**
