@@ -29,14 +29,72 @@ export default function HomeScreen() {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
+  const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
+  const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
+  const [isTimeBlocking, setIsTimeBlocking] = useState<boolean>(false); // Whether time constraint is blocking encounters
+  const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
+  const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
+  
+  // Ref to track current player state for async callbacks
+  const playerRef = useRef<Player | null>(null);
 
   // Load player data on mount
   useEffect(() => {
     initializePlayer();
   }, []);
+
+  // Keep playerRef in sync with player state
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
+
+  // Initialize encounter chance display
+  useEffect(() => {
+    // Use distance-based probability for display (shows probability even when time constraint blocks it)
+    const currentProbability = EncounterService.getDistanceBasedProbability();
+    setEncounterChance(currentProbability);
+    const blocking = EncounterService.isTimeConstraintBlocking();
+    setIsTimeBlocking(blocking);
+    setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
+    // Initialize bypass state
+    setBypassTimeConstraint(EncounterService.isTimeConstraintBypassed());
+  }, []);
+
+  // Update bypass state in EncounterService when toggle changes
+  useEffect(() => {
+    EncounterService.setBypassTimeConstraint(bypassTimeConstraint);
+    // Update blocking state when bypass changes
+    const blocking = EncounterService.isTimeConstraintBlocking();
+    setIsTimeBlocking(blocking);
+    setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
+  }, [bypassTimeConstraint]);
+
+  // Update time remaining countdown every second when time constraint is blocking
+  useEffect(() => {
+    if (!isTimeBlocking) {
+      return; // No interval needed if not blocking
+    }
+
+    // Update function
+    const updateTimeRemaining = () => {
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      const remaining = EncounterService.getTimeRemainingUntilEncounter();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(remaining);
+    };
+
+    // Update immediately (don't wait for first interval tick)
+    updateTimeRemaining();
+
+    // Then update every second
+    const interval = setInterval(updateTimeRemaining, 1000);
+
+    // Cleanup interval on unmount or when blocking stops
+    return () => clearInterval(interval);
+  }, [isTimeBlocking]);
 
   const initializePlayer = async (): Promise<void> => {
     try {
@@ -79,6 +137,12 @@ export default function HomeScreen() {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
       };
+      
+      // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
+      const probabilityThatWillBeUsed = EncounterService.getProbabilityAfterIncremental(
+        distanceData.incremental
+      );
+      
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
         location,
@@ -89,7 +153,29 @@ export default function HomeScreen() {
         setCurrentEncounter(encounter);
         setShowEncounterModal(true);
         victoryProcessedRef.current = false; // Reset victory flag for new encounter
+        // Encounter generated - distance tracking was reset, so chance is now 0
+        setEncounterChance(0);
+        // Store the probability that was used when this encounter occurred
+        setLastEncounterChance(probabilityThatWillBeUsed);
+        // Update time blocking state (encounter just occurred, so time constraint is now active)
+        const blocking = EncounterService.isTimeConstraintBlocking();
+        setIsTimeBlocking(blocking);
+        setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
+      } else {
+        // Update encounter chance display (use distance-based for debugging visibility)
+        const currentProbability = EncounterService.getDistanceBasedProbability();
+        setEncounterChance(currentProbability);
+        const blocking = EncounterService.isTimeConstraintBlocking();
+        setIsTimeBlocking(blocking);
+        setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
       }
+    } else {
+      // Update encounter chance even without location (use distance-based for debugging visibility)
+      const currentProbability = EncounterService.getDistanceBasedProbability();
+      setEncounterChance(currentProbability);
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
     }
   };
 
@@ -241,6 +327,12 @@ export default function HomeScreen() {
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     victoryProcessedRef.current = false; // Reset victory flag for new encounter
+    // Encounter forced - distance tracking was reset, so chance is now 0
+    setEncounterChance(0);
+    // Update time blocking state (encounter just occurred, so time constraint is now active)
+    const blocking = EncounterService.isTimeConstraintBlocking();
+    setIsTimeBlocking(blocking);
+    setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
   };
 
   // Debug: Simulate movement (add fake distance)
@@ -273,6 +365,11 @@ export default function HomeScreen() {
           longitude: -122.4194,
         };
 
+    // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
+    const probabilityThatWillBeUsed = EncounterService.getProbabilityAfterIncremental(
+      distanceData.incremental
+    );
+    
     const encounter = EncounterService.processDistanceUpdate(
       distanceData,
       location,
@@ -283,7 +380,21 @@ export default function HomeScreen() {
       setCurrentEncounter(encounter);
       setShowEncounterModal(true);
       victoryProcessedRef.current = false; // Reset victory flag for new encounter
+      // Encounter generated - distance tracking was reset, so chance is now 0
+      setEncounterChance(0);
+      // Store the probability that was used when this encounter occurred
+      setLastEncounterChance(probabilityThatWillBeUsed);
+      // Update time blocking state (encounter just occurred, so time constraint is now active)
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
     } else {
+      // Update encounter chance display (use distance-based for debugging visibility)
+      const currentProbability = EncounterService.getDistanceBasedProbability();
+      setEncounterChance(currentProbability);
+      const blocking = EncounterService.isTimeConstraintBlocking();
+      setIsTimeBlocking(blocking);
+      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
       Alert.alert(
         'Movement Simulated',
         `Added ${fakeDistance}m. Distance: ${distanceData.total.toFixed(0)}m`
@@ -316,6 +427,77 @@ export default function HomeScreen() {
       total: currentDistance + 10,
     };
     handleDistanceUpdate(distanceData);
+  };
+
+  // Debug: Force level up
+  const forceLevelUp = (): void => {
+    if (!player) {
+      return;
+    }
+
+    const updatedPlayer = new Player(player.toJSON());
+    updatedPlayer.forceLevelUp();
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
+    Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
+  };
+
+  // Debug: Add XP manually (with preset amounts)
+  const addManualXP = (amount: number): void => {
+    if (!player) {
+      return;
+    }
+
+    const updatedPlayer = new Player(player.toJSON());
+    const levelsGained = updatedPlayer.addExperience(amount);
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
+
+    if (levelsGained > 0) {
+      Alert.alert(
+        'XP Added & Level Up!',
+        `Added ${amount} XP!\nGained ${levelsGained} level(s)!\nYou are now level ${updatedPlayer.level}!`
+      );
+    } else {
+      Alert.alert(
+        'XP Added',
+        `Added ${amount} XP!\nCurrent XP: ${updatedPlayer.experience}/${updatedPlayer.getExperienceForNextLevel()}`
+      );
+    }
+  };
+
+  // Debug: Reset level
+  const resetLevel = (): void => {
+    if (!player) {
+      return;
+    }
+
+    Alert.alert(
+      'Reset Level',
+      'Are you sure you want to reset to level 1? This will reset your level, XP, and combat stats.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            // Use ref to get current player state at confirmation time, not when dialog was shown
+            const currentPlayer = playerRef.current;
+            if (!currentPlayer) {
+              return;
+            }
+            const updatedPlayer = new Player(currentPlayer.toJSON());
+            updatedPlayer.resetLevel();
+            setPlayer(updatedPlayer);
+            savePlayerData(updatedPlayer);
+            Alert.alert('Level Reset', 'You have been reset to level 1.');
+          },
+        },
+      ]
+    );
   };
 
   if (!player) {
@@ -383,6 +565,41 @@ export default function HomeScreen() {
           {debugMode && (
             <View style={styles.debugContainer}>
               <Text style={styles.debugTitle}>🐛 Debug Mode</Text>
+              <View style={styles.encounterChanceContainer}>
+                <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
+                <View style={styles.encounterChanceValueContainer}>
+                  <Text style={styles.encounterChanceValue}>
+                    {(encounterChance * 100).toFixed(2)}%
+                  </Text>
+                  {isTimeBlocking && (
+                    <Text style={styles.timeBlockingText}>
+                      (Blocked: {timeRemaining}s)
+                    </Text>
+                  )}
+                </View>
+              </View>
+              {lastEncounterChance !== null && (
+                <View style={styles.encounterChanceContainer}>
+                  <Text style={styles.encounterChanceLabel}>Last Encounter @:</Text>
+                  <Text style={styles.encounterChanceValue}>
+                    {(lastEncounterChance * 100).toFixed(2)}%
+                  </Text>
+                </View>
+              )}
+              <View style={styles.encounterChanceContainer}>
+                <Text style={styles.encounterChanceLabel}>Bypass Time Constraint:</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    bypassTimeConstraint && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setBypassTimeConstraint(!bypassTimeConstraint)}
+                >
+                  <Text style={styles.toggleButtonText}>
+                    {bypassTimeConstraint ? 'ON' : 'OFF'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity
                 style={styles.debugButton}
                 onPress={simulateLocationUpdate}
@@ -404,6 +621,39 @@ export default function HomeScreen() {
                 onPress={forceEncounter}
               >
                 <Text style={styles.debugButtonText}>Force Encounter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.debugButton, styles.levelControlButton]}
+                onPress={forceLevelUp}
+              >
+                <Text style={styles.debugButtonText}>Force Level Up</Text>
+              </TouchableOpacity>
+              <View style={styles.xpButtonContainer}>
+                <Text style={styles.xpButtonLabel}>Add XP:</Text>
+                <TouchableOpacity
+                  style={[styles.debugButton, styles.xpButton]}
+                  onPress={() => addManualXP(100)}
+                >
+                  <Text style={styles.debugButtonText}>+100 XP</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.debugButton, styles.xpButton]}
+                  onPress={() => addManualXP(500)}
+                >
+                  <Text style={styles.debugButtonText}>+500 XP</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.debugButton, styles.xpButton]}
+                  onPress={() => addManualXP(1000)}
+                >
+                  <Text style={styles.debugButtonText}>+1000 XP</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.debugButton, styles.resetButton]}
+                onPress={resetLevel}
+              >
+                <Text style={styles.debugButtonText}>Reset Level</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.debugToggle}
@@ -534,6 +784,52 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: '#856404',
   },
+  encounterChanceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  encounterChanceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#856404',
+  },
+  encounterChanceValueContainer: {
+    alignItems: 'flex-end',
+  },
+  encounterChanceValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#856404',
+  },
+  timeBlockingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#F44336',
+    marginTop: 2,
+  },
+  toggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#9E9E9E',
+    borderRadius: 6,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#4CAF50',
+  },
+  toggleButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   debugButton: {
     padding: 12,
     backgroundColor: '#ffc107',
@@ -544,6 +840,28 @@ const styles = StyleSheet.create({
   forceEncounterButton: {
     backgroundColor: '#ff9800',
     marginTop: 8,
+  },
+  levelControlButton: {
+    backgroundColor: '#4CAF50',
+    marginTop: 8,
+  },
+  resetButton: {
+    backgroundColor: '#F44336',
+    marginTop: 8,
+  },
+  xpButtonContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  xpButtonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#856404',
+    marginBottom: 8,
+  },
+  xpButton: {
+    backgroundColor: '#2196F3',
+    marginVertical: 2,
   },
   debugButtonText: {
     color: '#000',
