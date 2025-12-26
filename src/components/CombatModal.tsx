@@ -71,24 +71,24 @@ export default function CombatModal({
     if (!visible) return;
 
     const interval = setInterval(() => {
-      setCooldowns((prev) => {
-        const updated = { ...prev };
-        let changed = false;
+      // Read from ref (source of truth) to prevent race conditions
+      // The ref may have been updated synchronously by handleAttack
+      // before the state update has committed
+      const currentRef = { ...cooldownsRef.current };
+      let changed = false;
 
-        (Object.keys(ATTACK_TYPES) as AttackType[]).forEach((type) => {
-          if (updated[type] > 0) {
-            updated[type] = Math.max(0, updated[type] - 100);
-            changed = true;
-          }
-        });
-
-        // Update ref synchronously to keep it in sync with state
-        if (changed) {
-          cooldownsRef.current = updated;
+      (Object.keys(ATTACK_TYPES) as AttackType[]).forEach((type) => {
+        if (currentRef[type] > 0) {
+          currentRef[type] = Math.max(0, currentRef[type] - 100);
+          changed = true;
         }
-
-        return changed ? updated : prev;
       });
+
+      // Update both ref and state together to keep them in sync
+      if (changed) {
+        cooldownsRef.current = currentRef;
+        setCooldowns(currentRef);
+      }
     }, 100);
 
     return () => clearInterval(interval);
