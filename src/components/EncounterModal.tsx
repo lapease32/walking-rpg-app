@@ -52,11 +52,6 @@ export default function EncounterModal({
   const rarityColor = rarityColors[creature.rarity] || '#9E9E9E';
   const isDefeated = creature.isDefeated();
   const playerDefeated = playerHp !== undefined && playerHp <= 0;
-  
-  // Calculate expected damage if player attacks
-  const expectedDamage = playerAttack 
-    ? Math.max(1, playerAttack - creature.defense)
-    : 0;
 
   // Calculate HP percentage for color coding
   const playerHpPercentage = playerHp !== undefined && playerMaxHp !== undefined && playerMaxHp > 0
@@ -190,14 +185,9 @@ export default function EncounterModal({
               onPress={onFight}
               disabled={isDefeated || playerDefeated}
             >
-              <View style={styles.buttonContent}>
-                <Text style={styles.buttonText}>
-                  {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
-                </Text>
-                {!isDefeated && !playerDefeated && expectedDamage > 0 && (
-                  <Text style={styles.damageHint}>~{expectedDamage} dmg</Text>
-                )}
-              </View>
+              <Text style={styles.buttonText}>
+                {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.fleeButton]}
@@ -326,9 +316,6 @@ const styles = StyleSheet.create({
   fleeButton: {
     backgroundColor: '#9E9E9E',
   },
-  buttonContent: {
-    alignItems: 'center',
-  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
@@ -336,12 +323,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
-  },
-  damageHint: {
-    color: '#fff',
-    fontSize: 11,
-    marginTop: 2,
-    opacity: 0.9,
   },
   defeatedBanner: {
     backgroundColor: '#FF5722',

@@ -17,6 +17,8 @@ import { savePlayerData, loadPlayerData } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
 import EncounterModal from '../components/EncounterModal';
+import CombatModal from '../components/CombatModal';
+import { AttackType, ATTACK_TYPES } from '../constants/config';
 
 /**
  * Main home screen with location tracking and encounter handling
@@ -28,6 +30,7 @@ export default function HomeScreen() {
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
+  const [showCombatModal, setShowCombatModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
   const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
   const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
@@ -216,14 +219,9 @@ export default function HomeScreen() {
     }
   };
 
-  // Handle encounter fight
+  // Handle encounter fight - opens combat modal
   const handleFight = (): void => {
     if (!currentEncounter || !player) {
-      return;
-    }
-
-    // Prevent multiple victory processing for the same encounter
-    if (victoryProcessedRef.current) {
       return;
     }
 
@@ -240,12 +238,43 @@ export default function HomeScreen() {
       return;
     }
 
+    // Open combat modal
+    setShowCombatModal(true);
+  };
+
+  // Handle attack execution with specific attack type
+  const handleAttack = (attackType: AttackType): void => {
+    if (!currentEncounter || !player) {
+      return;
+    }
+
+    // Prevent multiple victory processing for the same encounter
+    if (victoryProcessedRef.current) {
+      return;
+    }
+
+    const creature = currentEncounter.creature;
+    
+    // Defensive check: creature should not be defeated at this point
+    // (handleFight already checked, but state could have changed)
+    if (creature.isDefeated()) {
+      handleVictory();
+      setShowCombatModal(false);
+      return;
+    }
+
     // Create updated player instance for modifications
     const updatedPlayer = new Player(player.toJSON());
 
-    // Player attacks creature
-    // Calculate damage: player attack - creature defense (minimum 1)
-    const playerDamage = updatedPlayer.calculateDamage(creature.defense);
+    // Get attack configuration
+    const attackConfig = ATTACK_TYPES[attackType];
+
+    // Player attacks creature with selected attack type
+    // Calculate damage: (player attack - creature defense) * multiplier (minimum 1)
+    const playerDamage = updatedPlayer.calculateDamage(
+      creature.defense,
+      attackConfig.damageMultiplier
+    );
     
     // Apply damage to creature
     creature.takeDamage(playerDamage);
@@ -276,6 +305,8 @@ export default function HomeScreen() {
 
     // Check if creature is defeated
     if (creature.isDefeated()) {
+      setShowCombatModal(false);
+      setShowEncounterModal(false);
       handleVictory(updatedPlayer);
     } else if (updatedPlayer.isDefeated()) {
       // Handle player defeat - heal immediately before showing alert
@@ -286,6 +317,9 @@ export default function HomeScreen() {
       setPlayer(healedPlayer);
       savePlayerData(healedPlayer);
       
+      setShowCombatModal(false);
+      setShowEncounterModal(false);
+      
       // Show alert for user feedback (healing already done)
       Alert.alert(
         'Defeated!',
@@ -294,7 +328,6 @@ export default function HomeScreen() {
           {
             text: 'OK',
             onPress: () => {
-              setShowEncounterModal(false);
               setCurrentEncounter(null);
             },
           },
@@ -330,6 +363,7 @@ export default function HomeScreen() {
 
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
+    setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
 
@@ -354,6 +388,7 @@ export default function HomeScreen() {
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer);
     }
+    setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
   };
@@ -726,7 +761,7 @@ export default function HomeScreen() {
 
       <EncounterModal
         encounter={currentEncounter}
-        visible={showEncounterModal}
+        visible={showEncounterModal && !showCombatModal}
         playerAttack={player?.attack}
         playerDefense={player?.defense}
         playerHp={player?.hp}
@@ -734,6 +769,13 @@ export default function HomeScreen() {
         onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}
+      />
+      <CombatModal
+        encounter={currentEncounter}
+        player={player}
+        visible={showCombatModal}
+        onAttack={handleAttack}
+        onClose={() => setShowCombatModal(false)}
       />
     </SafeAreaView>
   );

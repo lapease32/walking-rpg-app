@@ -61,3 +61,26 @@ export const WALKING_SPEED = {
   MAX_KMH: 8, // Maximum speed to be considered walking
 } as const;
 
+export const ATTACK_TYPES = {
+  BASIC: {
+    name: 'Basic Attack',
+    damageMultiplier: 1.0,
+    cooldownMs: 1000, // 1 second
+    icon: '⚔️',
+  },
+  STRONG: {
+    name: 'Strong Attack',
+    damageMultiplier: 1.5,
+    cooldownMs: 3000, // 3 seconds
+    icon: '💥',
+  },
+  HEAVY: {
+    name: 'Heavy Attack',
+    damageMultiplier: 2.0,
+    cooldownMs: 5000, // 5 seconds
+    icon: '🔨',
+  },
+} as const;
+
+export type AttackType = keyof typeof ATTACK_TYPES;
+

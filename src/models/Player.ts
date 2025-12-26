@@ -156,11 +156,12 @@ export class Player {
 
   /**
    * Calculate damage dealt to a creature
-   * Damage = player attack - creature defense (minimum 1)
+   * Damage = (player attack - creature defense) * multiplier (minimum 1)
    */
-  calculateDamage(creatureDefense: number): number {
-    const damage = this.attack - creatureDefense;
-    return Math.max(1, damage); // Minimum 1 damage
+  calculateDamage(creatureDefense: number, damageMultiplier: number = 1.0): number {
+    const baseDamage = this.attack - creatureDefense;
+    const damage = baseDamage * damageMultiplier;
+    return Math.max(1, Math.floor(damage)); // Minimum 1 damage, rounded down
   }
 
   /**
