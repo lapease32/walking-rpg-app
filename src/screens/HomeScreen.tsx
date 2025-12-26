@@ -329,6 +329,10 @@ export default function HomeScreen() {
     victoryProcessedRef.current = false; // Reset victory flag for new encounter
     // Encounter forced - distance tracking was reset, so chance is now 0
     setEncounterChance(0);
+    // Update time blocking state (encounter just occurred, so time constraint is now active)
+    const blocking = EncounterService.isTimeConstraintBlocking();
+    setIsTimeBlocking(blocking);
+    setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
   };
 
   // Debug: Simulate movement (add fake distance)
