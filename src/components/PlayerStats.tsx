@@ -18,6 +18,16 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
   const progressPercentage =
     (stats.experience / stats.experienceForNextLevel) * 100;
 
+  // Calculate HP percentage with guard against division by zero
+  const hpPercentage = stats.maxHp > 0
+    ? stats.hp / stats.maxHp
+    : 1;
+  const hpBarColor = hpPercentage > 0.5
+    ? '#4CAF50'
+    : hpPercentage > 0.25
+      ? '#FF9800'
+      : '#F44336';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -31,8 +41,8 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
             style={[
               styles.hpFill,
               {
-                width: `${(stats.hp / stats.maxHp) * 100}%`,
-                backgroundColor: stats.hp / stats.maxHp > 0.5 ? '#4CAF50' : stats.hp / stats.maxHp > 0.25 ? '#FF9800' : '#F44336',
+                width: `${hpPercentage * 100}%`,
+                backgroundColor: hpBarColor,
               },
             ]}
           />
