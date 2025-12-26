@@ -162,6 +162,7 @@ export default function HomeScreen() {
     if (currentPlayer) {
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.addDistance(incremental);
+      playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss if handleFlee is called
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer); // Save periodically
     }
