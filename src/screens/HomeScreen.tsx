@@ -448,9 +448,10 @@ export default function HomeScreen() {
 
   // Handle encounter flee
   const handleFlee = (): void => {
-    // Use ref to get current player state (avoids stale closure)
+    // Use refs to get current state (avoids stale closure)
     const currentPlayer = playerRef.current;
-    if (currentEncounter && currentPlayer) {
+    const currentEncounterState = encounterRef.current;
+    if (currentEncounterState && currentPlayer) {
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.incrementEncounters();
       setPlayer(updatedPlayer);
