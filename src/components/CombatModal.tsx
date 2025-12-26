@@ -51,10 +51,9 @@ export default function CombatModal({
         });
         encounterRef.current = encounterId;
       }
-    } else if (!visible) {
-      // Reset the ref when modal closes
-      encounterRef.current = null;
     }
+    // Note: We don't reset encounterRef.current when modal closes
+    // This prevents cooldown reset exploit when reopening the same encounter
   }, [encounter?.timestamp, visible]);
 
   // Update cooldowns every 100ms
@@ -188,11 +187,11 @@ export default function CombatModal({
                 const isDisabled = isOnCooldown || isDefeated || playerDefeated;
                 const cooldownPercent = getCooldownPercentage(attackType);
 
-                // Calculate expected damage
-                const baseDamage = Math.max(1, player.attack - creature.defense);
-                const expectedDamage = Math.floor(
+                // Calculate expected damage (must match Player.calculateDamage logic)
+                const baseDamage = player.attack - creature.defense;
+                const expectedDamage = Math.max(1, Math.floor(
                   baseDamage * attack.damageMultiplier
-                );
+                ));
 
                 return (
                   <TouchableOpacity
