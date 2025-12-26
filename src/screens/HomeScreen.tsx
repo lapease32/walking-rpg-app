@@ -42,6 +42,9 @@ export default function HomeScreen() {
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
   
+  // Ref to prevent multiple flee processing for the same encounter
+  const fleeProcessedRef = useRef<boolean>(false);
+  
   // Ref to track current player state for async callbacks
   const playerRef = useRef<Player | null>(null);
   
@@ -225,6 +228,7 @@ export default function HomeScreen() {
         setShowEncounterModal(true);
         setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
         victoryProcessedRef.current = false; // Reset victory flag for new encounter
+        fleeProcessedRef.current = false; // Reset flee flag for new encounter
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
         // Store the probability that was used when this encounter occurred
@@ -277,6 +281,7 @@ export default function HomeScreen() {
       setIsEncounterModalMinimized(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
+      fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
 
       if (levelsGained > 0) {
         Alert.alert('Level Up!', `You reached level ${updatedPlayer.level}!`);
@@ -438,6 +443,7 @@ export default function HomeScreen() {
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
+    fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
 
     if (levelsGained > 0) {
       Alert.alert(
@@ -460,12 +466,28 @@ export default function HomeScreen() {
 
   // Handle encounter flee
   const handleFlee = (): void => {
+    // Prevent multiple flee processing for the same encounter
+    if (fleeProcessedRef.current) {
+      return;
+    }
+
+    // Mark flee as being processed
+    fleeProcessedRef.current = true;
+
     // Use refs to get current state (avoids stale closure)
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
+    
+    // Update refs immediately to prevent stale values if rapid GPS updates occur
+    // This prevents duplicate calls when handleDistanceUpdate is called again before React processes state updates
+    encounterRef.current = null;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    
     if (currentEncounterState && currentPlayer) {
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.incrementEncounters();
+      playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer);
     }
@@ -494,6 +516,7 @@ export default function HomeScreen() {
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
     victoryProcessedRef.current = false; // Reset victory flag for new encounter
+    fleeProcessedRef.current = false; // Reset flee flag for new encounter
     // Encounter forced - distance tracking was reset, so chance is now 0
     setEncounterChance(0);
     // Update time blocking state (encounter just occurred, so time constraint is now active)
