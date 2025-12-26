@@ -33,6 +33,7 @@ export default function HomeScreen() {
   const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
   const [isTimeBlocking, setIsTimeBlocking] = useState<boolean>(false); // Whether time constraint is blocking encounters
   const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
+  const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
@@ -58,7 +59,18 @@ export default function HomeScreen() {
     const blocking = EncounterService.isTimeConstraintBlocking();
     setIsTimeBlocking(blocking);
     setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
+    // Initialize bypass state
+    setBypassTimeConstraint(EncounterService.isTimeConstraintBypassed());
   }, []);
+
+  // Update bypass state in EncounterService when toggle changes
+  useEffect(() => {
+    EncounterService.setBypassTimeConstraint(bypassTimeConstraint);
+    // Update blocking state when bypass changes
+    const blocking = EncounterService.isTimeConstraintBlocking();
+    setIsTimeBlocking(blocking);
+    setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
+  }, [bypassTimeConstraint]);
 
   // Update time remaining countdown every second when time constraint is blocking
   useEffect(() => {
@@ -570,6 +582,20 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               )}
+              <View style={styles.encounterChanceContainer}>
+                <Text style={styles.encounterChanceLabel}>Bypass Time Constraint:</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    bypassTimeConstraint && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setBypassTimeConstraint(!bypassTimeConstraint)}
+                >
+                  <Text style={styles.toggleButtonText}>
+                    {bypassTimeConstraint ? 'ON' : 'OFF'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity
                 style={styles.debugButton}
                 onPress={simulateLocationUpdate}
@@ -783,6 +809,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#F44336',
     marginTop: 2,
+  },
+  toggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#9E9E9E',
+    borderRadius: 6,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#4CAF50',
+  },
+  toggleButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   debugButton: {
     padding: 12,

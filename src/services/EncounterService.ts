@@ -27,6 +27,7 @@ class EncounterService {
   private encounterChancePerMeter: number = 0.001; // 0.1% chance per meter after min distance
   private minTimeBetweenEncounters: number = 30000; // 30 seconds minimum between encounters
   private onEncounterGenerated: EncounterCallback | null = null;
+  private bypassTimeConstraint: boolean = false; // Debug flag to bypass time constraint
 
   /**
    * Set callback for when an encounter is generated
@@ -55,9 +56,11 @@ class EncounterService {
       ? Date.now() - this.lastEncounterTime
       : Infinity;
 
+    const timeConstraintMet = this.bypassTimeConstraint || timeSinceLastEncounter >= this.minTimeBetweenEncounters;
+
     if (
       this.distanceSinceLastEncounter >= this.minEncounterDistance &&
-      timeSinceLastEncounter >= this.minTimeBetweenEncounters
+      timeConstraintMet
     ) {
       // Calculate encounter probability
       const extraDistance =
@@ -114,15 +117,17 @@ class EncounterService {
    */
   getCurrentEncounterProbability(): number {
     // Check time constraint first (same as processDistanceUpdate)
-    const timeSinceLastEncounter = this.lastEncounterTime
-      ? Date.now() - this.lastEncounterTime
-      : Infinity;
-    
-    if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
-      return 0; // Time constraint not met
+    if (!this.bypassTimeConstraint) {
+      const timeSinceLastEncounter = this.lastEncounterTime
+        ? Date.now() - this.lastEncounterTime
+        : Infinity;
+      
+      if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
+        return 0; // Time constraint not met
+      }
     }
     
-    // If time constraint is met, return distance-based probability
+    // If time constraint is met (or bypassed), return distance-based probability
     return this.getDistanceBasedProbability();
   }
 
@@ -146,15 +151,17 @@ class EncounterService {
    */
   getProbabilityAfterIncremental(incrementalDistance: number): number {
     // Check time constraint first (same as processDistanceUpdate)
-    const timeSinceLastEncounter = this.lastEncounterTime
-      ? Date.now() - this.lastEncounterTime
-      : Infinity;
-    
-    if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
-      return 0; // Time constraint not met
+    if (!this.bypassTimeConstraint) {
+      const timeSinceLastEncounter = this.lastEncounterTime
+        ? Date.now() - this.lastEncounterTime
+        : Infinity;
+      
+      if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
+        return 0; // Time constraint not met
+      }
     }
     
-    // If time constraint is met, return distance-based probability after incremental
+    // If time constraint is met (or bypassed), return distance-based probability after incremental
     return this.getDistanceBasedProbabilityAfterIncremental(incrementalDistance);
   }
 
@@ -195,6 +202,9 @@ class EncounterService {
    * Check if time constraint is currently blocking encounters
    */
   isTimeConstraintBlocking(): boolean {
+    if (this.bypassTimeConstraint) {
+      return false; // Time constraint bypassed
+    }
     if (!this.lastEncounterTime) {
       return false; // No previous encounter, time constraint not blocking
     }
@@ -213,6 +223,20 @@ class EncounterService {
     const timeSinceLastEncounter = Date.now() - this.lastEncounterTime;
     const remaining = this.minTimeBetweenEncounters - timeSinceLastEncounter;
     return Math.max(0, Math.ceil(remaining / 1000)); // Convert to seconds
+  }
+
+  /**
+   * Set whether to bypass the time constraint (debug function)
+   */
+  setBypassTimeConstraint(bypass: boolean): void {
+    this.bypassTimeConstraint = bypass;
+  }
+
+  /**
+   * Get whether time constraint is currently bypassed
+   */
+  isTimeConstraintBypassed(): boolean {
+    return this.bypassTimeConstraint;
   }
 
   /**
