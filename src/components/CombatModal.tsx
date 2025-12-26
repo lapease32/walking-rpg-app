@@ -171,6 +171,16 @@ export default function CombatModal({
               <Text style={styles.hpText}>
                 {creature.hp} / {creature.maxHp} HP
               </Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Attack</Text>
+                  <Text style={styles.statValue}>{creature.attack}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Defense</Text>
+                  <Text style={styles.statValue}>{creature.defense}</Text>
+                </View>
+              </View>
             </View>
 
             {/* Player Info */}
@@ -194,6 +204,16 @@ export default function CombatModal({
               <Text style={styles.hpText}>
                 {player.hp} / {player.maxHp} HP
               </Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Attack</Text>
+                  <Text style={styles.statValue}>{player.attack}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Defense</Text>
+                  <Text style={styles.statValue}>{player.defense}</Text>
+                </View>
+              </View>
             </View>
 
             {/* Attack Buttons */}
@@ -347,6 +367,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   attacksContainer: {
     marginTop: 10,
