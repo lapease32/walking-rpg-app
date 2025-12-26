@@ -278,23 +278,27 @@ export default function HomeScreen() {
     if (creature.isDefeated()) {
       handleVictory();
     } else if (updatedPlayer.isDefeated()) {
-      // Handle player defeat
+      // Handle player defeat - heal immediately before showing alert
+      // This ensures healing happens even if alert is dismissed on Android
+      const healedPlayer = new Player(updatedPlayer.toJSON());
+      healedPlayer.fullHeal();
+      setPlayer(healedPlayer);
+      savePlayerData(healedPlayer);
+      
+      // Show alert for user feedback (healing already done)
       Alert.alert(
         'Defeated!',
-        'You have been defeated! Your HP will be restored to full.',
+        'You have been defeated! Your HP has been restored to full.',
         [
           {
             text: 'OK',
             onPress: () => {
-              const healedPlayer = new Player(updatedPlayer.toJSON());
-              healedPlayer.fullHeal();
-              setPlayer(healedPlayer);
-              savePlayerData(healedPlayer);
               setShowEncounterModal(false);
               setCurrentEncounter(null);
             },
           },
-        ]
+        ],
+        { cancelable: false } // Prevent dismissal on Android to ensure modal closes properly
       );
     }
   };
