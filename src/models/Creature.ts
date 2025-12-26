@@ -111,6 +111,15 @@ export class Creature {
   takeDamage(amount: number): void {
     this.hp = Math.max(0, this.hp - amount);
   }
+
+  /**
+   * Calculate damage dealt to a player
+   * Damage = creature attack - player defense (minimum 1)
+   */
+  calculateDamage(playerDefense: number): number {
+    const damage = this.attack - playerDefense;
+    return Math.max(1, damage); // Minimum 1 damage
+  }
 }
 
 /**

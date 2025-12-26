@@ -25,6 +25,23 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
         <Text style={styles.level}>Level {stats.level}</Text>
       </View>
 
+      <View style={styles.hpContainer}>
+        <View style={styles.hpBar}>
+          <View
+            style={[
+              styles.hpFill,
+              {
+                width: `${(stats.hp / stats.maxHp) * 100}%`,
+                backgroundColor: stats.hp / stats.maxHp > 0.5 ? '#4CAF50' : stats.hp / stats.maxHp > 0.25 ? '#FF9800' : '#F44336',
+              },
+            ]}
+          />
+        </View>
+        <Text style={styles.hpText}>
+          {stats.hp} / {stats.maxHp} HP
+        </Text>
+      </View>
+
       <View style={styles.expContainer}>
         <View style={styles.expBar}>
           <View
@@ -92,6 +109,25 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '600',
   },
+  hpContainer: {
+    marginBottom: 12,
+  },
+  hpBar: {
+    height: 20,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  hpFill: {
+    height: '100%',
+    borderRadius: 10,
+  },
+  hpText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
   expContainer: {
     marginBottom: 16,
   },
@@ -104,7 +140,7 @@ const styles = StyleSheet.create({
   },
   expFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#2196F3', // Blue color to distinguish from HP bar (green/orange/red)
     borderRadius: 10,
   },
   expText: {

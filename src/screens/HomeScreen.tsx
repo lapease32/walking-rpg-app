@@ -227,6 +227,11 @@ export default function HomeScreen() {
       return;
     }
 
+    // Check if player is already defeated
+    if (player.isDefeated()) {
+      return; // Can't fight if player is defeated
+    }
+
     const creature = currentEncounter.creature;
     
     // Check if creature is already defeated
@@ -235,11 +240,28 @@ export default function HomeScreen() {
       return;
     }
 
+    // Create updated player instance for modifications
+    const updatedPlayer = new Player(player.toJSON());
+
+    // Player attacks creature
     // Calculate damage: player attack - creature defense (minimum 1)
-    const damage = player.calculateDamage(creature.defense);
+    const playerDamage = updatedPlayer.calculateDamage(creature.defense);
     
     // Apply damage to creature
-    creature.takeDamage(damage);
+    creature.takeDamage(playerDamage);
+
+    // Creature attacks back (if not defeated by player's attack)
+    if (!creature.isDefeated()) {
+      // Calculate damage: creature attack - player defense (minimum 1)
+      const creatureDamage = creature.calculateDamage(updatedPlayer.defense);
+      
+      // Apply damage to player
+      updatedPlayer.takeDamage(creatureDamage);
+    }
+
+    // Update player state
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
 
     // Update encounter with damaged creature
     const updatedEncounter = new Encounter({
@@ -255,6 +277,25 @@ export default function HomeScreen() {
     // Check if creature is defeated
     if (creature.isDefeated()) {
       handleVictory();
+    } else if (updatedPlayer.isDefeated()) {
+      // Handle player defeat
+      Alert.alert(
+        'Defeated!',
+        'You have been defeated! Your HP will be restored to full.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              const healedPlayer = new Player(updatedPlayer.toJSON());
+              healedPlayer.fullHeal();
+              setPlayer(healedPlayer);
+              savePlayerData(healedPlayer);
+              setShowEncounterModal(false);
+              setCurrentEncounter(null);
+            },
+          },
+        ]
+      );
     }
   };
 
@@ -679,6 +720,7 @@ export default function HomeScreen() {
         encounter={currentEncounter}
         visible={showEncounterModal}
         playerAttack={player?.attack}
+        playerHp={player?.hp}
         onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}

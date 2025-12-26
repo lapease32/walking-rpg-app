@@ -14,6 +14,7 @@ interface EncounterModalProps {
   encounter: Encounter | null;
   visible: boolean;
   playerAttack?: number;
+  playerHp?: number;
   onCatch: () => void;
   onFight: () => void;
   onFlee: () => void;
@@ -26,6 +27,7 @@ export default function EncounterModal({
   encounter,
   visible,
   playerAttack,
+  playerHp,
   onCatch,
   onFight,
   onFlee,
@@ -45,6 +47,7 @@ export default function EncounterModal({
 
   const rarityColor = rarityColors[creature.rarity] || '#9E9E9E';
   const isDefeated = creature.isDefeated();
+  const playerDefeated = playerHp !== undefined && playerHp <= 0;
   
   // Calculate expected damage if player attacks
   const expectedDamage = playerAttack 
@@ -128,15 +131,15 @@ export default function EncounterModal({
               <Text style={styles.buttonText}>Catch</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.fightButton, isDefeated && styles.buttonDisabled]}
+              style={[styles.button, styles.fightButton, (isDefeated || playerDefeated) && styles.buttonDisabled]}
               onPress={onFight}
-              disabled={isDefeated}
+              disabled={isDefeated || playerDefeated}
             >
               <View style={styles.buttonContent}>
                 <Text style={styles.buttonText}>
-                  {isDefeated ? 'Defeated' : 'Fight'}
+                  {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
                 </Text>
-                {!isDefeated && expectedDamage > 0 && (
+                {!isDefeated && !playerDefeated && expectedDamage > 0 && (
                   <Text style={styles.damageHint}>~{expectedDamage} dmg</Text>
                 )}
               </View>
