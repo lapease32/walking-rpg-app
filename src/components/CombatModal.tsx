@@ -158,10 +158,10 @@ export default function CombatModal({
                   style={[
                     styles.hpFill,
                     {
-                      width: `${Math.max(0, (creature.hp / creature.maxHp) * 100)}%`,
-                      backgroundColor: creature.hp / creature.maxHp > 0.5
+                      width: `${creature.maxHp > 0 ? Math.max(0, (creature.hp / creature.maxHp) * 100) : 0}%`,
+                      backgroundColor: creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
                         ? '#4CAF50'
-                        : creature.hp / creature.maxHp > 0.25
+                        : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
                           ? '#FF9800'
                           : '#F44336',
                     },
@@ -171,6 +171,16 @@ export default function CombatModal({
               <Text style={styles.hpText}>
                 {creature.hp} / {creature.maxHp} HP
               </Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Attack</Text>
+                  <Text style={styles.statValue}>{creature.attack}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Defense</Text>
+                  <Text style={styles.statValue}>{creature.defense}</Text>
+                </View>
+              </View>
             </View>
 
             {/* Player Info */}
@@ -181,10 +191,10 @@ export default function CombatModal({
                   style={[
                     styles.hpFill,
                     {
-                      width: `${Math.max(0, (player.hp / player.maxHp) * 100)}%`,
-                      backgroundColor: player.hp / player.maxHp > 0.5
+                      width: `${player.maxHp > 0 ? Math.max(0, (player.hp / player.maxHp) * 100) : 0}%`,
+                      backgroundColor: player.maxHp > 0 && player.hp / player.maxHp > 0.5
                         ? '#4CAF50'
-                        : player.hp / player.maxHp > 0.25
+                        : player.maxHp > 0 && player.hp / player.maxHp > 0.25
                           ? '#FF9800'
                           : '#F44336',
                     },
@@ -194,6 +204,16 @@ export default function CombatModal({
               <Text style={styles.hpText}>
                 {player.hp} / {player.maxHp} HP
               </Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Attack</Text>
+                  <Text style={styles.statValue}>{player.attack}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Defense</Text>
+                  <Text style={styles.statValue}>{player.defense}</Text>
+                </View>
+              </View>
             </View>
 
             {/* Attack Buttons */}
@@ -347,6 +367,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#666',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   attacksContainer: {
     marginTop: 10,

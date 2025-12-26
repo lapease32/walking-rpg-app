@@ -157,7 +157,7 @@ export default function EncounterModal({
                   style={[
                     styles.hpFill,
                     {
-                      width: `${(creature.hp / creature.maxHp) * 100}%`,
+                      width: `${creature.maxHp > 0 ? (creature.hp / creature.maxHp) * 100 : 0}%`,
                       backgroundColor: rarityColor,
                     },
                   ]}

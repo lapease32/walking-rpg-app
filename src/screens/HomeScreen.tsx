@@ -126,9 +126,12 @@ export default function HomeScreen() {
     const { incremental, total } = distanceData;
     setCurrentDistance(total);
 
+    // Use ref to get current player state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    
     // Update player distance
-    if (player) {
-      const updatedPlayer = new Player(player.toJSON());
+    if (currentPlayer) {
+      const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.addDistance(incremental);
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer); // Save periodically
@@ -149,7 +152,7 @@ export default function HomeScreen() {
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
         location,
-        player?.level || 1
+        currentPlayer?.level || 1
       );
 
       if (encounter) {
