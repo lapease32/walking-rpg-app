@@ -14,6 +14,9 @@ interface EncounterModalProps {
   encounter: Encounter | null;
   visible: boolean;
   playerAttack?: number;
+  playerDefense?: number;
+  playerHp?: number;
+  playerMaxHp?: number;
   onCatch: () => void;
   onFight: () => void;
   onFlee: () => void;
@@ -26,6 +29,9 @@ export default function EncounterModal({
   encounter,
   visible,
   playerAttack,
+  playerDefense,
+  playerHp,
+  playerMaxHp,
   onCatch,
   onFight,
   onFlee,
@@ -45,11 +51,22 @@ export default function EncounterModal({
 
   const rarityColor = rarityColors[creature.rarity] || '#9E9E9E';
   const isDefeated = creature.isDefeated();
+  const playerDefeated = playerHp !== undefined && playerHp <= 0;
   
   // Calculate expected damage if player attacks
   const expectedDamage = playerAttack 
     ? Math.max(1, playerAttack - creature.defense)
     : 0;
+
+  // Calculate HP percentage for color coding
+  const playerHpPercentage = playerHp !== undefined && playerMaxHp !== undefined && playerMaxHp > 0
+    ? playerHp / playerMaxHp
+    : 1;
+  const playerHpBarColor = playerHpPercentage > 0.5 
+    ? '#4CAF50' 
+    : playerHpPercentage > 0.25 
+      ? '#FF9800' 
+      : '#F44336';
 
   return (
     <Modal
@@ -62,6 +79,47 @@ export default function EncounterModal({
         <View style={styles.modalContent}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
+
+            {/* Player Stats Card */}
+            {(playerHp !== undefined || playerAttack !== undefined || playerDefense !== undefined) && (
+              <View style={styles.playerCard}>
+                <Text style={styles.playerCardTitle}>Your Stats</Text>
+                
+                {playerHp !== undefined && playerMaxHp !== undefined && (
+                  <>
+                    <View style={styles.playerHpBar}>
+                      <View
+                        style={[
+                          styles.playerHpFill,
+                          {
+                            width: `${playerHpPercentage * 100}%`,
+                            backgroundColor: playerHpBarColor,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.playerHpText}>
+                      {playerHp} / {playerMaxHp} HP
+                    </Text>
+                  </>
+                )}
+
+                <View style={styles.playerStatsContainer}>
+                  {playerAttack !== undefined && (
+                    <View style={styles.playerStatRow}>
+                      <Text style={styles.playerStatLabel}>⚔️ Attack:</Text>
+                      <Text style={styles.playerStatValue}>{playerAttack}</Text>
+                    </View>
+                  )}
+                  {playerDefense !== undefined && (
+                    <View style={styles.playerStatRow}>
+                      <Text style={styles.playerStatLabel}>🛡️ Defense:</Text>
+                      <Text style={styles.playerStatValue}>{playerDefense}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
 
             <View style={[styles.creatureCard, { borderColor: rarityColor }]}>
               <View
@@ -128,15 +186,15 @@ export default function EncounterModal({
               <Text style={styles.buttonText}>Catch</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.fightButton, isDefeated && styles.buttonDisabled]}
+              style={[styles.button, styles.fightButton, (isDefeated || playerDefeated) && styles.buttonDisabled]}
               onPress={onFight}
-              disabled={isDefeated}
+              disabled={isDefeated || playerDefeated}
             >
               <View style={styles.buttonContent}>
                 <Text style={styles.buttonText}>
-                  {isDefeated ? 'Defeated' : 'Fight'}
+                  {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
                 </Text>
-                {!isDefeated && expectedDamage > 0 && (
+                {!isDefeated && !playerDefeated && expectedDamage > 0 && (
                   <Text style={styles.damageHint}>~{expectedDamage} dmg</Text>
                 )}
               </View>
@@ -297,6 +355,55 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 2,
+  },
+  playerCard: {
+    borderWidth: 2,
+    borderColor: '#2196F3',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: '#f0f7ff',
+  },
+  playerCardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  playerHpBar: {
+    height: 16,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  playerHpFill: {
+    height: '100%',
+    borderRadius: 8,
+  },
+  playerHpText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  playerStatsContainer: {
+    marginTop: 4,
+  },
+  playerStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  playerStatLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  playerStatValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
   },
 });
 

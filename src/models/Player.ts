@@ -12,6 +12,8 @@ export interface PlayerData {
   experience: number;
   attack: number;
   defense: number;
+  hp?: number;
+  maxHp?: number;
   totalDistance: number;
   totalEncounters: number;
   creaturesCaught: number;
@@ -27,6 +29,8 @@ export interface PlayerStats {
   experienceForNextLevel: number;
   attack: number;
   defense: number;
+  hp: number;
+  maxHp: number;
   totalDistance: number;
   totalEncounters: number;
   creaturesCaught: number;
@@ -40,6 +44,8 @@ export interface PlayerConstructorParams {
   experience?: number;
   attack?: number;
   defense?: number;
+  hp?: number;
+  maxHp?: number;
   totalDistance?: number;
   totalEncounters?: number;
   creaturesCaught?: number;
@@ -54,6 +60,8 @@ export class Player {
   experience: number;
   attack: number;
   defense: number;
+  hp: number;
+  maxHp: number;
   totalDistance: number;
   totalEncounters: number;
   creaturesCaught: number;
@@ -67,6 +75,8 @@ export class Player {
     experience = 0,
     attack,
     defense,
+    hp,
+    maxHp,
     totalDistance = 0,
     totalEncounters = 0,
     creaturesCaught = 0,
@@ -82,6 +92,14 @@ export class Player {
     // Base stats + stats per level
     this.attack = attack ?? (PLAYER_CONFIG.STARTING_ATTACK + (level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL);
     this.defense = defense ?? (PLAYER_CONFIG.STARTING_DEFENSE + (level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL);
+    
+    // Calculate max HP based on level if not provided
+    this.maxHp = maxHp ?? (PLAYER_CONFIG.STARTING_HP + (level - 1) * PLAYER_CONFIG.HP_PER_LEVEL);
+    // Set current HP to maxHp if not provided, or use provided hp (but cap at maxHp)
+    this.hp = hp ?? this.maxHp;
+    if (this.hp > this.maxHp) {
+      this.hp = this.maxHp;
+    }
     
     this.totalDistance = totalDistance;
     this.totalEncounters = totalEncounters;
@@ -122,6 +140,13 @@ export class Player {
       // Increase stats on level up
       this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
       this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+      this.maxHp += PLAYER_CONFIG.HP_PER_LEVEL;
+      // Restore HP by the amount gained (full heal on level up)
+      this.hp += PLAYER_CONFIG.HP_PER_LEVEL;
+      // Cap at maxHp in case hp was already full
+      if (this.hp > this.maxHp) {
+        this.hp = this.maxHp;
+      }
       
       expNeeded = this.getExperienceForNextLevel();
     }
@@ -136,6 +161,35 @@ export class Player {
   calculateDamage(creatureDefense: number): number {
     const damage = this.attack - creatureDefense;
     return Math.max(1, damage); // Minimum 1 damage
+  }
+
+  /**
+   * Take damage from a creature
+   * Damage = creature attack - player defense (minimum 1)
+   */
+  takeDamage(amount: number): void {
+    this.hp = Math.max(0, this.hp - amount);
+  }
+
+  /**
+   * Check if player is defeated
+   */
+  isDefeated(): boolean {
+    return this.hp <= 0;
+  }
+
+  /**
+   * Restore HP (for healing, level up, etc.)
+   */
+  restoreHp(amount: number): void {
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+  }
+
+  /**
+   * Fully heal player
+   */
+  fullHeal(): void {
+    this.hp = this.maxHp;
   }
 
   /**
@@ -174,6 +228,13 @@ export class Player {
     this.level += 1;
     this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
     this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+    this.maxHp += PLAYER_CONFIG.HP_PER_LEVEL;
+    // Restore HP by the amount gained (full heal on level up)
+    this.hp += PLAYER_CONFIG.HP_PER_LEVEL;
+    // Cap at maxHp in case hp was already full
+    if (this.hp > this.maxHp) {
+      this.hp = this.maxHp;
+    }
   }
 
   /**
@@ -185,6 +246,8 @@ export class Player {
     this.experience = 0;
     this.attack = PLAYER_CONFIG.STARTING_ATTACK;
     this.defense = PLAYER_CONFIG.STARTING_DEFENSE;
+    this.maxHp = PLAYER_CONFIG.STARTING_HP;
+    this.hp = this.maxHp;
   }
 
   /**
@@ -199,6 +262,8 @@ export class Player {
       experienceForNextLevel: this.getExperienceForNextLevel(),
       attack: this.attack,
       defense: this.defense,
+      hp: this.hp,
+      maxHp: this.maxHp,
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
       creaturesCaught: this.creaturesCaught,
@@ -217,6 +282,8 @@ export class Player {
       experience: this.experience,
       attack: this.attack,
       defense: this.defense,
+      hp: this.hp,
+      maxHp: this.maxHp,
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
       creaturesCaught: this.creaturesCaught,

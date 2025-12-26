@@ -227,6 +227,11 @@ export default function HomeScreen() {
       return;
     }
 
+    // Check if player is already defeated
+    if (player.isDefeated()) {
+      return; // Can't fight if player is defeated
+    }
+
     const creature = currentEncounter.creature;
     
     // Check if creature is already defeated
@@ -235,11 +240,28 @@ export default function HomeScreen() {
       return;
     }
 
+    // Create updated player instance for modifications
+    const updatedPlayer = new Player(player.toJSON());
+
+    // Player attacks creature
     // Calculate damage: player attack - creature defense (minimum 1)
-    const damage = player.calculateDamage(creature.defense);
+    const playerDamage = updatedPlayer.calculateDamage(creature.defense);
     
     // Apply damage to creature
-    creature.takeDamage(damage);
+    creature.takeDamage(playerDamage);
+
+    // Creature attacks back (if not defeated by player's attack)
+    if (!creature.isDefeated()) {
+      // Calculate damage: creature attack - player defense (minimum 1)
+      const creatureDamage = creature.calculateDamage(updatedPlayer.defense);
+      
+      // Apply damage to player
+      updatedPlayer.takeDamage(creatureDamage);
+    }
+
+    // Update player state
+    setPlayer(updatedPlayer);
+    savePlayerData(updatedPlayer);
 
     // Update encounter with damaged creature
     const updatedEncounter = new Encounter({
@@ -254,13 +276,40 @@ export default function HomeScreen() {
 
     // Check if creature is defeated
     if (creature.isDefeated()) {
-      handleVictory();
+      handleVictory(updatedPlayer);
+    } else if (updatedPlayer.isDefeated()) {
+      // Handle player defeat - heal immediately before showing alert
+      // This ensures healing happens even if alert is dismissed on Android
+      const healedPlayer = new Player(updatedPlayer.toJSON());
+      healedPlayer.fullHeal();
+      healedPlayer.incrementEncounters(); // Count the encounter like other outcomes
+      setPlayer(healedPlayer);
+      savePlayerData(healedPlayer);
+      
+      // Show alert for user feedback (healing already done)
+      Alert.alert(
+        'Defeated!',
+        'You have been defeated! Your HP has been restored to full.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setShowEncounterModal(false);
+              setCurrentEncounter(null);
+            },
+          },
+        ],
+        { cancelable: false } // Prevent dismissal on Android to ensure modal closes properly
+      );
     }
   };
 
   // Handle victory when creature is defeated
-  const handleVictory = (): void => {
-    if (!currentEncounter || !player) {
+  const handleVictory = (playerToUse?: Player): void => {
+    // Use provided player or fall back to state player
+    const basePlayer = playerToUse || player;
+    
+    if (!currentEncounter || !basePlayer) {
       return;
     }
 
@@ -272,7 +321,7 @@ export default function HomeScreen() {
     // Mark victory as being processed
     victoryProcessedRef.current = true;
 
-    const updatedPlayer = new Player(player.toJSON());
+    const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
     updatedPlayer.incrementEncounters();
     
@@ -679,6 +728,9 @@ export default function HomeScreen() {
         encounter={currentEncounter}
         visible={showEncounterModal}
         playerAttack={player?.attack}
+        playerDefense={player?.defense}
+        playerHp={player?.hp}
+        playerMaxHp={player?.maxHp}
         onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}

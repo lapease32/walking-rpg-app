@@ -18,11 +18,38 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
   const progressPercentage =
     (stats.experience / stats.experienceForNextLevel) * 100;
 
+  // Calculate HP percentage with guard against division by zero
+  const hpPercentage = stats.maxHp > 0
+    ? stats.hp / stats.maxHp
+    : 1;
+  const hpBarColor = hpPercentage > 0.5
+    ? '#4CAF50'
+    : hpPercentage > 0.25
+      ? '#FF9800'
+      : '#F44336';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.playerName}>{stats.name}</Text>
         <Text style={styles.level}>Level {stats.level}</Text>
+      </View>
+
+      <View style={styles.hpContainer}>
+        <View style={styles.hpBar}>
+          <View
+            style={[
+              styles.hpFill,
+              {
+                width: `${hpPercentage * 100}%`,
+                backgroundColor: hpBarColor,
+              },
+            ]}
+          />
+        </View>
+        <Text style={styles.hpText}>
+          {stats.hp} / {stats.maxHp} HP
+        </Text>
       </View>
 
       <View style={styles.expContainer}>
@@ -92,6 +119,25 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '600',
   },
+  hpContainer: {
+    marginBottom: 12,
+  },
+  hpBar: {
+    height: 20,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  hpFill: {
+    height: '100%',
+    borderRadius: 10,
+  },
+  hpText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
   expContainer: {
     marginBottom: 16,
   },
@@ -104,7 +150,7 @@ const styles = StyleSheet.create({
   },
   expFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#2196F3', // Blue color to distinguish from HP bar (green/orange/red)
     borderRadius: 10,
   },
   expText: {
