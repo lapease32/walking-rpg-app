@@ -282,6 +282,7 @@ export default function HomeScreen() {
       // This ensures healing happens even if alert is dismissed on Android
       const healedPlayer = new Player(updatedPlayer.toJSON());
       healedPlayer.fullHeal();
+      healedPlayer.incrementEncounters(); // Count the encounter like other outcomes
       setPlayer(healedPlayer);
       savePlayerData(healedPlayer);
       
