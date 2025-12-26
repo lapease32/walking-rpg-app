@@ -18,7 +18,7 @@ import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
-import { AttackType, ATTACK_TYPES } from '../constants/config';
+import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
 
 /**
  * Main home screen with location tracking and encounter handling
@@ -37,22 +37,35 @@ export default function HomeScreen() {
   const [isTimeBlocking, setIsTimeBlocking] = useState<boolean>(false); // Whether time constraint is blocking encounters
   const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
+  const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
   
   // Ref to track current player state for async callbacks
   const playerRef = useRef<Player | null>(null);
+  
+  // Ref to track encounter state for async callbacks (to avoid stale closures)
+  const encounterRef = useRef<Encounter | null>(null);
+  const isMinimizedRef = useRef<boolean>(false);
 
   // Load player data on mount
   useEffect(() => {
     initializePlayer();
   }, []);
 
-  // Keep playerRef in sync with player state
+  // Keep refs in sync with state
   useEffect(() => {
     playerRef.current = player;
   }, [player]);
+  
+  useEffect(() => {
+    encounterRef.current = currentEncounter;
+  }, [currentEncounter]);
+  
+  useEffect(() => {
+    isMinimizedRef.current = isEncounterModalMinimized;
+  }, [isEncounterModalMinimized]);
 
   // Initialize encounter chance display
   useEffect(() => {
@@ -137,6 +150,32 @@ export default function HomeScreen() {
       savePlayerData(updatedPlayer); // Save periodically
     }
 
+    // Check if encounter is minimized and user has traveled too far
+    // Use refs to avoid stale closure issues
+    const currentEncounterState = encounterRef.current;
+    const isMinimized = isMinimizedRef.current;
+    
+    if (currentEncounterState && isMinimized && currentLocation && !showCombatModal) {
+      const encounterLocation = currentEncounterState.location;
+      const distanceFromEncounter = LocationService.calculateDistance(
+        encounterLocation.latitude,
+        encounterLocation.longitude,
+        currentLocation.latitude,
+        currentLocation.longitude
+      );
+      
+      // Auto-flee if user travels more than the threshold distance
+      if (distanceFromEncounter > ENCOUNTER_CONFIG.AUTO_FLEE_DISTANCE) {
+        Alert.alert(
+          'Encounter Ended',
+          `You traveled too far from the encounter location. The ${currentEncounterState.creature.name} has fled.`,
+          [{ text: 'OK' }]
+        );
+        handleFlee();
+        return; // Don't process new encounters after auto-flee
+      }
+    }
+
     // Check for encounters
     if (currentLocation) {
       const location: Location = {
@@ -158,6 +197,7 @@ export default function HomeScreen() {
       if (encounter) {
         setCurrentEncounter(encounter);
         setShowEncounterModal(true);
+        setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
         victoryProcessedRef.current = false; // Reset victory flag for new encounter
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
@@ -208,6 +248,7 @@ export default function HomeScreen() {
 
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer);
+      setIsEncounterModalMinimized(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
 
@@ -366,6 +407,7 @@ export default function HomeScreen() {
 
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
+    setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
@@ -383,6 +425,12 @@ export default function HomeScreen() {
     }
   };
 
+  // Handle encounter minimize (close modal without fleeing)
+  const handleMinimize = (): void => {
+    setIsEncounterModalMinimized(true);
+    setShowEncounterModal(false);
+  };
+
   // Handle encounter flee
   const handleFlee = (): void => {
     if (currentEncounter && player) {
@@ -391,6 +439,7 @@ export default function HomeScreen() {
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer);
     }
+    setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
@@ -413,6 +462,7 @@ export default function HomeScreen() {
     );
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
+    setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
     victoryProcessedRef.current = false; // Reset victory flag for new encounter
     // Encounter forced - distance tracking was reset, so chance is now 0
     setEncounterChance(0);
@@ -425,68 +475,58 @@ export default function HomeScreen() {
   // Debug: Simulate movement (add fake distance)
   const simulateMovement = (): void => {
     const fakeDistance = 100; // meters
+    const baseLat = currentLocation?.latitude || 37.7749;
+    const baseLon = currentLocation?.longitude || -122.4194;
+    
+    // Simulate location movement: move ~100m north (approximately 0.0009 degrees latitude)
+    // 1 degree latitude ≈ 111,000 meters, so 100m ≈ 0.0009 degrees
+    const latOffset = fakeDistance / 111000; // Move north
+    const newLocation: LocationData = {
+      latitude: baseLat + latOffset,
+      longitude: baseLon,
+      accuracy: 10,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      timestamp: Date.now(),
+    };
+    
+    // Check for auto-flee BEFORE updating location (use refs to get current state)
+    const currentEncounterState = encounterRef.current;
+    const isMinimized = isMinimizedRef.current;
+    
+    if (currentEncounterState && isMinimized && !showCombatModal) {
+      const encounterLocation = currentEncounterState.location;
+      const distanceFromEncounter = LocationService.calculateDistance(
+        encounterLocation.latitude,
+        encounterLocation.longitude,
+        newLocation.latitude,
+        newLocation.longitude
+      );
+      
+      // Auto-flee if user travels more than the threshold distance
+      if (distanceFromEncounter > ENCOUNTER_CONFIG.AUTO_FLEE_DISTANCE) {
+        Alert.alert(
+          'Encounter Ended',
+          `You traveled too far from the encounter location. The ${currentEncounterState.creature.name} has fled.`,
+          [{ text: 'OK' }]
+        );
+        handleFlee();
+        return; // Don't process movement after auto-flee
+      }
+    }
+    
+    // Update location (this will trigger handleLocationUpdate)
+    setCurrentLocation(newLocation);
+    
+    // Create distance data
     const distanceData: DistanceData = {
       incremental: fakeDistance,
       total: currentDistance + fakeDistance,
     };
 
-    // Update distance
-    setCurrentDistance(distanceData.total);
-
-    // Update player distance
-    if (player) {
-      const updatedPlayer = new Player(player.toJSON());
-      updatedPlayer.addDistance(fakeDistance);
-      setPlayer(updatedPlayer);
-      savePlayerData(updatedPlayer);
-    }
-
-    // Check for encounters
-    const location: Location = currentLocation
-      ? {
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-        }
-      : {
-          latitude: 37.7749,
-          longitude: -122.4194,
-        };
-
-    // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
-    const probabilityThatWillBeUsed = EncounterService.getProbabilityAfterIncremental(
-      distanceData.incremental
-    );
-    
-    const encounter = EncounterService.processDistanceUpdate(
-      distanceData,
-      location,
-      player?.level || 1
-    );
-
-    if (encounter) {
-      setCurrentEncounter(encounter);
-      setShowEncounterModal(true);
-      victoryProcessedRef.current = false; // Reset victory flag for new encounter
-      // Encounter generated - distance tracking was reset, so chance is now 0
-      setEncounterChance(0);
-      // Store the probability that was used when this encounter occurred
-      setLastEncounterChance(probabilityThatWillBeUsed);
-      // Update time blocking state (encounter just occurred, so time constraint is now active)
-      const blocking = EncounterService.isTimeConstraintBlocking();
-      setIsTimeBlocking(blocking);
-      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
-    } else {
-      // Update encounter chance display (use distance-based for debugging visibility)
-      const currentProbability = EncounterService.getDistanceBasedProbability();
-      setEncounterChance(currentProbability);
-      const blocking = EncounterService.isTimeConstraintBlocking();
-      setIsTimeBlocking(blocking);
-      setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
-      Alert.alert(
-        'Movement Simulated',
-        `Added ${fakeDistance}m. Distance: ${distanceData.total.toFixed(0)}m`
-      );
-    }
+    // Call handleDistanceUpdate which will update player distance and check for encounters
+    handleDistanceUpdate(distanceData);
   };
 
   // Debug: Simulate location update
@@ -648,6 +688,21 @@ export default function HomeScreen() {
             Walk around to trigger random creature encounters!
           </Text>
 
+          {/* Show minimized encounter indicator */}
+          {currentEncounter && isEncounterModalMinimized && !showCombatModal && (
+            <TouchableOpacity
+              style={styles.minimizedEncounterButton}
+              onPress={() => {
+                setIsEncounterModalMinimized(false);
+                setShowEncounterModal(true);
+              }}
+            >
+              <Text style={styles.minimizedEncounterText}>
+                ⚠️ Active Encounter: {currentEncounter.creature.name} (Tap to view)
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Debug Mode Controls */}
           {debugMode && (
             <View style={styles.debugContainer}>
@@ -772,6 +827,7 @@ export default function HomeScreen() {
         onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}
+        onMinimize={handleMinimize}
       />
       <CombatModal
         encounter={currentEncounter}
@@ -974,6 +1030,18 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 12,
     textDecorationLine: 'underline',
+  },
+  minimizedEncounterButton: {
+    padding: 12,
+    backgroundColor: '#FF9800',
+    borderRadius: 8,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  minimizedEncounterText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 
