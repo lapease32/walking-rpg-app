@@ -183,6 +183,13 @@ export default function HomeScreen() {
       }
     }
 
+    // Don't generate new encounters if there's already an active minimized encounter
+    // (The refs are already loaded above, so we can use them here)
+    if (currentEncounterState && isMinimized && !showCombatModal) {
+      // Active minimized encounter exists - skip new encounter generation
+      return;
+    }
+
     // Check for encounters (use ref to avoid stale closure)
     const locationForEncounter = currentLocationRef.current;
     if (locationForEncounter) {
