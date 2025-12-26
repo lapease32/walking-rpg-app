@@ -49,6 +49,7 @@ export default function HomeScreen() {
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const currentLocationRef = useRef<LocationData | null>(null);
+  const showCombatModalRef = useRef<boolean>(false);
 
   // Load player data on mount
   useEffect(() => {
@@ -71,6 +72,10 @@ export default function HomeScreen() {
   useEffect(() => {
     currentLocationRef.current = currentLocation;
   }, [currentLocation]);
+  
+  useEffect(() => {
+    showCombatModalRef.current = showCombatModal;
+  }, [showCombatModal]);
 
   // Initialize encounter chance display
   useEffect(() => {
@@ -161,8 +166,9 @@ export default function HomeScreen() {
     const currentEncounterState = encounterRef.current;
     const isMinimized = isMinimizedRef.current;
     const currentLocationState = currentLocationRef.current; // Use ref to avoid stale closure
+    const isInCombat = showCombatModalRef.current; // Use ref to avoid stale closure
     
-    if (currentEncounterState && isMinimized && currentLocationState && !showCombatModal) {
+    if (currentEncounterState && isMinimized && currentLocationState && !isInCombat) {
       const encounterLocation = currentEncounterState.location;
       const distanceFromEncounter = LocationService.calculateDistance(
         encounterLocation.latitude,
@@ -185,7 +191,7 @@ export default function HomeScreen() {
 
     // Don't generate new encounters if there's already an active minimized encounter
     // (The refs are already loaded above, so we can use them here)
-    if (currentEncounterState && isMinimized && !showCombatModal) {
+    if (currentEncounterState && isMinimized && !isInCombat) {
       // Active minimized encounter exists - skip new encounter generation
       return;
     }
@@ -512,8 +518,9 @@ export default function HomeScreen() {
     // Check for auto-flee BEFORE updating location (use refs to get current state)
     const currentEncounterState = encounterRef.current;
     const isMinimized = isMinimizedRef.current;
+    const isInCombat = showCombatModalRef.current; // Use ref to avoid stale closure
     
-    if (currentEncounterState && isMinimized && !showCombatModal) {
+    if (currentEncounterState && isMinimized && !isInCombat) {
       const encounterLocation = currentEncounterState.location;
       const distanceFromEncounter = LocationService.calculateDistance(
         encounterLocation.latitude,
