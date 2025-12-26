@@ -276,12 +276,18 @@ export default function HomeScreen() {
       const expGain = currentEncounter.creature.getExperienceReward();
       const levelsGained = updatedPlayer.addExperience(expGain);
 
+      // Update refs immediately to prevent race condition with GPS callbacks
+      // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+      encounterRef.current = null;
+      isMinimizedRef.current = false;
+      showCombatModalRef.current = false;
+      fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
+
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer);
       setIsEncounterModalMinimized(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
-      fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
 
       if (levelsGained > 0) {
         Alert.alert('Level Up!', `You reached level ${updatedPlayer.level}!`);
@@ -437,13 +443,19 @@ export default function HomeScreen() {
     const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
 
+    // Update refs immediately to prevent race condition with GPS callbacks
+    // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+    encounterRef.current = null;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
+
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
-    fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
 
     if (levelsGained > 0) {
       Alert.alert(
@@ -460,6 +472,9 @@ export default function HomeScreen() {
 
   // Handle encounter minimize (close modal without fleeing)
   const handleMinimize = (): void => {
+    // Update ref immediately to prevent race condition with GPS callbacks
+    // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
+    isMinimizedRef.current = true;
     setIsEncounterModalMinimized(true);
     setShowEncounterModal(false);
   };
