@@ -720,7 +720,9 @@ export default function HomeScreen() {
         encounter={currentEncounter}
         visible={showEncounterModal}
         playerAttack={player?.attack}
+        playerDefense={player?.defense}
         playerHp={player?.hp}
+        playerMaxHp={player?.maxHp}
         onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}
