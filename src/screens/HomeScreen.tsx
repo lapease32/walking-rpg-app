@@ -29,6 +29,8 @@ export default function HomeScreen() {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
+  const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability
+  const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
@@ -45,6 +47,12 @@ export default function HomeScreen() {
   useEffect(() => {
     playerRef.current = player;
   }, [player]);
+
+  // Initialize encounter chance display
+  useEffect(() => {
+    const currentProbability = EncounterService.getCurrentEncounterProbability();
+    setEncounterChance(currentProbability);
+  }, []);
 
   const initializePlayer = async (): Promise<void> => {
     try {
@@ -87,6 +95,10 @@ export default function HomeScreen() {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
       };
+      
+      // Get probability before processing (in case encounter occurs and resets tracking)
+      const probabilityBeforeEncounter = EncounterService.getCurrentEncounterProbability();
+      
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
         location,
@@ -97,7 +109,19 @@ export default function HomeScreen() {
         setCurrentEncounter(encounter);
         setShowEncounterModal(true);
         victoryProcessedRef.current = false; // Reset victory flag for new encounter
+        // Encounter generated - distance tracking was reset, so chance is now 0
+        setEncounterChance(0);
+        // Store the probability that was used when this encounter occurred
+        setLastEncounterChance(probabilityBeforeEncounter);
+      } else {
+        // Update encounter chance display
+        const currentProbability = EncounterService.getCurrentEncounterProbability();
+        setEncounterChance(currentProbability);
       }
+    } else {
+      // Update encounter chance even without location
+      const currentProbability = EncounterService.getCurrentEncounterProbability();
+      setEncounterChance(currentProbability);
     }
   };
 
@@ -249,6 +273,8 @@ export default function HomeScreen() {
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     victoryProcessedRef.current = false; // Reset victory flag for new encounter
+    // Encounter forced - distance tracking was reset, so chance is now 0
+    setEncounterChance(0);
   };
 
   // Debug: Simulate movement (add fake distance)
@@ -281,6 +307,9 @@ export default function HomeScreen() {
           longitude: -122.4194,
         };
 
+    // Get probability before processing (in case encounter occurs and resets tracking)
+    const probabilityBeforeEncounter = EncounterService.getCurrentEncounterProbability();
+    
     const encounter = EncounterService.processDistanceUpdate(
       distanceData,
       location,
@@ -291,7 +320,14 @@ export default function HomeScreen() {
       setCurrentEncounter(encounter);
       setShowEncounterModal(true);
       victoryProcessedRef.current = false; // Reset victory flag for new encounter
+      // Encounter generated - distance tracking was reset, so chance is now 0
+      setEncounterChance(0);
+      // Store the probability that was used when this encounter occurred
+      setLastEncounterChance(probabilityBeforeEncounter);
     } else {
+      // Update encounter chance display
+      const currentProbability = EncounterService.getCurrentEncounterProbability();
+      setEncounterChance(currentProbability);
       Alert.alert(
         'Movement Simulated',
         `Added ${fakeDistance}m. Distance: ${distanceData.total.toFixed(0)}m`
@@ -462,6 +498,20 @@ export default function HomeScreen() {
           {debugMode && (
             <View style={styles.debugContainer}>
               <Text style={styles.debugTitle}>🐛 Debug Mode</Text>
+              <View style={styles.encounterChanceContainer}>
+                <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
+                <Text style={styles.encounterChanceValue}>
+                  {(encounterChance * 100).toFixed(2)}%
+                </Text>
+              </View>
+              {lastEncounterChance !== null && (
+                <View style={styles.encounterChanceContainer}>
+                  <Text style={styles.encounterChanceLabel}>Last Encounter @:</Text>
+                  <Text style={styles.encounterChanceValue}>
+                    {(lastEncounterChance * 100).toFixed(2)}%
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 style={styles.debugButton}
                 onPress={simulateLocationUpdate}
@@ -644,6 +694,27 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
+    color: '#856404',
+  },
+  encounterChanceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  encounterChanceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#856404',
+  },
+  encounterChanceValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
     color: '#856404',
   },
   debugButton: {
