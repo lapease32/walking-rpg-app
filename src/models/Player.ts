@@ -228,6 +228,13 @@ export class Player {
     this.level += 1;
     this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
     this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+    this.maxHp += PLAYER_CONFIG.HP_PER_LEVEL;
+    // Restore HP by the amount gained (full heal on level up)
+    this.hp += PLAYER_CONFIG.HP_PER_LEVEL;
+    // Cap at maxHp in case hp was already full
+    if (this.hp > this.maxHp) {
+      this.hp = this.maxHp;
+    }
   }
 
   /**
