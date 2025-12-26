@@ -15,8 +15,9 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
   }
 
   const stats = player.getStats();
-  const progressPercentage =
-    (stats.experience / stats.experienceForNextLevel) * 100;
+  const progressPercentage = stats.experienceForNextLevel > 0
+    ? (stats.experience / stats.experienceForNextLevel) * 100
+    : 0;
 
   // Calculate HP percentage with guard against division by zero
   const hpPercentage = stats.maxHp > 0

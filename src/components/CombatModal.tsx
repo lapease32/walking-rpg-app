@@ -158,10 +158,10 @@ export default function CombatModal({
                   style={[
                     styles.hpFill,
                     {
-                      width: `${Math.max(0, (creature.hp / creature.maxHp) * 100)}%`,
-                      backgroundColor: creature.hp / creature.maxHp > 0.5
+                      width: `${creature.maxHp > 0 ? Math.max(0, (creature.hp / creature.maxHp) * 100) : 0}%`,
+                      backgroundColor: creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
                         ? '#4CAF50'
-                        : creature.hp / creature.maxHp > 0.25
+                        : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
                           ? '#FF9800'
                           : '#F44336',
                     },
@@ -191,10 +191,10 @@ export default function CombatModal({
                   style={[
                     styles.hpFill,
                     {
-                      width: `${Math.max(0, (player.hp / player.maxHp) * 100)}%`,
-                      backgroundColor: player.hp / player.maxHp > 0.5
+                      width: `${player.maxHp > 0 ? Math.max(0, (player.hp / player.maxHp) * 100) : 0}%`,
+                      backgroundColor: player.maxHp > 0 && player.hp / player.maxHp > 0.5
                         ? '#4CAF50'
-                        : player.hp / player.maxHp > 0.25
+                        : player.maxHp > 0 && player.hp / player.maxHp > 0.25
                           ? '#FF9800'
                           : '#F44336',
                     },
