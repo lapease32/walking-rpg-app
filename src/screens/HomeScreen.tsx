@@ -505,8 +505,8 @@ export default function HomeScreen() {
   // Debug: Simulate movement (add fake distance)
   const simulateMovement = (): void => {
     const fakeDistance = 100; // meters
-    const baseLat = currentLocation?.latitude || 37.7749;
-    const baseLon = currentLocation?.longitude || -122.4194;
+    const baseLat = currentLocationRef.current?.latitude || 37.7749;
+    const baseLon = currentLocationRef.current?.longitude || -122.4194;
     
     // Simulate location movement: move ~100m north (approximately 0.0009 degrees latitude)
     // 1 degree latitude ≈ 111,000 meters, so 100m ≈ 0.0009 degrees
@@ -535,8 +535,8 @@ export default function HomeScreen() {
 
   // Debug: Simulate location update
   const simulateLocationUpdate = (): void => {
-    const baseLat = currentLocation?.latitude || 37.7749;
-    const baseLon = currentLocation?.longitude || -122.4194;
+    const baseLat = currentLocationRef.current?.latitude || 37.7749;
+    const baseLon = currentLocationRef.current?.longitude || -122.4194;
 
     // Move slightly (simulate walking ~10 meters)
     const newLocation: LocationData = {
