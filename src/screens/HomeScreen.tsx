@@ -16,6 +16,7 @@ import { Location } from '../models/Encounter';
 import { savePlayerData, loadPlayerData } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
+import InventoryDisplay from '../components/Inventory';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
@@ -759,6 +760,8 @@ export default function HomeScreen() {
           <Text style={styles.title}>Walking RPG</Text>
 
           <PlayerStats player={player} />
+
+          <InventoryDisplay inventory={player.inventory} />
 
           <DistanceDisplay distance={currentDistance} />
 
