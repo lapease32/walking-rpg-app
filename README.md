@@ -4,7 +4,7 @@ A location-based RPG mobile app that generates random creature encounters as you
 
 ## Concept
 
-Similar to Pokémon GO, this app:
+This app:
 - Tracks your location and distance traveled using GPS
 - Generates random creature encounters based on distance traveled
 - Provides RPG-style combat and interaction mechanics
