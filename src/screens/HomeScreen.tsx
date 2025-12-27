@@ -734,6 +734,9 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.minimizedEncounterButton}
               onPress={() => {
+                // Update ref immediately to prevent race condition with GPS callbacks
+                // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
+                isMinimizedRef.current = false;
                 setIsEncounterModalMinimized(false);
                 setShowEncounterModal(true);
               }}
