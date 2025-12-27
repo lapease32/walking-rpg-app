@@ -108,7 +108,6 @@ walking-rpg-app/
 - ✅ Location tracking with distance calculation (Haversine formula)
 - ✅ Random encounter generation system based on distance traveled
 - ✅ Creature data models with stats, rarity levels, and level scaling
-- ✅ Combat system with turn-based fighting mechanics
 - ✅ Player progression system (leveling, experience, stats)
 - ✅ Player combat stats (attack, defense) that scale with level
 - ✅ Creature defeat rewards with experience points
