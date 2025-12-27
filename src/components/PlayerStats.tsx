@@ -85,10 +85,6 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
           <Text style={styles.statLabel}>Encounters</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{stats.creaturesCaught}</Text>
-          <Text style={styles.statLabel}>Caught</Text>
-        </View>
-        <View style={styles.statItem}>
           <Text style={styles.statValue}>{stats.creaturesDefeated}</Text>
           <Text style={styles.statLabel}>Defeated</Text>
         </View>

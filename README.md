@@ -120,7 +120,6 @@ walking-rpg-app/
 
 - [ ] Creature collection/inventory system
 - [ ] Different encounter types based on location/biome
-- [ ] Creature catching mechanics (currently only defeat is implemented)
 - [ ] Enhanced combat with creature attacks and special abilities
 - [ ] Social features (friends, leaderboards)
 - [ ] Daily challenges and quests
