@@ -17,7 +17,6 @@ interface EncounterModalProps {
   playerDefense?: number;
   playerHp?: number;
   playerMaxHp?: number;
-  onCatch: () => void;
   onFight: () => void;
   onFlee: () => void;
   onMinimize?: () => void;
@@ -33,7 +32,6 @@ export default function EncounterModal({
   playerDefense,
   playerHp,
   playerMaxHp,
-  onCatch,
   onFight,
   onFlee,
   onMinimize,
@@ -183,13 +181,6 @@ export default function EncounterModal({
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.catchButton, isDefeated && styles.buttonDisabled]}
-              onPress={onCatch}
-              disabled={isDefeated}
-            >
-              <Text style={styles.buttonText}>Catch</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={[styles.button, styles.fightButton, (isDefeated || playerDefeated) && styles.buttonDisabled]}
               onPress={onFight}
               disabled={isDefeated || playerDefeated}
@@ -336,9 +327,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 4,
     alignItems: 'center',
-  },
-  catchButton: {
-    backgroundColor: '#4CAF50',
   },
   fightButton: {
     backgroundColor: '#FF5722',

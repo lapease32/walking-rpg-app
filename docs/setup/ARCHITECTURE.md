@@ -114,7 +114,7 @@ IF distance_since_last >= 50m AND time_since_last >= 30s:
 - TypeScript class with typed interfaces
 - Represents an active encounter
 - Links creature to location
-- Manages encounter state (active, caught, defeated, fled)
+- Manages encounter state (active, defeated, fled)
 
 ### 4. Storage System (`storage.ts`)
 
@@ -149,7 +149,7 @@ IF distance_since_last >= 50m AND time_since_last >= 30s:
 
 ### Encounter Resolution
 
-1. User chooses action (Catch/Fight/Flee)
+1. User chooses action (Fight/Flee)
 2. `HomeScreen` updates player state
 3. Player data saved to AsyncStorage
 4. Experience added, level-ups handled

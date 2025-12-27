@@ -278,43 +278,6 @@ export default function HomeScreen() {
     setIsTracking(false);
   };
 
-  // Handle encounter catch
-  const handleCatch = (): void => {
-    // Use refs to get current state (avoids stale closure)
-    const currentPlayer = playerRef.current;
-    const currentEncounterState = encounterRef.current;
-    
-    if (currentEncounterState && currentPlayer) {
-      const updatedPlayer = new Player(currentPlayer.toJSON());
-      updatedPlayer.catchCreature();
-      updatedPlayer.incrementEncounters();
-      const expGain = currentEncounterState.creature.getExperienceReward();
-      const levelsGained = updatedPlayer.addExperience(expGain);
-
-      // Update refs immediately to prevent race condition with GPS callbacks
-      // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
-      playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
-      encounterRef.current = null;
-      isMinimizedRef.current = false;
-      showCombatModalRef.current = false;
-      fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
-
-      setPlayer(updatedPlayer);
-      savePlayerData(updatedPlayer);
-      setIsEncounterModalMinimized(false);
-      setShowEncounterModal(false);
-      setCurrentEncounter(null);
-
-      if (levelsGained > 0) {
-        Alert.alert('Level Up!', `You reached level ${updatedPlayer.level}!`);
-      } else {
-        Alert.alert(
-          'Caught!',
-          `You caught ${currentEncounterState.creature.name} and gained ${expGain} XP!`
-        );
-      }
-    }
-  };
 
   // Handle encounter fight - opens combat modal
   const handleFight = (): void => {
@@ -947,7 +910,6 @@ export default function HomeScreen() {
         playerDefense={player?.defense}
         playerHp={player?.hp}
         playerMaxHp={player?.maxHp}
-        onCatch={handleCatch}
         onFight={handleFight}
         onFlee={handleFlee}
         onMinimize={handleMinimize}
