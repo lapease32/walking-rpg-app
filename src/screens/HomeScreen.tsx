@@ -197,10 +197,14 @@ export default function HomeScreen() {
       }
     }
 
-    // Don't generate new encounters if there's already an active minimized encounter
+    // Don't generate new encounters if there's already an active encounter
     // (The refs are already loaded above, so we can use them here)
-    if (currentEncounterState && isMinimized && !isInCombat) {
-      // Active minimized encounter exists - skip new encounter generation
+    // This prevents new encounters from replacing the current one while:
+    // - The encounter modal is visible (not minimized)
+    // - The encounter is minimized
+    // - The user is in combat
+    if (currentEncounterState) {
+      // Active encounter exists - skip new encounter generation
       return;
     }
 
