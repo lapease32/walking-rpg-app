@@ -398,6 +398,10 @@ export default function HomeScreen() {
       updatedPlayer.takeDamage(creatureDamage);
     }
 
+    // Update ref immediately to prevent race condition with GPS callbacks
+    // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
+    playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
+
     // Update player state
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
