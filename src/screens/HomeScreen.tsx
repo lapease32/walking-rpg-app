@@ -224,11 +224,17 @@ export default function HomeScreen() {
       );
 
       if (encounter) {
+        // Update refs immediately to prevent race condition with GPS callbacks
+        // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+        encounterRef.current = encounter; // Set to new encounter immediately
+        isMinimizedRef.current = false; // Reset minimized state immediately
+        showCombatModalRef.current = false; // Ensure combat modal is closed
+        victoryProcessedRef.current = false; // Reset victory flag for new encounter
+        fleeProcessedRef.current = false; // Reset flee flag for new encounter
+        
         setCurrentEncounter(encounter);
         setShowEncounterModal(true);
         setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
-        victoryProcessedRef.current = false; // Reset victory flag for new encounter
-        fleeProcessedRef.current = false; // Reset flee flag for new encounter
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
         // Store the probability that was used when this encounter occurred
@@ -319,6 +325,10 @@ export default function HomeScreen() {
       return;
     }
 
+    // Update ref immediately to prevent race condition with GPS callbacks
+    // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
+    showCombatModalRef.current = true;
+    
     // Open combat modal
     setShowCombatModal(true);
   };
@@ -340,6 +350,8 @@ export default function HomeScreen() {
     // (handleFight already checked, but state could have changed)
     if (creature.isDefeated()) {
       handleVictory();
+      // Update ref immediately to prevent race condition with GPS callbacks
+      showCombatModalRef.current = false;
       setShowCombatModal(false);
       return;
     }
@@ -382,10 +394,14 @@ export default function HomeScreen() {
       status: currentEncounter.status,
     });
     
+    // Update ref immediately to prevent race condition with GPS callbacks
+    encounterRef.current = updatedEncounter;
     setCurrentEncounter(updatedEncounter);
 
     // Check if creature is defeated
     if (creature.isDefeated()) {
+      // handleVictory will update refs, but update combat modal ref immediately
+      showCombatModalRef.current = false;
       setShowCombatModal(false);
       setShowEncounterModal(false);
       handleVictory(updatedPlayer);
@@ -395,9 +411,13 @@ export default function HomeScreen() {
       const healedPlayer = new Player(updatedPlayer.toJSON());
       healedPlayer.fullHeal();
       healedPlayer.incrementEncounters(); // Count the encounter like other outcomes
+      
+      // Update refs immediately to prevent race condition with GPS callbacks
+      showCombatModalRef.current = false;
+      isMinimizedRef.current = false;
+      
       setPlayer(healedPlayer);
       savePlayerData(healedPlayer);
-      
       setShowCombatModal(false);
       setShowEncounterModal(false);
       
@@ -409,6 +429,8 @@ export default function HomeScreen() {
           {
             text: 'OK',
             onPress: () => {
+              // Update refs immediately to prevent race condition with GPS callbacks
+              encounterRef.current = null;
               setCurrentEncounter(null);
             },
           },
@@ -479,6 +501,14 @@ export default function HomeScreen() {
     setShowEncounterModal(false);
   };
 
+  // Handle combat modal close
+  const handleCloseCombatModal = (): void => {
+    // Update ref immediately to prevent race condition with GPS callbacks
+    // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
+    showCombatModalRef.current = false;
+    setShowCombatModal(false);
+  };
+
   // Handle encounter flee
   const handleFlee = (): void => {
     // Prevent multiple flee processing for the same encounter
@@ -527,11 +557,18 @@ export default function HomeScreen() {
       location,
       player?.level || 1
     );
+    
+    // Update refs immediately to prevent race condition with GPS callbacks
+    // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+    encounterRef.current = encounter; // Set to new encounter immediately
+    isMinimizedRef.current = false; // Reset minimized state immediately
+    showCombatModalRef.current = false; // Ensure combat modal is closed
+    victoryProcessedRef.current = false; // Reset victory flag for new encounter
+    fleeProcessedRef.current = false; // Reset flee flag for new encounter
+    
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
-    victoryProcessedRef.current = false; // Reset victory flag for new encounter
-    fleeProcessedRef.current = false; // Reset flee flag for new encounter
     // Encounter forced - distance tracking was reset, so chance is now 0
     setEncounterChance(0);
     // Update time blocking state (encounter just occurred, so time constraint is now active)
@@ -878,7 +915,7 @@ export default function HomeScreen() {
         player={player}
         visible={showCombatModal}
         onAttack={handleAttack}
-        onClose={() => setShowCombatModal(false)}
+        onClose={handleCloseCombatModal}
       />
     </SafeAreaView>
   );
