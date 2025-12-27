@@ -279,11 +279,15 @@ export default function HomeScreen() {
 
   // Handle encounter catch
   const handleCatch = (): void => {
-    if (currentEncounter && player) {
-      const updatedPlayer = new Player(player.toJSON());
+    // Use refs to get current state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    const currentEncounterState = encounterRef.current;
+    
+    if (currentEncounterState && currentPlayer) {
+      const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.catchCreature();
       updatedPlayer.incrementEncounters();
-      const expGain = currentEncounter.creature.getExperienceReward();
+      const expGain = currentEncounterState.creature.getExperienceReward();
       const levelsGained = updatedPlayer.addExperience(expGain);
 
       // Update refs immediately to prevent race condition with GPS callbacks
@@ -305,7 +309,7 @@ export default function HomeScreen() {
       } else {
         Alert.alert(
           'Caught!',
-          `You caught ${currentEncounter.creature.name} and gained ${expGain} XP!`
+          `You caught ${currentEncounterState.creature.name} and gained ${expGain} XP!`
         );
       }
     }
@@ -313,16 +317,20 @@ export default function HomeScreen() {
 
   // Handle encounter fight - opens combat modal
   const handleFight = (): void => {
-    if (!currentEncounter || !player) {
+    // Use refs to get current state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    const currentEncounterState = encounterRef.current;
+    
+    if (!currentEncounterState || !currentPlayer) {
       return;
     }
 
     // Check if player is already defeated
-    if (player.isDefeated()) {
+    if (currentPlayer.isDefeated()) {
       return; // Can't fight if player is defeated
     }
 
-    const creature = currentEncounter.creature;
+    const creature = currentEncounterState.creature;
     
     // Check if creature is already defeated
     if (creature.isDefeated()) {
@@ -340,7 +348,11 @@ export default function HomeScreen() {
 
   // Handle attack execution with specific attack type
   const handleAttack = (attackType: AttackType): void => {
-    if (!currentEncounter || !player) {
+    // Use refs to get current state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    const currentEncounterState = encounterRef.current;
+    
+    if (!currentEncounterState || !currentPlayer) {
       return;
     }
 
@@ -349,7 +361,7 @@ export default function HomeScreen() {
       return;
     }
 
-    const creature = currentEncounter.creature;
+    const creature = currentEncounterState.creature;
     
     // Defensive check: creature should not be defeated at this point
     // (handleFight already checked, but state could have changed)
@@ -362,7 +374,7 @@ export default function HomeScreen() {
     }
 
     // Create updated player instance for modifications
-    const updatedPlayer = new Player(player.toJSON());
+    const updatedPlayer = new Player(currentPlayer.toJSON());
 
     // Get attack configuration
     const attackConfig = ATTACK_TYPES[attackType];
@@ -393,10 +405,10 @@ export default function HomeScreen() {
     // Update encounter with damaged creature
     const updatedEncounter = new Encounter({
       creature: creature,
-      location: currentEncounter.location,
-      timestamp: currentEncounter.timestamp,
-      playerLevel: currentEncounter.playerLevel,
-      status: currentEncounter.status,
+      location: currentEncounterState.location,
+      timestamp: currentEncounterState.timestamp,
+      playerLevel: currentEncounterState.playerLevel,
+      status: currentEncounterState.status,
     });
     
     // Update ref immediately to prevent race condition with GPS callbacks
