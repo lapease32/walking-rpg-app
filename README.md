@@ -118,7 +118,6 @@ walking-rpg-app/
 
 ## Future Enhancements
 
-- [ ] Creature collection/inventory system
 - [ ] Different encounter types based on location/biome
 - [ ] Enhanced combat with creature attacks and special abilities
 - [ ] Social features (friends, leaderboards)
