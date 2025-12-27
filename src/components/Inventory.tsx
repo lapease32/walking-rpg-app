@@ -26,7 +26,7 @@ export default function InventoryDisplay({ inventory }: InventoryProps) {
     weapon: '⚔️',
     offhand: '🛡️',
     head: '👑',
-    chest: '🦺',
+    chest: '👕',
     legs: '👖',
     boots: '👢',
     gloves: '🧤',
