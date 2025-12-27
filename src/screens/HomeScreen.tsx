@@ -284,6 +284,7 @@ export default function HomeScreen() {
 
       // Update refs immediately to prevent race condition with GPS callbacks
       // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+      playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
       encounterRef.current = null;
       isMinimizedRef.current = false;
       showCombatModalRef.current = false;
@@ -413,6 +414,7 @@ export default function HomeScreen() {
       healedPlayer.incrementEncounters(); // Count the encounter like other outcomes
       
       // Update refs immediately to prevent race condition with GPS callbacks
+      playerRef.current = healedPlayer; // Update ref immediately to prevent data loss
       showCombatModalRef.current = false;
       isMinimizedRef.current = false;
       
@@ -467,6 +469,7 @@ export default function HomeScreen() {
 
     // Update refs immediately to prevent race condition with GPS callbacks
     // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+    playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
     encounterRef.current = null;
     isMinimizedRef.current = false;
     showCombatModalRef.current = false;
