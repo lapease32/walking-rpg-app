@@ -561,10 +561,14 @@ export default function HomeScreen() {
 
   // Debug: Force an encounter
   const forceEncounter = (): void => {
-    const location: Location = currentLocation
+    // Use refs to get current state (avoids stale closure)
+    const currentLocationData = currentLocationRef.current;
+    const currentPlayer = playerRef.current;
+    
+    const location: Location = currentLocationData
       ? {
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
+          latitude: currentLocationData.latitude,
+          longitude: currentLocationData.longitude,
         }
       : {
           latitude: 37.7749,
@@ -572,7 +576,7 @@ export default function HomeScreen() {
         };
     const encounter = EncounterService.forceEncounter(
       location,
-      player?.level || 1
+      currentPlayer?.level || 1
     );
     
     // Update refs immediately to prevent race condition with GPS callbacks
@@ -653,12 +657,18 @@ export default function HomeScreen() {
 
   // Debug: Force level up
   const forceLevelUp = (): void => {
-    if (!player) {
+    // Use ref to get current player state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    if (!currentPlayer) {
       return;
     }
 
-    const updatedPlayer = new Player(player.toJSON());
+    const updatedPlayer = new Player(currentPlayer.toJSON());
     updatedPlayer.forceLevelUp();
+    
+    // Update ref immediately to prevent race condition with GPS callbacks
+    playerRef.current = updatedPlayer;
+    
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
     Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
@@ -666,12 +676,18 @@ export default function HomeScreen() {
 
   // Debug: Add XP manually (with preset amounts)
   const addManualXP = (amount: number): void => {
-    if (!player) {
+    // Use ref to get current player state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    if (!currentPlayer) {
       return;
     }
 
-    const updatedPlayer = new Player(player.toJSON());
+    const updatedPlayer = new Player(currentPlayer.toJSON());
     const levelsGained = updatedPlayer.addExperience(amount);
+    
+    // Update ref immediately to prevent race condition with GPS callbacks
+    playerRef.current = updatedPlayer;
+    
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
 
@@ -690,7 +706,9 @@ export default function HomeScreen() {
 
   // Debug: Reset level
   const resetLevel = (): void => {
-    if (!player) {
+    // Use ref to get current player state (avoids stale closure)
+    const currentPlayer = playerRef.current;
+    if (!currentPlayer) {
       return;
     }
 
@@ -707,12 +725,16 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: () => {
             // Use ref to get current player state at confirmation time, not when dialog was shown
-            const currentPlayer = playerRef.current;
-            if (!currentPlayer) {
+            const currentPlayerAtConfirm = playerRef.current;
+            if (!currentPlayerAtConfirm) {
               return;
             }
-            const updatedPlayer = new Player(currentPlayer.toJSON());
+            const updatedPlayer = new Player(currentPlayerAtConfirm.toJSON());
             updatedPlayer.resetLevel();
+            
+            // Update ref immediately to prevent race condition with GPS callbacks
+            playerRef.current = updatedPlayer;
+            
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
             Alert.alert('Level Reset', 'You have been reset to level 1.');
