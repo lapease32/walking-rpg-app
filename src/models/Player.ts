@@ -5,6 +5,43 @@
 
 import { PLAYER_CONFIG } from '../constants/config';
 
+/**
+ * Inventory slot types
+ */
+export type InventorySlot = 'weapon' | 'offhand' | 'head' | 'chest' | 'legs' | 'boots' | 'gloves' | 'accessory1' | 'accessory2';
+
+/**
+ * Inventory structure with equipment slots
+ */
+export interface Inventory {
+  weapon: null | any; // Will be replaced with Item type in future update
+  offhand: null | any;
+  head: null | any;
+  chest: null | any;
+  legs: null | any;
+  boots: null | any;
+  gloves: null | any;
+  accessory1: null | any;
+  accessory2: null | any;
+}
+
+/**
+ * Create an empty inventory with all slots set to null
+ */
+export function createEmptyInventory(): Inventory {
+  return {
+    weapon: null,
+    offhand: null,
+    head: null,
+    chest: null,
+    legs: null,
+    boots: null,
+    gloves: null,
+    accessory1: null,
+    accessory2: null,
+  };
+}
+
 export interface PlayerData {
   id: string;
   name: string;
@@ -18,7 +55,7 @@ export interface PlayerData {
   totalEncounters: number;
   creaturesCaught: number;
   creaturesDefeated: number;
-  inventory: Record<string, any>;
+  inventory: Inventory;
 }
 
 export interface PlayerStats {
@@ -50,7 +87,7 @@ export interface PlayerConstructorParams {
   totalEncounters?: number;
   creaturesCaught?: number;
   creaturesDefeated?: number;
-  inventory?: Record<string, any>;
+  inventory?: Inventory | Record<string, any>; // Allow old format for backward compatibility
 }
 
 export class Player {
@@ -66,7 +103,7 @@ export class Player {
   totalEncounters: number;
   creaturesCaught: number;
   creaturesDefeated: number;
-  inventory: Record<string, any>;
+  inventory: Inventory;
 
   constructor({
     id = 'player1',
@@ -81,7 +118,7 @@ export class Player {
     totalEncounters = 0,
     creaturesCaught = 0,
     creaturesDefeated = 0,
-    inventory = {},
+    inventory,
   }: PlayerConstructorParams = {}) {
     this.id = id;
     this.name = name;
@@ -105,7 +142,24 @@ export class Player {
     this.totalEncounters = totalEncounters;
     this.creaturesCaught = creaturesCaught;
     this.creaturesDefeated = creaturesDefeated;
-    this.inventory = inventory;
+    // Initialize inventory with empty slots if not provided, or merge with defaults for backward compatibility
+    if (inventory && typeof inventory === 'object') {
+      // Handle both new Inventory format and old Record<string, any> format
+      const inv = inventory as any;
+      this.inventory = {
+        weapon: inv.weapon ?? null,
+        offhand: inv.offhand ?? null,
+        head: inv.head ?? null,
+        chest: inv.chest ?? null,
+        legs: inv.legs ?? inv.pants ?? null, // Support both 'legs' and old 'pants' for backward compatibility
+        boots: inv.boots ?? null,
+        gloves: inv.gloves ?? null,
+        accessory1: inv.accessory1 ?? null,
+        accessory2: inv.accessory2 ?? null,
+      };
+    } else {
+      this.inventory = createEmptyInventory();
+    }
   }
 
   /**
