@@ -29,6 +29,7 @@ export interface GeolocationError {
 export interface DistanceData {
   incremental: number;
   total: number;
+  location: LocationData; // Current location when distance was calculated
 }
 
 type LocationUpdateCallback = (location: LocationData) => void;
@@ -158,6 +159,7 @@ class LocationService {
               this.onDistanceUpdate({
                 incremental: distance,
                 total: this.totalDistance,
+                location: location, // Pass current location so callback can use it
               });
             }
           }

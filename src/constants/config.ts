@@ -11,6 +11,9 @@ export const ENCOUNTER_CONFIG = {
 
   // Minimum time (in ms) between encounters
   MIN_TIME_BETWEEN_ENCOUNTERS: 30000, // 30 seconds
+
+  // Maximum distance (in meters) from encounter location before auto-flee
+  AUTO_FLEE_DISTANCE: 100, // Auto-flee if user travels 100m away from encounter
 } as const;
 
 export const LOCATION_CONFIG = {

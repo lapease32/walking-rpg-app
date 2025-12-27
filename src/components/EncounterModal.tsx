@@ -20,6 +20,7 @@ interface EncounterModalProps {
   onCatch: () => void;
   onFight: () => void;
   onFlee: () => void;
+  onMinimize?: () => void;
 }
 
 /**
@@ -35,6 +36,7 @@ export default function EncounterModal({
   onCatch,
   onFight,
   onFlee,
+  onMinimize,
 }: EncounterModalProps) {
   if (!encounter || !encounter.creature) {
     return null;
@@ -68,12 +70,19 @@ export default function EncounterModal({
       visible={visible}
       transparent={true}
       animationType="slide"
-      onRequestClose={onFlee}
+      onRequestClose={onMinimize || onFlee}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.header}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
+            {onMinimize && (
+              <TouchableOpacity onPress={onMinimize} style={styles.minimizeButton}>
+                <Text style={styles.minimizeButtonText}>−</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView contentContainerStyle={styles.scrollContent}>
 
             {/* Player Stats Card */}
             {(playerHp !== undefined || playerAttack !== undefined || playerDefense !== undefined) && (
@@ -216,6 +225,12 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     padding: 20,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   scrollContent: {
     paddingBottom: 10,
   },
@@ -223,8 +238,23 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    flex: 1,
     color: '#333',
+  },
+  minimizeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  minimizeButtonText: {
+    fontSize: 24,
+    color: '#666',
+    fontWeight: 'bold',
+    lineHeight: 28,
   },
   creatureCard: {
     borderWidth: 3,
