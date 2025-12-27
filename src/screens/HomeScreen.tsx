@@ -421,6 +421,7 @@ export default function HomeScreen() {
       
       setPlayer(healedPlayer);
       savePlayerData(healedPlayer);
+      setIsEncounterModalMinimized(false);
       setShowCombatModal(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
