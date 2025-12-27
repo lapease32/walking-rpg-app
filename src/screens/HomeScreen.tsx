@@ -415,28 +415,21 @@ export default function HomeScreen() {
       
       // Update refs immediately to prevent race condition with GPS callbacks
       playerRef.current = healedPlayer; // Update ref immediately to prevent data loss
-      showCombatModalRef.current = false;
+      encounterRef.current = null;
       isMinimizedRef.current = false;
+      showCombatModalRef.current = false;
       
       setPlayer(healedPlayer);
       savePlayerData(healedPlayer);
       setShowCombatModal(false);
       setShowEncounterModal(false);
+      setCurrentEncounter(null);
       
       // Show alert for user feedback (healing already done)
       Alert.alert(
         'Defeated!',
         'You have been defeated! Your HP has been restored to full.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Update refs immediately to prevent race condition with GPS callbacks
-              encounterRef.current = null;
-              setCurrentEncounter(null);
-            },
-          },
-        ],
+        [{ text: 'OK' }],
         { cancelable: false } // Prevent dismissal on Android to ensure modal closes properly
       );
     }
