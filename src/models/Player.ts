@@ -4,6 +4,7 @@
  */
 
 import { PLAYER_CONFIG } from '../constants/config';
+import { WeaponItem, OffhandItem, HeadItem, ChestItem, LegsItem, BootsItem, GlovesItem, AccessoryItem } from './Item';
 
 /**
  * Equipment slot types
@@ -14,15 +15,15 @@ export type EquipmentSlot = 'weapon' | 'offhand' | 'head' | 'chest' | 'legs' | '
  * Equipment structure with equipment slots
  */
 export interface Equipment {
-  weapon: null | any; // Will be replaced with Item type in future update
-  offhand: null | any;
-  head: null | any;
-  chest: null | any;
-  legs: null | any;
-  boots: null | any;
-  gloves: null | any;
-  accessory1: null | any;
-  accessory2: null | any;
+  weapon: null | WeaponItem;
+  offhand: null | OffhandItem;
+  head: null | HeadItem;
+  chest: null | ChestItem;
+  legs: null | LegsItem;
+  boots: null | BootsItem;
+  gloves: null | GlovesItem;
+  accessory1: null | AccessoryItem;
+  accessory2: null | AccessoryItem;
 }
 
 /**
