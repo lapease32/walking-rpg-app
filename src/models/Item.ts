@@ -97,16 +97,16 @@ export interface GlovesItem extends BaseItem {
  */
 export interface AccessoryItem extends BaseItem {
   type: 'accessory';
-  slot: 'accessory1' | 'accessory2';
+  // Note: Accessories don't have a fixed slot - they can go in either accessory1 or accessory2
 }
 
 /**
  * Helper function to get the equipment slot for an item
+ * For accessories, returns 'accessory1' as default (they can go in either slot)
  */
 export function getItemSlot(item: Item): EquipmentSlot {
   if (item.type === 'accessory') {
-    // Accessories can go in either accessory slot
-    return 'accessory1'; // Default, but can be changed when equipping
+    return 'accessory1'; // Default slot for accessories (can be equipped in either)
   }
   return item.slot;
 }
