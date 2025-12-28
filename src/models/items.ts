@@ -135,7 +135,7 @@ export const OFFHAND_ITEMS: OffhandItem[] = [
     level: 15,
     defense: 35,
     hp: 30,
-    maxHp: 20,
+    maxHp: 30,
     dropChance: 0.02,
   },
 ];
@@ -518,8 +518,8 @@ export const ACCESSORY_ITEMS: AccessoryItem[] = [
     level: 12,
     attack: 12,
     defense: 12,
+    hp: 25,
     maxHp: 25,
-    hp: 15,
     dropChance: 0.05,
   },
   {
