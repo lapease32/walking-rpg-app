@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Inventory } from '../models/Player';
+import { Equipment } from '../models/Player';
 
-interface InventoryProps {
-  inventory: Inventory;
+interface EquipmentProps {
+  equipment: Equipment;
 }
 
 /**
- * Component to display player inventory slots
+ * Component to display player equipment slots
  */
-export default function InventoryDisplay({ inventory }: InventoryProps) {
-  const slotLabels: Record<keyof Inventory, string> = {
+export default function EquipmentDisplay({ equipment }: EquipmentProps) {
+  const slotLabels: Record<keyof Equipment, string> = {
     weapon: 'Weapon',
     offhand: 'Offhand',
     head: 'Head',
@@ -22,7 +22,7 @@ export default function InventoryDisplay({ inventory }: InventoryProps) {
     accessory2: 'Accessory 2',
   };
 
-  const slotIcons: Record<keyof Inventory, string> = {
+  const slotIcons: Record<keyof Equipment, string> = {
     weapon: '⚔️',
     offhand: '🛡️',
     head: '👑',
@@ -34,8 +34,8 @@ export default function InventoryDisplay({ inventory }: InventoryProps) {
     accessory2: '💍',
   };
 
-  const renderSlot = (slotKey: keyof Inventory) => {
-    const item = inventory[slotKey];
+  const renderSlot = (slotKey: keyof Equipment) => {
+    const item = equipment[slotKey];
     const isEmpty = item === null;
 
     return (
@@ -55,7 +55,7 @@ export default function InventoryDisplay({ inventory }: InventoryProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Inventory</Text>
+      <Text style={styles.title}>Equipment</Text>
       <View style={styles.slotsGrid}>
         {/* Weapon slots */}
         <View style={styles.weaponRow}>

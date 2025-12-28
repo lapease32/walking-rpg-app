@@ -16,7 +16,7 @@ import { Location } from '../models/Encounter';
 import { savePlayerData, loadPlayerData } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
-import InventoryDisplay from '../components/Inventory';
+import EquipmentDisplay from '../components/Equipment';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
@@ -724,7 +724,7 @@ export default function HomeScreen() {
 
           <PlayerStats player={player} />
 
-          <InventoryDisplay inventory={player.inventory} />
+          <EquipmentDisplay equipment={player.equipment} />
 
           <DistanceDisplay distance={currentDistance} />
 
