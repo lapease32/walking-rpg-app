@@ -87,7 +87,7 @@ export interface PlayerConstructorParams {
   totalEncounters?: number;
   creaturesCaught?: number;
   creaturesDefeated?: number;
-  equipment?: Equipment | Record<string, any>; // Allow old format for backward compatibility
+  equipment?: Equipment;
 }
 
 export class Player {
@@ -142,21 +142,9 @@ export class Player {
     this.totalEncounters = totalEncounters;
     this.creaturesCaught = creaturesCaught;
     this.creaturesDefeated = creaturesDefeated;
-    // Initialize equipment with empty slots if not provided, or merge with defaults
-    if (equipment && typeof equipment === 'object') {
-      // Handle both new Equipment format and old Record<string, any> format
-      const eq = equipment as any;
-      this.equipment = {
-        weapon: eq.weapon ?? null,
-        offhand: eq.offhand ?? null,
-        head: eq.head ?? null,
-        chest: eq.chest ?? null,
-        legs: eq.legs ?? eq.pants ?? null, // Support both 'legs' and old 'pants' for backward compatibility
-        boots: eq.boots ?? null,
-        gloves: eq.gloves ?? null,
-        accessory1: eq.accessory1 ?? null,
-        accessory2: eq.accessory2 ?? null,
-      };
+    // Initialize equipment with empty slots if not provided
+    if (equipment) {
+      this.equipment = equipment;
     } else {
       this.equipment = createEmptyEquipment();
     }
