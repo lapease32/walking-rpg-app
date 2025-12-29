@@ -19,6 +19,7 @@ import PlayerStats from '../components/PlayerStats';
 import EquipmentDisplay from '../components/Equipment';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
+import InventoryModal from '../components/InventoryModal';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
 
 /**
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [showCombatModal, setShowCombatModal] = useState<boolean>(false);
+  const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
   const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
   const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
@@ -726,6 +728,13 @@ export default function HomeScreen() {
 
           <EquipmentDisplay equipment={player.equipment} />
 
+          <TouchableOpacity
+            style={styles.inventoryButton}
+            onPress={() => setShowInventoryModal(true)}
+          >
+            <Text style={styles.inventoryButtonText}>📦 View Inventory</Text>
+          </TouchableOpacity>
+
           <DistanceDisplay distance={currentDistance} />
 
           <View style={styles.statusContainer}>
@@ -921,6 +930,11 @@ export default function HomeScreen() {
         onAttack={handleAttack}
         onClose={handleCloseCombatModal}
       />
+      <InventoryModal
+        inventory={player?.inventory || []}
+        visible={showInventoryModal}
+        onClose={() => setShowInventoryModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1115,6 +1129,19 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 12,
     textDecorationLine: 'underline',
+  },
+  inventoryButton: {
+    padding: 12,
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    marginVertical: 8,
+    marginHorizontal: 16,
+    alignItems: 'center',
+  },
+  inventoryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   minimizedEncounterButton: {
     padding: 12,

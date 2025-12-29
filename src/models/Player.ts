@@ -4,7 +4,7 @@
  */
 
 import { PLAYER_CONFIG } from '../constants/config';
-import { WeaponItem, OffhandItem, HeadItem, ChestItem, LegsItem, BootsItem, GlovesItem, AccessoryItem } from './Item';
+import { WeaponItem, OffhandItem, HeadItem, ChestItem, LegsItem, BootsItem, GlovesItem, AccessoryItem, Item } from './Item';
 
 /**
  * Equipment slot types
@@ -43,6 +43,13 @@ export function createEmptyEquipment(): Equipment {
   };
 }
 
+/**
+ * Create an empty inventory with 50 slots (all set to null)
+ */
+export function createEmptyInventory(): (Item | null)[] {
+  return new Array(50).fill(null);
+}
+
 export interface PlayerData {
   id: string;
   name: string;
@@ -57,6 +64,7 @@ export interface PlayerData {
   creaturesCaught: number;
   creaturesDefeated: number;
   equipment: Equipment;
+  inventory?: (Item | null)[]; // Optional for backwards compatibility with old saved data
 }
 
 export interface PlayerStats {
@@ -89,6 +97,7 @@ export interface PlayerConstructorParams {
   creaturesCaught?: number;
   creaturesDefeated?: number;
   equipment?: Equipment;
+  inventory?: (Item | null)[];
 }
 
 export class Player {
@@ -105,6 +114,7 @@ export class Player {
   creaturesCaught: number;
   creaturesDefeated: number;
   equipment: Equipment;
+  inventory: (Item | null)[];
 
   constructor({
     id = 'player1',
@@ -120,6 +130,7 @@ export class Player {
     creaturesCaught = 0,
     creaturesDefeated = 0,
     equipment,
+    inventory,
   }: PlayerConstructorParams = {}) {
     this.id = id;
     this.name = name;
@@ -148,6 +159,12 @@ export class Player {
       this.equipment = equipment;
     } else {
       this.equipment = createEmptyEquipment();
+    }
+    // Initialize inventory with 50 empty slots if not provided
+    if (inventory) {
+      this.inventory = inventory;
+    } else {
+      this.inventory = createEmptyInventory();
     }
   }
 
@@ -316,6 +333,53 @@ export class Player {
   }
 
   /**
+   * Add an item to the inventory
+   * Returns the index where the item was added, or -1 if inventory is full
+   */
+  addItemToInventory(item: Item): number {
+    const emptySlotIndex = this.inventory.findIndex(slot => slot === null);
+    if (emptySlotIndex !== -1) {
+      this.inventory[emptySlotIndex] = item;
+      return emptySlotIndex;
+    }
+    return -1; // Inventory is full
+  }
+
+  /**
+   * Remove an item from the inventory at a specific index
+   * Returns the removed item, or null if the slot was empty or index is invalid
+   */
+  removeItemFromInventory(index: number): Item | null {
+    if (index < 0 || index >= this.inventory.length) {
+      return null; // Invalid index
+    }
+    const item = this.inventory[index];
+    this.inventory[index] = null;
+    return item;
+  }
+
+  /**
+   * Get the number of empty slots in the inventory
+   */
+  getEmptyInventorySlots(): number {
+    return this.inventory.filter(slot => slot === null).length;
+  }
+
+  /**
+   * Get the number of used slots in the inventory
+   */
+  getUsedInventorySlots(): number {
+    return this.inventory.filter(slot => slot !== null).length;
+  }
+
+  /**
+   * Check if the inventory is full
+   */
+  isInventoryFull(): boolean {
+    return this.getEmptyInventorySlots() === 0;
+  }
+
+  /**
    * Serialize player data for storage
    */
   toJSON(): PlayerData {
@@ -333,6 +397,7 @@ export class Player {
       creaturesCaught: this.creaturesCaught,
       creaturesDefeated: this.creaturesDefeated,
       equipment: this.equipment,
+      inventory: this.inventory,
     };
   }
 
