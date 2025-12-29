@@ -87,18 +87,18 @@ export default function InventoryModal({
                 <Text style={styles.itemRarity}>
                   {item.rarity.toUpperCase()}
                 </Text>
-                {(item.attack || item.defense || item.hp || item.maxHp) && (
+                {(item.attack !== undefined || item.defense !== undefined || item.hp !== undefined || item.maxHp !== undefined) && (
                   <View style={styles.itemStats}>
-                    {item.attack && (
+                    {item.attack !== undefined && (
                       <Text style={styles.statText}>⚔️ {item.attack}</Text>
                     )}
-                    {item.defense && (
+                    {item.defense !== undefined && (
                       <Text style={styles.statText}>🛡️ {item.defense}</Text>
                     )}
-                    {item.hp && (
+                    {item.hp !== undefined && (
                       <Text style={styles.statText}>❤️ +{item.hp}</Text>
                     )}
-                    {item.maxHp && (
+                    {item.maxHp !== undefined && (
                       <Text style={styles.statText}>💚 +{item.maxHp}</Text>
                     )}
                   </View>
