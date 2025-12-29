@@ -160,11 +160,22 @@ export class Player {
     } else {
       this.equipment = createEmptyEquipment();
     }
-    // Initialize inventory with 50 empty slots if not provided
-    if (inventory) {
+    // Initialize inventory with exactly 50 slots
+    // Validate and normalize inventory to ensure it has exactly 50 slots
+    if (inventory && Array.isArray(inventory) && inventory.length === 50) {
       this.inventory = inventory;
     } else {
-      this.inventory = createEmptyInventory();
+      // Create new 50-slot inventory, or pad/truncate existing one if provided
+      if (inventory && Array.isArray(inventory)) {
+        // Normalize to 50 slots: pad with null if shorter, truncate if longer
+        const normalized = [...inventory];
+        while (normalized.length < 50) {
+          normalized.push(null);
+        }
+        this.inventory = normalized.slice(0, 50);
+      } else {
+        this.inventory = createEmptyInventory();
+      }
     }
   }
 
