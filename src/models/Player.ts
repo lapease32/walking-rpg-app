@@ -162,8 +162,9 @@ export class Player {
     }
     // Initialize inventory with exactly 50 slots
     // Validate and normalize inventory to ensure it has exactly 50 slots
+    // Always create a copy to avoid shared references between Player instances
     if (inventory && Array.isArray(inventory) && inventory.length === 50) {
-      this.inventory = inventory;
+      this.inventory = [...inventory];
     } else {
       // Create new 50-slot inventory, or pad/truncate existing one if provided
       if (inventory && Array.isArray(inventory)) {
@@ -408,7 +409,7 @@ export class Player {
       creaturesCaught: this.creaturesCaught,
       creaturesDefeated: this.creaturesDefeated,
       equipment: this.equipment,
-      inventory: this.inventory,
+      inventory: [...this.inventory], // Return a copy to prevent shared references
     };
   }
 
