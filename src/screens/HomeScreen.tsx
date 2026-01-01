@@ -450,8 +450,16 @@ export default function HomeScreen() {
 
     // Attempt to drop loot
     const droppedItem = dropItem();
+    let lootMessage = '';
     if (droppedItem) {
-      updatedPlayer.addItemToInventory(droppedItem);
+      const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
+      if (inventoryIndex === -1) {
+        // Inventory is full
+        lootMessage = `\n\n⚠️ Received ${droppedItem.name} but inventory is full!`;
+      } else {
+        // Item successfully added
+        lootMessage = `\n\n✨ Received ${droppedItem.name}!`;
+      }
     }
 
     // Update refs immediately to prevent race condition with GPS callbacks
@@ -472,12 +480,12 @@ export default function HomeScreen() {
     if (levelsGained > 0) {
       Alert.alert(
         'Victory & Level Up!',
-        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!`
+        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`
       );
     } else {
       Alert.alert(
         'Victory!',
-        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!`
+        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`
       );
     }
   };
