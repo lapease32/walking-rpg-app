@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
+import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
 import { Encounter } from '../models/Encounter';
 import { Location } from '../models/Encounter';
@@ -446,6 +447,12 @@ export default function HomeScreen() {
     
     const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
+
+    // Attempt to drop loot
+    const droppedItem = dropItem();
+    if (droppedItem) {
+      updatedPlayer.addItemToInventory(droppedItem);
+    }
 
     // Update refs immediately to prevent race condition with GPS callbacks
     // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
