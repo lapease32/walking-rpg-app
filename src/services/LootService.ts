@@ -33,8 +33,9 @@ export function selectRandomItem(): Item | null {
   }
 
   // Select a random item with equal probability for all items
+  // Return a shallow copy to ensure each dropped item is unique
   const randomIndex = Math.floor(Math.random() * ALL_ITEMS.length);
-  return ALL_ITEMS[randomIndex];
+  return { ...ALL_ITEMS[randomIndex] };
 }
 
 /**
