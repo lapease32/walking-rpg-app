@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
+import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
 import { Encounter } from '../models/Encounter';
 import { Location } from '../models/Encounter';
@@ -447,6 +448,20 @@ export default function HomeScreen() {
     const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
 
+    // Attempt to drop loot
+    const droppedItem = dropItem();
+    let lootMessage = '';
+    if (droppedItem) {
+      const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
+      if (inventoryIndex === -1) {
+        // Inventory is full
+        lootMessage = `\n\n⚠️ Received ${droppedItem.name} but inventory is full!`;
+      } else {
+        // Item successfully added
+        lootMessage = `\n\n✨ Received ${droppedItem.name}!`;
+      }
+    }
+
     // Update refs immediately to prevent race condition with GPS callbacks
     // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
     playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
@@ -465,12 +480,12 @@ export default function HomeScreen() {
     if (levelsGained > 0) {
       Alert.alert(
         'Victory & Level Up!',
-        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!`
+        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`
       );
     } else {
       Alert.alert(
         'Victory!',
-        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!`
+        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`
       );
     }
   };
