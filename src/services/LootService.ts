@@ -40,10 +40,11 @@ export function selectRandomItem(): Item | null {
 
 /**
  * Attempt to drop an item from a defeated creature
+ * @param forceDrop If true, always drop an item (bypasses random chance)
  * @returns The dropped item, or null if no item was dropped
  */
-export function dropItem(): Item | null {
-  if (shouldDropItem()) {
+export function dropItem(forceDrop: boolean = false): Item | null {
+  if (forceDrop || shouldDropItem()) {
     return selectRandomItem();
   }
   return null;

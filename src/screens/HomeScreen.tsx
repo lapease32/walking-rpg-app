@@ -36,6 +36,7 @@ export default function HomeScreen() {
   const [showCombatModal, setShowCombatModal] = useState<boolean>(false);
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
+  const [forceItemDrop, setForceItemDrop] = useState<boolean>(false); // Debug toggle to force item drops
   const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
   const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
   const [isTimeBlocking, setIsTimeBlocking] = useState<boolean>(false); // Whether time constraint is blocking encounters
@@ -449,7 +450,7 @@ export default function HomeScreen() {
     const levelsGained = updatedPlayer.addExperience(expGain);
 
     // Attempt to drop loot
-    const droppedItem = dropItem();
+    const droppedItem = dropItem(forceItemDrop);
     let lootMessage = '';
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
@@ -849,6 +850,20 @@ export default function HomeScreen() {
                 >
                   <Text style={styles.toggleButtonText}>
                     {bypassTimeConstraint ? 'ON' : 'OFF'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.encounterChanceContainer}>
+                <Text style={styles.encounterChanceLabel}>Force Item Drop:</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    forceItemDrop && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setForceItemDrop(!forceItemDrop)}
+                >
+                  <Text style={styles.toggleButtonText}>
+                    {forceItemDrop ? 'ON' : 'OFF'}
                   </Text>
                 </TouchableOpacity>
               </View>
