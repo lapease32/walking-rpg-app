@@ -424,6 +424,53 @@ export default function HomeScreen() {
     }
   };
 
+  // Handle debug defeat - instantly defeat creature without taking damage
+  const handleDebugDefeat = (): void => {
+    // Use refs to get current state (avoids stale closure)
+    const currentEncounterState = encounterRef.current;
+    const currentPlayer = playerRef.current;
+    
+    if (!currentEncounterState || !currentPlayer) {
+      return;
+    }
+
+    // Prevent multiple victory processing for the same encounter
+    if (victoryProcessedRef.current) {
+      return;
+    }
+
+    const creature = currentEncounterState.creature;
+    
+    // Check if creature is already defeated
+    if (creature.isDefeated()) {
+      return;
+    }
+
+    // Instantly defeat creature without taking damage
+    // Deal exactly enough damage to defeat (current HP)
+    creature.takeDamage(creature.hp);
+    
+    // Update encounter with defeated creature
+    const updatedEncounter = new Encounter({
+      creature: creature,
+      location: currentEncounterState.location,
+      timestamp: currentEncounterState.timestamp,
+      playerLevel: currentEncounterState.playerLevel,
+      status: currentEncounterState.status,
+    });
+    
+    // Update ref immediately to prevent race condition with GPS callbacks
+    encounterRef.current = updatedEncounter;
+    setCurrentEncounter(updatedEncounter);
+    
+    // Close combat modal and trigger victory
+    // handleVictory will update refs, but update combat modal ref immediately
+    showCombatModalRef.current = false;
+    setShowCombatModal(false);
+    setShowEncounterModal(false);
+    handleVictory(currentPlayer);
+  };
+
   // Handle victory when creature is defeated
   const handleVictory = (playerToUse?: Player): void => {
     // Use provided player or fall back to ref player (avoids stale closure)
@@ -959,6 +1006,8 @@ export default function HomeScreen() {
         visible={showCombatModal}
         onAttack={handleAttack}
         onClose={handleCloseCombatModal}
+        debugMode={debugMode}
+        onDebugDefeat={handleDebugDefeat}
       />
       <InventoryModal
         inventory={player?.inventory || []}
