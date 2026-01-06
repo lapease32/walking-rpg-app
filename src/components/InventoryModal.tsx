@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,28 @@ export default function InventoryModal({
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number>(-1);
   const [showItemDetails, setShowItemDetails] = useState<boolean>(false);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setShowItemDetails(false);
+      setSelectedItem(null);
+      setSelectedItemIndex(-1);
+    }
+  }, [visible]);
+
+  // Validate selectedItemIndex matches selectedItem when inventory changes
+  useEffect(() => {
+    if (selectedItemIndex !== -1 && selectedItem !== null) {
+      const currentItem = inventory[selectedItemIndex];
+      // If the item at the index doesn't match the selected item, reset state
+      if (currentItem !== selectedItem) {
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+      }
+    }
+  }, [inventory, selectedItemIndex, selectedItem]);
   const rarityColors: Record<Rarity, string> = {
     common: '#9E9E9E',
     uncommon: '#4CAF50',
@@ -70,7 +92,17 @@ export default function InventoryModal({
   };
 
   const handleEquip = () => {
-    if (selectedItemIndex !== -1 && player) {
+    if (selectedItemIndex !== -1 && player && selectedItem !== null) {
+      // Validate that the item at the index still matches the selected item
+      const currentItem = inventory[selectedItemIndex];
+      if (currentItem !== selectedItem) {
+        // Item has changed, reset state and abort
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+        return;
+      }
+
       const success = player.equipItem(selectedItemIndex);
       if (success) {
         setShowItemDetails(false);
@@ -84,7 +116,17 @@ export default function InventoryModal({
   };
 
   const handleDelete = () => {
-    if (selectedItemIndex !== -1 && player) {
+    if (selectedItemIndex !== -1 && player && selectedItem !== null) {
+      // Validate that the item at the index still matches the selected item
+      const currentItem = inventory[selectedItemIndex];
+      if (currentItem !== selectedItem) {
+        // Item has changed, reset state and abort
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+        return;
+      }
+
       player.removeItemFromInventory(selectedItemIndex);
       setShowItemDetails(false);
       setSelectedItem(null);
