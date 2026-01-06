@@ -480,17 +480,18 @@ export class Player {
       }
     });
 
-    // Calculate HP difference to maintain current HP percentage
-    const hpPercentage = this.maxHp > 0 ? this.hp / this.maxHp : 1;
+    // Calculate the change in maxHp
     const oldMaxHp = this.maxHp;
+    const maxHpChange = baseMaxHp - oldMaxHp;
 
     // Update stats
     this.attack = baseAttack;
     this.defense = baseDefense;
     this.maxHp = baseMaxHp;
 
-    // Adjust current HP to maintain percentage, but don't exceed new maxHp
-    this.hp = Math.min(this.maxHp, Math.floor(oldMaxHp * hpPercentage));
+    // Adjust current HP by the same flat amount as maxHp changed
+    // This matches RPG behavior where equipping +50 maxHp gives +50 current HP
+    this.hp = Math.max(0, Math.min(this.maxHp, this.hp + maxHpChange));
   }
 
   /**
