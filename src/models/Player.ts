@@ -178,6 +178,10 @@ export class Player {
         this.inventory = createEmptyInventory();
       }
     }
+
+    // Note: We don't recalculate stats here because:
+    // 1. If loading from JSON, stats already include equipment bonuses
+    // 2. Stats are recalculated when equipping/unequipping items via equipItem()
   }
 
   /**
@@ -389,6 +393,104 @@ export class Player {
    */
   isInventoryFull(): boolean {
     return this.getEmptyInventorySlots() === 0;
+  }
+
+  /**
+   * Equip an item from inventory
+   * If there's already an item in the slot, it will be unequipped and added back to inventory
+   * Returns true if successful, false if item cannot be equipped (wrong slot, level too low, etc.)
+   */
+  equipItem(inventoryIndex: number): boolean {
+    if (inventoryIndex < 0 || inventoryIndex >= this.inventory.length) {
+      return false; // Invalid index
+    }
+
+    const item = this.inventory[inventoryIndex];
+    if (!item) {
+      return false; // No item at this index
+    }
+
+    // Check if player level is high enough
+    if (item.level > this.level) {
+      return false; // Level requirement not met
+    }
+
+    // Get the equipment slot for this item
+    let targetSlot: EquipmentSlot;
+    if (item.type === 'accessory') {
+      // For accessories, prefer accessory1, but use accessory2 if accessory1 is occupied
+      targetSlot = this.equipment.accessory1 === null ? 'accessory1' : 'accessory2';
+    } else {
+      targetSlot = item.slot;
+    }
+
+    // Remove item from inventory
+    this.inventory[inventoryIndex] = null;
+
+    // If there's already an item in the slot, unequip it and add to inventory
+    const existingItem = this.equipment[targetSlot];
+    if (existingItem) {
+      // Try to add the existing item back to inventory
+      const emptySlotIndex = this.inventory.findIndex(slot => slot === null);
+      if (emptySlotIndex !== -1) {
+        this.inventory[emptySlotIndex] = existingItem;
+      } else {
+        // Inventory is full, put the item we're trying to equip back
+        this.inventory[inventoryIndex] = item;
+        return false; // Cannot unequip existing item because inventory is full
+      }
+    }
+
+    // Equip the new item
+    this.equipment[targetSlot] = item;
+
+    // Recalculate stats based on equipment
+    this.recalculateStats();
+
+    return true;
+  }
+
+  /**
+   * Recalculate player stats based on equipment
+   * This should be called whenever equipment changes
+   */
+  private recalculateStats(): void {
+    // Base stats from level
+    let baseAttack = PLAYER_CONFIG.STARTING_ATTACK + (this.level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL;
+    let baseDefense = PLAYER_CONFIG.STARTING_DEFENSE + (this.level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+    let baseMaxHp = PLAYER_CONFIG.STARTING_HP + (this.level - 1) * PLAYER_CONFIG.HP_PER_LEVEL;
+
+    // Add equipment bonuses
+    Object.values(this.equipment).forEach((item) => {
+      if (item) {
+        if (item.attack !== undefined) {
+          baseAttack += item.attack;
+        }
+        if (item.defense !== undefined) {
+          baseDefense += item.defense;
+        }
+        if (item.maxHp !== undefined) {
+          baseMaxHp += item.maxHp;
+        }
+        if (item.hp !== undefined) {
+          // HP bonuses are typically temporary, but we'll add to maxHp for now
+          // This might need adjustment based on game design
+          baseMaxHp += item.hp;
+        }
+      }
+    });
+
+    // Calculate HP difference to maintain current HP percentage
+    const hpPercentage = this.maxHp > 0 ? this.hp / this.maxHp : 1;
+    const oldMaxHp = this.maxHp;
+
+    // Update stats
+    this.attack = baseAttack;
+    this.defense = baseDefense;
+    this.maxHp = baseMaxHp;
+
+    // Adjust current HP to maintain percentage, but don't exceed new maxHp
+    this.hp = Math.min(this.maxHp, Math.floor(oldMaxHp * hpPercentage));
   }
 
   /**
