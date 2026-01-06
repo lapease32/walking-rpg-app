@@ -1011,8 +1011,23 @@ export default function HomeScreen() {
       />
       <InventoryModal
         inventory={player?.inventory || []}
+        player={player}
         visible={showInventoryModal}
         onClose={() => setShowInventoryModal(false)}
+        onItemEquipped={() => {
+          if (player) {
+            const updatedPlayer = new Player(player.toJSON());
+            setPlayer(updatedPlayer);
+            savePlayerData(updatedPlayer);
+          }
+        }}
+        onItemDeleted={() => {
+          if (player) {
+            const updatedPlayer = new Player(player.toJSON());
+            setPlayer(updatedPlayer);
+            savePlayerData(updatedPlayer);
+          }
+        }}
       />
     </SafeAreaView>
   );

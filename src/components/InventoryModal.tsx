@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,16 @@ import {
 } from 'react-native';
 import { Item } from '../models/Item';
 import { Rarity } from '../models/Creature';
+import { Player } from '../models/Player';
+import ItemDetailsModal from './ItemDetailsModal';
 
 interface InventoryModalProps {
   inventory: (Item | null)[];
+  player: Player | null;
   visible: boolean;
   onClose: () => void;
+  onItemEquipped?: () => void;
+  onItemDeleted?: () => void;
 }
 
 /**
@@ -21,9 +26,37 @@ interface InventoryModalProps {
  */
 export default function InventoryModal({
   inventory,
+  player,
   visible,
   onClose,
+  onItemEquipped,
+  onItemDeleted,
 }: InventoryModalProps) {
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number>(-1);
+  const [showItemDetails, setShowItemDetails] = useState<boolean>(false);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setShowItemDetails(false);
+      setSelectedItem(null);
+      setSelectedItemIndex(-1);
+    }
+  }, [visible]);
+
+  // Validate selectedItemIndex matches selectedItem when inventory changes
+  useEffect(() => {
+    if (selectedItemIndex !== -1 && selectedItem !== null) {
+      const currentItem = inventory[selectedItemIndex];
+      // If the item at the index doesn't match the selected item, reset state
+      if (currentItem !== selectedItem) {
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+      }
+    }
+  }, [inventory, selectedItemIndex, selectedItem]);
   const rarityColors: Record<Rarity, string> = {
     common: '#9E9E9E',
     uncommon: '#4CAF50',
@@ -50,11 +83,77 @@ export default function InventoryModal({
     return iconMap[item.type] || '📦';
   };
 
+  const handleItemPress = (item: Item | null, index: number) => {
+    if (item !== null) {
+      setSelectedItem(item);
+      setSelectedItemIndex(index);
+      setShowItemDetails(true);
+    }
+  };
+
+  const handleEquip = () => {
+    if (selectedItemIndex !== -1 && player && selectedItem !== null) {
+      // Validate that the item at the index still matches the selected item
+      const currentItem = inventory[selectedItemIndex];
+      if (currentItem !== selectedItem) {
+        // Item has changed, reset state and abort
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+        return;
+      }
+
+      const success = player.equipItem(selectedItemIndex);
+      if (success) {
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+        if (onItemEquipped) {
+          onItemEquipped();
+        }
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    if (selectedItemIndex !== -1 && player && selectedItem !== null) {
+      // Validate that the item at the index still matches the selected item
+      const currentItem = inventory[selectedItemIndex];
+      if (currentItem !== selectedItem) {
+        // Item has changed, reset state and abort
+        setShowItemDetails(false);
+        setSelectedItem(null);
+        setSelectedItemIndex(-1);
+        return;
+      }
+
+      player.removeItemFromInventory(selectedItemIndex);
+      setShowItemDetails(false);
+      setSelectedItem(null);
+      setSelectedItemIndex(-1);
+      if (onItemDeleted) {
+        onItemDeleted();
+      }
+    }
+  };
+
+  const handleCloseItemDetails = () => {
+    setShowItemDetails(false);
+    setSelectedItem(null);
+    setSelectedItemIndex(-1);
+  };
+
   const renderInventorySlot = (item: Item | null, index: number) => {
     const isEmpty = item === null;
 
     return (
-      <View key={index} style={styles.slotContainer}>
+      <TouchableOpacity
+        key={index}
+        style={styles.slotContainer}
+        onPress={() => handleItemPress(item, index)}
+        disabled={isEmpty}
+        activeOpacity={isEmpty ? 1 : 0.7}
+      >
         <View
           style={[
             styles.slot,
@@ -107,7 +206,7 @@ export default function InventoryModal({
             )
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -143,6 +242,15 @@ export default function InventoryModal({
           </ScrollView>
         </View>
       </View>
+
+      <ItemDetailsModal
+        item={selectedItem}
+        player={player}
+        visible={showItemDetails}
+        onClose={handleCloseItemDetails}
+        onEquip={handleEquip}
+        onDelete={handleDelete}
+      />
     </Modal>
   );
 }
