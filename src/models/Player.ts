@@ -442,7 +442,42 @@ export class Player {
     }
 
     // Equip the new item
-    this.equipment[targetSlot] = item;
+    // Type assertion is safe because we've validated item.type matches targetSlot
+    // For accessories, targetSlot is 'accessory1' or 'accessory2' and item is AccessoryItem
+    // For other items, targetSlot === item.slot, so the types match
+    if (item.type === 'accessory') {
+      // TypeScript knows item is AccessoryItem and targetSlot is 'accessory1' | 'accessory2'
+      if (targetSlot === 'accessory1') {
+        this.equipment.accessory1 = item;
+      } else {
+        this.equipment.accessory2 = item;
+      }
+    } else {
+      // TypeScript knows item.slot === targetSlot, so types match
+      switch (targetSlot) {
+        case 'weapon':
+          this.equipment.weapon = item as WeaponItem;
+          break;
+        case 'offhand':
+          this.equipment.offhand = item as OffhandItem;
+          break;
+        case 'head':
+          this.equipment.head = item as HeadItem;
+          break;
+        case 'chest':
+          this.equipment.chest = item as ChestItem;
+          break;
+        case 'legs':
+          this.equipment.legs = item as LegsItem;
+          break;
+        case 'boots':
+          this.equipment.boots = item as BootsItem;
+          break;
+        case 'gloves':
+          this.equipment.gloves = item as GlovesItem;
+          break;
+      }
+    }
 
     // Recalculate stats based on equipment
     this.recalculateStats();
