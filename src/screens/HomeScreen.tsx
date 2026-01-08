@@ -510,6 +510,9 @@ export default function HomeScreen() {
       }
     }
 
+    // Reset HP to 100% after encounter (casual-friendly feature)
+    updatedPlayer.fullHeal();
+
     // Update refs immediately to prevent race condition with GPS callbacks
     // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
     playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
@@ -578,6 +581,8 @@ export default function HomeScreen() {
     if (currentEncounterState && currentPlayer) {
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.incrementEncounters();
+      // Reset HP to 100% after encounter (casual-friendly feature)
+      updatedPlayer.fullHeal();
       playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer);
