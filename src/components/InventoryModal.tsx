@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { Item } from '../models/Item';
+import { Item, canEquipInSlot } from '../models/Item';
 import { Rarity } from '../models/Creature';
-import { Player } from '../models/Player';
+import { Player, EquipmentSlot } from '../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
 
 interface InventoryModalProps {
@@ -19,6 +19,7 @@ interface InventoryModalProps {
   onClose: () => void;
   onItemEquipped?: () => void;
   onItemDeleted?: () => void;
+  equipmentSlot?: EquipmentSlot | null; // Optional filter for equipment slot
 }
 
 /**
@@ -31,10 +32,24 @@ export default function InventoryModal({
   onClose,
   onItemEquipped,
   onItemDeleted,
+  equipmentSlot,
 }: InventoryModalProps) {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number>(-1);
   const [showItemDetails, setShowItemDetails] = useState<boolean>(false);
+
+  // Filter inventory based on equipment slot if provided
+  // Returns array of { item, originalIndex } pairs for filtered items
+  const filteredInventoryData = useMemo(() => {
+    if (!equipmentSlot) {
+      // Return all items with their indices
+      return inventory.map((item, index) => ({ item, originalIndex: index }));
+    }
+    // Filter items that can be equipped in the specified slot
+    return inventory
+      .map((item, index) => ({ item, originalIndex: index }))
+      .filter(({ item }) => item !== null && canEquipInSlot(item, equipmentSlot));
+  }, [inventory, equipmentSlot]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -83,10 +98,10 @@ export default function InventoryModal({
     return iconMap[item.type] || '📦';
   };
 
-  const handleItemPress = (item: Item | null, index: number) => {
+  const handleItemPress = (item: Item | null, originalIndex: number) => {
     if (item !== null) {
       setSelectedItem(item);
-      setSelectedItemIndex(index);
+      setSelectedItemIndex(originalIndex);
       setShowItemDetails(true);
     }
   };
@@ -212,6 +227,23 @@ export default function InventoryModal({
 
   const usedSlots = inventory.filter((item) => item !== null).length;
   const totalSlots = inventory.length;
+  const filteredUsedSlots = filteredInventoryData.filter(({ item }) => item !== null).length;
+
+  // Get slot label for display
+  const getSlotLabel = (slot: EquipmentSlot): string => {
+    const labels: Record<EquipmentSlot, string> = {
+      weapon: 'Weapon',
+      offhand: 'Offhand',
+      head: 'Head',
+      chest: 'Chest',
+      legs: 'Legs',
+      boots: 'Boots',
+      gloves: 'Gloves',
+      accessory1: 'Accessory',
+      accessory2: 'Accessory',
+    };
+    return labels[slot];
+  };
 
   return (
     <Modal
@@ -223,7 +255,9 @@ export default function InventoryModal({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.title}>Inventory</Text>
+            <Text style={styles.title}>
+              {equipmentSlot ? `${getSlotLabel(equipmentSlot)} Items` : 'Inventory'}
+            </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
@@ -231,13 +265,17 @@ export default function InventoryModal({
 
           <View style={styles.statsBar}>
             <Text style={styles.statsText}>
-              {usedSlots} / {totalSlots} slots used
+              {equipmentSlot
+                ? `${filteredUsedSlots} ${getSlotLabel(equipmentSlot).toLowerCase()} item${filteredUsedSlots !== 1 ? 's' : ''} available`
+                : `${usedSlots} / ${totalSlots} slots used`}
             </Text>
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <View style={styles.inventoryGrid}>
-              {inventory.map((item, index) => renderInventorySlot(item, index))}
+              {filteredInventoryData.map(({ item, originalIndex }) =>
+                renderInventorySlot(item, originalIndex)
+              )}
             </View>
           </ScrollView>
         </View>
@@ -266,7 +304,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     width: '90%',
-    maxHeight: '85%',
+    maxHeight: '90%',
     padding: 20,
   },
   header: {
@@ -317,7 +355,7 @@ const styles = StyleSheet.create({
   },
   slotContainer: {
     width: '18.5%', // 5 columns with margins
-    aspectRatio: 1,
+    aspectRatio: 0.85, // Slightly taller to accommodate more content
     marginRight: '1.875%', // Space between items (will overflow slightly on last item of row, but acceptable)
     marginBottom: 8,
   },
@@ -327,9 +365,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#e0e0e0',
-    padding: 8,
-    justifyContent: 'center',
+    padding: 6,
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   emptySlot: {
     backgroundColor: '#fafafa',
@@ -352,35 +391,38 @@ const styles = StyleSheet.create({
   itemContent: {
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    flex: 1,
   },
   itemIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 20,
+    marginBottom: 2,
   },
   itemName: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: 1,
+    lineHeight: 11,
   },
   itemLevel: {
-    fontSize: 8,
+    fontSize: 7,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   itemRarity: {
-    fontSize: 7,
+    fontSize: 6,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   itemStats: {
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   statText: {
-    fontSize: 7,
+    fontSize: 6,
     color: '#666',
+    lineHeight: 8,
   },
 });
 
