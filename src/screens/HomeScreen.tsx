@@ -22,6 +22,7 @@ import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import InventoryModal from '../components/InventoryModal';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
+import { EquipmentSlot } from '../models/Player';
 
 /**
  * Main home screen with location tracking and encounter handling
@@ -35,6 +36,7 @@ export default function HomeScreen() {
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [showCombatModal, setShowCombatModal] = useState<boolean>(false);
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
+  const [selectedEquipmentSlot, setSelectedEquipmentSlot] = useState<EquipmentSlot | null>(null);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false); // Debug toggle to force item drops
   const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
@@ -794,11 +796,20 @@ export default function HomeScreen() {
 
           <PlayerStats player={player} />
 
-          <EquipmentDisplay equipment={player.equipment} />
+          <EquipmentDisplay
+            equipment={player.equipment}
+            onSlotPress={(slot) => {
+              setSelectedEquipmentSlot(slot);
+              setShowInventoryModal(true);
+            }}
+          />
 
           <TouchableOpacity
             style={styles.inventoryButton}
-            onPress={() => setShowInventoryModal(true)}
+            onPress={() => {
+              setSelectedEquipmentSlot(null); // Clear filter when opening normally
+              setShowInventoryModal(true);
+            }}
           >
             <Text style={styles.inventoryButtonText}>📦 View Inventory</Text>
           </TouchableOpacity>
@@ -1018,7 +1029,11 @@ export default function HomeScreen() {
         inventory={player?.inventory || []}
         player={player}
         visible={showInventoryModal}
-        onClose={() => setShowInventoryModal(false)}
+        onClose={() => {
+          setShowInventoryModal(false);
+          setSelectedEquipmentSlot(null); // Clear filter when closing
+        }}
+        equipmentSlot={selectedEquipmentSlot}
         onItemEquipped={() => {
           if (player) {
             const updatedPlayer = new Player(player.toJSON());

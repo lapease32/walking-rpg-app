@@ -1,15 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Equipment } from '../models/Player';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Equipment, EquipmentSlot } from '../models/Player';
 
 interface EquipmentProps {
   equipment: Equipment;
+  onSlotPress?: (slot: EquipmentSlot) => void;
 }
 
 /**
  * Component to display player equipment slots
  */
-export default function EquipmentDisplay({ equipment }: EquipmentProps) {
+export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentProps) {
   const slotLabels: Record<keyof Equipment, string> = {
     weapon: 'Weapon',
     offhand: 'Offhand',
@@ -38,17 +39,42 @@ export default function EquipmentDisplay({ equipment }: EquipmentProps) {
     const item = equipment[slotKey];
     const isEmpty = item === null;
 
+    const slotContent = (
+      <View style={[styles.slot, isEmpty && styles.emptySlot]}>
+        <Text style={styles.slotIcon}>{slotIcons[slotKey]}</Text>
+        <Text style={[styles.slotLabel, isEmpty && styles.emptySlotText]}>
+          {slotLabels[slotKey]}
+        </Text>
+        {isEmpty && (
+          <Text style={styles.emptyText}>Empty</Text>
+        )}
+        {!isEmpty && item && (
+          <View style={styles.itemInfo}>
+            <Text style={styles.itemName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.itemLevel}>Lv. {item.level}</Text>
+          </View>
+        )}
+      </View>
+    );
+
+    if (onSlotPress) {
+      return (
+        <TouchableOpacity
+          key={slotKey}
+          style={styles.slotContainer}
+          onPress={() => onSlotPress(slotKey as EquipmentSlot)}
+          activeOpacity={0.7}
+        >
+          {slotContent}
+        </TouchableOpacity>
+      );
+    }
+
     return (
       <View key={slotKey} style={styles.slotContainer}>
-        <View style={[styles.slot, isEmpty && styles.emptySlot]}>
-          <Text style={styles.slotIcon}>{slotIcons[slotKey]}</Text>
-          <Text style={[styles.slotLabel, isEmpty && styles.emptySlotText]}>
-            {slotLabels[slotKey]}
-          </Text>
-          {isEmpty && (
-            <Text style={styles.emptyText}>Empty</Text>
-          )}
-        </View>
+        {slotContent}
       </View>
     );
   };
@@ -165,6 +191,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     fontStyle: 'italic',
+  },
+  itemInfo: {
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  itemName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  itemLevel: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 2,
   },
 });
 
