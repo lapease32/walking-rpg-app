@@ -820,11 +820,11 @@ export default function HomeScreen() {
             <View
               style={[
                 styles.statusIndicator,
-                { backgroundColor: isTracking ? '#4CAF50' : '#9E9E9E' },
+                { backgroundColor: (isTracking || LocationService.getIsTracking()) ? '#4CAF50' : '#9E9E9E' },
               ]}
             />
             <Text style={styles.statusText}>
-              {isTracking ? 'Tracking Active' : 'Not Tracking'}
+              {(isTracking || LocationService.getIsTracking()) ? 'Tracking Active' : 'Not Tracking'}
             </Text>
           </View>
 
@@ -846,12 +846,12 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[
               styles.trackButton,
-              isTracking ? styles.stopButton : styles.startButton,
+              (isTracking || LocationService.getIsTracking()) ? styles.stopButton : styles.startButton,
             ]}
-            onPress={isTracking ? stopTracking : startTracking}
+            onPress={(isTracking || LocationService.getIsTracking()) ? stopTracking : startTracking}
           >
             <Text style={styles.trackButtonText}>
-              {isTracking ? 'Stop Tracking' : 'Start Walking'}
+              {(isTracking || LocationService.getIsTracking()) ? 'Stop Tracking' : 'Start Walking'}
             </Text>
           </TouchableOpacity>
 
