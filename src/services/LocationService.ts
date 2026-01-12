@@ -239,6 +239,13 @@ class LocationService {
     const speed = this.getCurrentSpeed();
     return speed >= 3 && speed <= 8;
   }
+
+  /**
+   * Check if location tracking is currently active
+   */
+  getIsTracking(): boolean {
+    return this.isTracking;
+  }
 }
 
 // Export singleton instance
