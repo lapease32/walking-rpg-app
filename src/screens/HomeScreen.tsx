@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -56,6 +56,9 @@ export default function HomeScreen() {
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
   
+  // Ref to track app state for async callbacks (avoids stale closure)
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  
   // Ref to prevent multiple flee processing for the same encounter
   const fleeProcessedRef = useRef<boolean>(false);
   
@@ -67,6 +70,12 @@ export default function HomeScreen() {
   const isMinimizedRef = useRef<boolean>(false);
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
+
+  // Handle app state changes (foreground/background)
+  const handleAppStateChange = useCallback((nextAppState: AppStateStatus): void => {
+    appStateRef.current = nextAppState; // Update ref immediately to avoid stale closure
+    setAppState(nextAppState);
+  }, []);
 
   // Load player data and initialize notifications on mount
   useEffect(() => {
@@ -81,7 +90,7 @@ export default function HomeScreen() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [handleAppStateChange]);
 
   // Check for pending encounters when app comes to foreground
   useEffect(() => {
@@ -110,6 +119,10 @@ export default function HomeScreen() {
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
   }, [showCombatModal]);
+  
+  useEffect(() => {
+    appStateRef.current = appState;
+  }, [appState]);
 
   // Initialize encounter chance display
   useEffect(() => {
@@ -187,17 +200,15 @@ export default function HomeScreen() {
       notifee.onForegroundEvent(({ type, detail }) => {
         if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
           // User tapped encounter notification - check for pending encounter
-          checkPendingEncounter();
+          // Fire and forget - errors are handled in checkPendingEncounter
+          checkPendingEncounter().catch((error) => {
+            console.error('Error in notification handler:', error);
+          });
         }
       });
     } catch (error) {
       console.error('Error initializing notifications:', error);
     }
-  };
-
-  // Handle app state changes (foreground/background)
-  const handleAppStateChange = (nextAppState: AppStateStatus): void => {
-    setAppState(nextAppState);
   };
 
   // Check for pending encounters from background
@@ -320,8 +331,8 @@ export default function HomeScreen() {
       );
 
       if (encounter) {
-        // Check if app is in background
-        const isInBackground = appState !== 'active';
+        // Check if app is in background (use ref to avoid stale closure)
+        const isInBackground = appStateRef.current !== 'active';
         
         if (isInBackground) {
           // App is in background - save encounter and show notification

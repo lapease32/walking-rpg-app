@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { AndroidImportance, NotificationSettings } from '@notifee/react-native';
 import { Platform } from 'react-native';
 import { Encounter } from '../models/Encounter';
 
@@ -107,7 +107,7 @@ class NotificationService {
   /**
    * Get notification settings
    */
-  async getSettings(): Promise<any> {
+  async getSettings(): Promise<NotificationSettings | null> {
     try {
       return await notifee.getNotificationSettings();
     } catch (error) {
