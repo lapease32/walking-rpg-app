@@ -275,23 +275,32 @@ export default function HomeScreen() {
           status: pendingEncounterData.status,
         });
         
-        // Clear pending encounter - check return value to prevent reload issue
-        const clearSuccess = await clearPendingEncounter();
-        if (!clearSuccess) {
-          // Clear failed - don't show encounter to prevent reload on next appState change
-          // This prevents the encounter from being reloaded with full HP, overwriting combat progress
-          console.error('Failed to clear pending encounter - skipping encounter display to prevent data loss');
-          return;
-        }
-        
-        // Clear succeeded - safe to show encounter
-        // Show encounter in UI
+        // Set encounterRef immediately to prevent race condition with GPS callbacks
+        // This ensures handleDistanceUpdate will see the encounter and skip generation
+        // even if a GPS callback interleaves before clearPendingEncounter completes
         encounterRef.current = encounter;
         isMinimizedRef.current = false;
         showCombatModalRef.current = false;
         victoryProcessedRef.current = false;
         fleeProcessedRef.current = false;
         
+        // Clear pending encounter - check return value to prevent reload issue
+        const clearSuccess = await clearPendingEncounter();
+        if (!clearSuccess) {
+          // Clear failed - don't show encounter to prevent reload on next appState change
+          // This prevents the encounter from being reloaded with full HP, overwriting combat progress
+          // Clear the refs we just set to avoid leaving stale state
+          encounterRef.current = null;
+          isMinimizedRef.current = false;
+          showCombatModalRef.current = false;
+          victoryProcessedRef.current = false;
+          fleeProcessedRef.current = false;
+          console.error('Failed to clear pending encounter - skipping encounter display to prevent data loss');
+          return;
+        }
+        
+        // Clear succeeded - safe to show encounter
+        // Show encounter in UI (refs already set above to prevent race condition)
         setCurrentEncounter(encounter);
         setShowEncounterModal(true);
         setIsEncounterModalMinimized(false);
