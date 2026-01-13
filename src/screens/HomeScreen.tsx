@@ -388,16 +388,8 @@ export default function HomeScreen() {
               return; // Skip saving this encounter
             }
             
-            // Update refs immediately to prevent race condition with GPS callbacks
-            // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
-            // This ensures the check at line 351 works correctly for background encounters
-            encounterRef.current = encounter; // Set to new encounter immediately
-            isMinimizedRef.current = false; // Reset minimized state immediately
-            showCombatModalRef.current = false; // Ensure combat modal is closed
-            victoryProcessedRef.current = false; // Reset victory flag for new encounter
-            fleeProcessedRef.current = false; // Reset flee flag for new encounter
-            
-            // Save encounter to storage (serialize encounter data)
+            // Save encounter to storage first (serialize encounter data)
+            // We must save successfully before setting refs to avoid blocking the encounter system
             const encounterData: EncounterData = {
               creature: {
                 id: encounter.creature.id,
@@ -418,9 +410,25 @@ export default function HomeScreen() {
               playerLevel: encounter.playerLevel,
               status: encounter.status,
             };
-            await savePendingEncounter(encounterData);
+            const saveSuccess = await savePendingEncounter(encounterData);
             
-            // Show notification
+            // Only set refs and show notification if save succeeded
+            // If save fails, don't set refs (to avoid blocking encounter system) and don't show notification
+            if (!saveSuccess) {
+              console.error('Failed to save pending encounter, skipping ref update and notification');
+              return; // Exit early - encounter not saved, so don't proceed
+            }
+            
+            // Save succeeded - now update refs to prevent race condition with GPS callbacks
+            // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+            // This ensures the check at line 351 works correctly for background encounters
+            encounterRef.current = encounter; // Set to new encounter immediately
+            isMinimizedRef.current = false; // Reset minimized state immediately
+            showCombatModalRef.current = false; // Ensure combat modal is closed
+            victoryProcessedRef.current = false; // Reset victory flag for new encounter
+            fleeProcessedRef.current = false; // Reset flee flag for new encounter
+            
+            // Show notification (only if save succeeded)
             await NotificationService.showEncounterNotification(encounter);
           } catch (error) {
             console.error('Error handling background encounter:', error);
