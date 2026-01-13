@@ -801,7 +801,7 @@ export default function HomeScreen() {
       )}
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.position === 'top' ? styles.scrollViewWithBetaTop : undefined}
+        contentContainerStyle={APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.visible && APP_CONFIG.BETA_INDICATOR.position === 'top' ? styles.scrollViewWithBetaTop : undefined}
       >
         <View style={styles.content}>
           <Text style={styles.title}>Walking RPG</Text>
