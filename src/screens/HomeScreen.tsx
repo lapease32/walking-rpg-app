@@ -68,6 +68,9 @@ export default function HomeScreen() {
   // Ref to track previous app state (to detect transitions, not initial mount)
   const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
   
+  // Ref to track if a notification tap is being processed (to skip appState transition check)
+  const isProcessingNotificationTapRef = useRef<boolean>(false);
+  
   // Ref to track current player state for async callbacks
   const playerRef = useRef<Player | null>(null);
   
@@ -96,10 +99,21 @@ export default function HomeScreen() {
     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
         // User tapped encounter notification - check for pending encounter
+        // Set flag to prevent appState transition from also triggering check
+        // This flag is checked synchronously in the appState effect before calling checkPendingEncounter
+        isProcessingNotificationTapRef.current = true;
         // Fire and forget - errors are handled in checkPendingEncounter
-        checkPendingEncounter().catch((error) => {
-          console.error('Error in notification handler:', error);
-        });
+        checkPendingEncounter()
+          .catch((error) => {
+            console.error('Error in notification handler:', error);
+          })
+          .finally(() => {
+            // Clear flag after processing completes
+            // Use setTimeout to ensure appState transition check (if queued) sees the flag
+            setTimeout(() => {
+              isProcessingNotificationTapRef.current = false;
+            }, 50);
+          });
       }
     });
 
@@ -119,9 +133,11 @@ export default function HomeScreen() {
 
   // Check for pending encounters when app comes to foreground
   // Only check when transitioning TO 'active' from a different state (not on initial mount)
+  // Skip if a notification tap is being processed (to avoid duplicate calls)
   useEffect(() => {
     // Only check if transitioning from non-active to active (not on initial mount)
-    if (appState === 'active' && prevAppStateRef.current !== 'active') {
+    // Skip if notification tap is being processed (it will handle the check)
+    if (appState === 'active' && prevAppStateRef.current !== 'active' && !isProcessingNotificationTapRef.current) {
       checkPendingEncounter();
     }
     prevAppStateRef.current = appState;
