@@ -253,6 +253,14 @@ export default function HomeScreen() {
     isCheckingPendingEncounterRef.current = true;
     
     try {
+      // Check if there's already an active encounter (prevent overwriting combat progress)
+      if (encounterRef.current) {
+        // Active encounter exists - don't load pending encounter to avoid overwriting
+        // Clear any stale pending encounter data silently
+        await clearPendingEncounter();
+        return;
+      }
+      
       const pendingEncounterData = await loadPendingEncounter();
       if (pendingEncounterData) {
         // Reconstruct encounter from saved data
@@ -265,9 +273,16 @@ export default function HomeScreen() {
           status: pendingEncounterData.status,
         });
         
-        // Clear pending encounter
-        await clearPendingEncounter();
+        // Clear pending encounter - check return value to prevent reload issue
+        const clearSuccess = await clearPendingEncounter();
+        if (!clearSuccess) {
+          // Clear failed - don't show encounter to prevent reload on next appState change
+          // This prevents the encounter from being reloaded with full HP, overwriting combat progress
+          console.error('Failed to clear pending encounter - skipping encounter display to prevent data loss');
+          return;
+        }
         
+        // Clear succeeded - safe to show encounter
         // Show encounter in UI
         encounterRef.current = encounter;
         isMinimizedRef.current = false;
