@@ -87,3 +87,28 @@ export const ATTACK_TYPES = {
 
 export type AttackType = keyof typeof ATTACK_TYPES;
 
+/**
+ * App distribution and version configuration
+ */
+export const APP_CONFIG = {
+  // Set to true to show beta indicators in the app
+  // Set to false for production releases
+  IS_BETA: true,
+  
+  // Version string to display (optional)
+  // Update this when creating new beta builds
+  VERSION: '1.0.0-beta.1',
+  
+  // Beta indicator display options
+  BETA_INDICATOR: {
+    // Show beta indicator
+    visible: true,
+    
+    // Position: 'top' | 'bottom' | 'inline'
+    position: 'top' as const,
+    
+    // Variant: 'badge' | 'banner'
+    variant: 'banner' as const,
+  },
+} as const;
+

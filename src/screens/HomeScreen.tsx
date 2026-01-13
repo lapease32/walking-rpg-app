@@ -21,7 +21,8 @@ import EquipmentDisplay from '../components/Equipment';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import InventoryModal from '../components/InventoryModal';
-import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
+import BetaIndicator from '../components/BetaIndicator';
+import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG } from '../constants/config';
 import { EquipmentSlot } from '../models/Player';
 
 /**
@@ -790,7 +791,26 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      {APP_CONFIG.IS_BETA && (
+        <BetaIndicator
+          visible={APP_CONFIG.BETA_INDICATOR.visible}
+          version={APP_CONFIG.VERSION}
+          position={APP_CONFIG.BETA_INDICATOR.position}
+          variant={APP_CONFIG.BETA_INDICATOR.variant}
+        />
+      )}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={
+          APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.visible
+            ? APP_CONFIG.BETA_INDICATOR.position === 'top'
+              ? styles.scrollViewWithBetaTop
+              : APP_CONFIG.BETA_INDICATOR.position === 'bottom'
+              ? styles.scrollViewWithBetaBottom
+              : undefined
+            : undefined
+        }
+      >
         <View style={styles.content}>
           <Text style={styles.title}>Walking RPG</Text>
 
@@ -1057,6 +1077,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollViewWithBetaTop: {
+    paddingTop: 60, // Add padding when beta indicator is at top
+  },
+  scrollViewWithBetaBottom: {
+    paddingBottom: 60, // Add padding when beta indicator is at bottom
   },
   scrollView: {
     flex: 1,
