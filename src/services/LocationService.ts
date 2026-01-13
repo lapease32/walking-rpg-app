@@ -1,4 +1,4 @@
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 import { Location } from '../models/Encounter';
 
 export interface GeolocationPosition {
@@ -33,7 +33,7 @@ export interface DistanceData {
 }
 
 type LocationUpdateCallback = (location: LocationData) => void;
-type DistanceUpdateCallback = (distanceData: DistanceData) => void;
+type DistanceUpdateCallback = (distanceData: DistanceData) => void | Promise<void>;
 
 /**
  * Location Service
