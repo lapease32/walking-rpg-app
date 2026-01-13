@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerData } from '../models/Player';
+import { CreatureConstructorParams } from '../models/Creature';
+import { Location, EncounterStatus } from '../models/Encounter';
 
 /**
  * Storage utilities for persisting player data
@@ -7,10 +9,22 @@ import { PlayerData } from '../models/Player';
 const STORAGE_KEYS = {
   PLAYER_DATA: '@walking_rpg:player_data',
   SETTINGS: '@walking_rpg:settings',
+  PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
 } as const;
 
 export interface AppSettings {
   [key: string]: any;
+}
+
+/**
+ * Serialized encounter data for storage
+ */
+export interface EncounterData {
+  creature: CreatureConstructorParams;
+  location: Location;
+  timestamp: number;
+  playerLevel: number;
+  status: EncounterStatus;
 }
 
 /**
@@ -74,6 +88,49 @@ export async function loadSettings(): Promise<AppSettings | null> {
 }
 
 /**
+ * Save pending encounter (for background encounters)
+ */
+export async function savePendingEncounter(encounter: EncounterData): Promise<boolean> {
+  try {
+    const jsonData = JSON.stringify(encounter);
+    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_ENCOUNTER, jsonData);
+    return true;
+  } catch (error) {
+    console.error('Error saving pending encounter:', error);
+    return false;
+  }
+}
+
+/**
+ * Load pending encounter (for background encounters)
+ */
+export async function loadPendingEncounter(): Promise<EncounterData | null> {
+  try {
+    const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_ENCOUNTER);
+    if (jsonData) {
+      return JSON.parse(jsonData);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error loading pending encounter:', error);
+    return null;
+  }
+}
+
+/**
+ * Clear pending encounter
+ */
+export async function clearPendingEncounter(): Promise<boolean> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_ENCOUNTER);
+    return true;
+  } catch (error) {
+    console.error('Error clearing pending encounter:', error);
+    return false;
+  }
+}
+
+/**
  * Clear all app data
  */
 export async function clearAllData(): Promise<boolean> {
@@ -81,6 +138,7 @@ export async function clearAllData(): Promise<boolean> {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.PLAYER_DATA,
       STORAGE_KEYS.SETTINGS,
+      STORAGE_KEYS.PENDING_ENCOUNTER,
     ]);
     return true;
   } catch (error) {

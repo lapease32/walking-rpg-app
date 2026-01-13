@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,19 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
+import NotificationService from '../services/NotificationService';
+import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
 import { Encounter } from '../models/Encounter';
 import { Location } from '../models/Encounter';
-import { savePlayerData, loadPlayerData } from '../utils/storage';
+import { Creature } from '../models/Creature';
+import { savePlayerData, loadPlayerData, loadPendingEncounter, clearPendingEncounter, savePendingEncounter, EncounterData } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
 import EquipmentDisplay from '../components/Equipment';
@@ -46,12 +51,25 @@ export default function HomeScreen() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
   
+  // Ref to track app state for async callbacks (avoids stale closure)
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  
   // Ref to prevent multiple flee processing for the same encounter
   const fleeProcessedRef = useRef<boolean>(false);
+  
+  // Ref to prevent concurrent checkPendingEncounter calls (race condition protection)
+  const isCheckingPendingEncounterRef = useRef<boolean>(false);
+  
+  // Ref to track previous app state (to detect transitions, not initial mount)
+  const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
+  
+  // Ref to track if a notification tap is being processed (to skip appState transition check)
+  const isProcessingNotificationTapRef = useRef<boolean>(false);
   
   // Ref to track current player state for async callbacks
   const playerRef = useRef<Player | null>(null);
@@ -62,10 +80,68 @@ export default function HomeScreen() {
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
 
-  // Load player data on mount
+  // Handle app state changes (foreground/background)
+  const handleAppStateChange = useCallback((nextAppState: AppStateStatus): void => {
+    appStateRef.current = nextAppState; // Update ref immediately to avoid stale closure
+    setAppState(nextAppState);
+  }, []);
+
+  // Load player data and initialize notifications on mount
   useEffect(() => {
     initializePlayer();
+    initializeNotifications();
+    checkPendingEncounter();
   }, []);
+
+  // Set up foreground notification event handler with proper cleanup
+  useEffect(() => {
+    // Background handler is registered in index.ts (must be at app level)
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
+        // User tapped encounter notification - check for pending encounter
+        // Set flag to prevent appState transition from also triggering check
+        // This flag is checked synchronously in the appState effect before calling checkPendingEncounter
+        isProcessingNotificationTapRef.current = true;
+        // Fire and forget - errors are handled in checkPendingEncounter
+        checkPendingEncounter()
+          .catch((error) => {
+            console.error('Error in notification handler:', error);
+          })
+          .finally(() => {
+            // Clear flag after processing completes
+            // Use setTimeout to ensure appState transition check (if queued) sees the flag
+            setTimeout(() => {
+              isProcessingNotificationTapRef.current = false;
+            }, 50);
+          });
+      }
+    });
+
+    // Cleanup function to unsubscribe from events when component unmounts
+    return () => {
+      unsubscribe();
+    };
+  }, []); // Empty deps - only set up once on mount
+
+  // Monitor app state changes (foreground/background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [handleAppStateChange]);
+
+  // Check for pending encounters when app comes to foreground
+  // Only check when transitioning TO 'active' from a different state (not on initial mount)
+  // Skip if a notification tap is being processed (to avoid duplicate calls)
+  useEffect(() => {
+    // Only check if transitioning from non-active to active (not on initial mount)
+    // Skip if notification tap is being processed (it will handle the check)
+    if (appState === 'active' && prevAppStateRef.current !== 'active' && !isProcessingNotificationTapRef.current) {
+      checkPendingEncounter();
+    }
+    prevAppStateRef.current = appState;
+  }, [appState]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -87,6 +163,10 @@ export default function HomeScreen() {
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
   }, [showCombatModal]);
+  
+  useEffect(() => {
+    appStateRef.current = appState;
+  }, [appState]);
 
   // Initialize encounter chance display
   useEffect(() => {
@@ -150,6 +230,89 @@ export default function HomeScreen() {
     }
   };
 
+  // Initialize notification service (channel creation and permissions)
+  const initializeNotifications = async (): Promise<void> => {
+    try {
+      await NotificationService.initialize();
+      const hasPermission = await NotificationService.requestPermissions();
+      if (!hasPermission) {
+        console.warn('Notification permissions not granted');
+      }
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+    }
+  };
+
+  // Check for pending encounters from background
+  const checkPendingEncounter = async (): Promise<void> => {
+    // Prevent concurrent execution (race condition protection)
+    if (isCheckingPendingEncounterRef.current) {
+      return; // Already checking, skip this call
+    }
+    
+    isCheckingPendingEncounterRef.current = true;
+    
+    try {
+      // Check if there's already an active encounter (prevent overwriting combat progress)
+      // Use ref (encounterRef.current) instead of state to avoid stale closure issues
+      // when called from notification handler with empty deps (which captures initial state value)
+      if (encounterRef.current) {
+        // Active encounter exists - don't load pending encounter to avoid overwriting
+        // Clear any stale pending encounter data silently
+        await clearPendingEncounter();
+        return;
+      }
+      
+      const pendingEncounterData = await loadPendingEncounter();
+      if (pendingEncounterData) {
+        // Reconstruct encounter from saved data
+        const creature = new Creature(pendingEncounterData.creature);
+        const encounter = new Encounter({
+          creature,
+          location: pendingEncounterData.location,
+          timestamp: pendingEncounterData.timestamp,
+          playerLevel: pendingEncounterData.playerLevel,
+          status: pendingEncounterData.status,
+        });
+        
+        // Set encounterRef immediately to prevent race condition with GPS callbacks
+        // This ensures handleDistanceUpdate will see the encounter and skip generation
+        // even if a GPS callback interleaves before clearPendingEncounter completes
+        encounterRef.current = encounter;
+        isMinimizedRef.current = false;
+        showCombatModalRef.current = false;
+        victoryProcessedRef.current = false;
+        fleeProcessedRef.current = false;
+        
+        // Clear pending encounter - check return value to prevent reload issue
+        const clearSuccess = await clearPendingEncounter();
+        if (!clearSuccess) {
+          // Clear failed - don't show encounter to prevent reload on next appState change
+          // This prevents the encounter from being reloaded with full HP, overwriting combat progress
+          // Clear the refs we just set to avoid leaving stale state
+          encounterRef.current = null;
+          isMinimizedRef.current = false;
+          showCombatModalRef.current = false;
+          victoryProcessedRef.current = false;
+          fleeProcessedRef.current = false;
+          console.error('Failed to clear pending encounter - skipping encounter display to prevent data loss');
+          return;
+        }
+        
+        // Clear succeeded - safe to show encounter
+        // Show encounter in UI (refs already set above to prevent race condition)
+        setCurrentEncounter(encounter);
+        setShowEncounterModal(true);
+        setIsEncounterModalMinimized(false);
+      }
+    } catch (error) {
+      console.error('Error checking pending encounter:', error);
+    } finally {
+      // Always reset the flag, even if an error occurred
+      isCheckingPendingEncounterRef.current = false;
+    }
+  };
+
   // Handle location updates
   const handleLocationUpdate = (location: LocationData): void => {
     currentLocationRef.current = location; // Update ref synchronously to avoid stale closures
@@ -157,7 +320,7 @@ export default function HomeScreen() {
   };
 
   // Handle distance updates
-  const handleDistanceUpdate = (distanceData: DistanceData): void => {
+  const handleDistanceUpdate = async (distanceData: DistanceData): Promise<void> => {
     const { incremental, total, location } = distanceData;
     setCurrentDistance(total);
 
@@ -236,17 +399,75 @@ export default function HomeScreen() {
       );
 
       if (encounter) {
-        // Update refs immediately to prevent race condition with GPS callbacks
-        // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
-        encounterRef.current = encounter; // Set to new encounter immediately
-        isMinimizedRef.current = false; // Reset minimized state immediately
-        showCombatModalRef.current = false; // Ensure combat modal is closed
-        victoryProcessedRef.current = false; // Reset victory flag for new encounter
-        fleeProcessedRef.current = false; // Reset flee flag for new encounter
+        // Check if app is in background (use ref to avoid stale closure)
+        const isInBackground = appStateRef.current !== 'active';
         
-        setCurrentEncounter(encounter);
-        setShowEncounterModal(true);
-        setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
+        if (isInBackground) {
+          // App is in background - save encounter and show notification
+          try {
+            // Check if there's already a pending encounter (prevent overwrite)
+            const existingPendingEncounter = await loadPendingEncounter();
+            if (existingPendingEncounter) {
+              console.warn('Background encounter already pending, skipping new encounter to prevent overwrite');
+              // Don't update refs - let the existing pending encounter be loaded when app comes to foreground
+              // The refs will be updated when checkPendingEncounter loads the pending encounter
+              return; // Skip saving this encounter
+            }
+            
+            // Save encounter to storage first (serialize encounter data)
+            // We must save successfully before setting refs to avoid blocking the encounter system
+            const encounterData: EncounterData = {
+              creature: {
+                id: encounter.creature.id,
+                name: encounter.creature.name,
+                type: encounter.creature.type,
+                level: encounter.creature.level,
+                hp: encounter.creature.hp,
+                maxHp: encounter.creature.maxHp,
+                attack: encounter.creature.attack,
+                defense: encounter.creature.defense,
+                speed: encounter.creature.speed,
+                rarity: encounter.creature.rarity,
+                description: encounter.creature.description,
+                encounterRate: encounter.creature.encounterRate,
+              },
+              location: encounter.location,
+              timestamp: encounter.timestamp,
+              playerLevel: encounter.playerLevel,
+              status: encounter.status,
+            };
+            const saveSuccess = await savePendingEncounter(encounterData);
+            
+            // Only set refs and show notification if save succeeded
+            // If save fails, don't set refs (to avoid blocking encounter system) and don't show notification
+            if (!saveSuccess) {
+              console.error('Failed to save pending encounter, skipping ref update and notification');
+              return; // Exit early - encounter not saved, so don't proceed
+            }
+            
+            // Save succeeded - show notification
+            // NOTE: Do NOT set encounterRef.current here - it will be set when checkPendingEncounter
+            // loads the encounter from storage and displays it in the UI. Setting it here would cause
+            // checkPendingEncounter to return early without loading the encounter from storage.
+            await NotificationService.showEncounterNotification(encounter);
+          } catch (error) {
+            console.error('Error handling background encounter:', error);
+          }
+        } else {
+          // App is in foreground - show encounter modal
+          // Update refs immediately to prevent race condition with GPS callbacks
+          // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+          encounterRef.current = encounter; // Set to new encounter immediately
+          isMinimizedRef.current = false; // Reset minimized state immediately
+          showCombatModalRef.current = false; // Ensure combat modal is closed
+          victoryProcessedRef.current = false; // Reset victory flag for new encounter
+          fleeProcessedRef.current = false; // Reset flee flag for new encounter
+          
+          setCurrentEncounter(encounter);
+          setShowEncounterModal(true);
+          setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
+        }
+        
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
         // Store the probability that was used when this encounter occurred
