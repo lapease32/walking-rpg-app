@@ -379,6 +379,24 @@ export default function HomeScreen() {
         if (isInBackground) {
           // App is in background - save encounter and show notification
           try {
+            // Check if there's already a pending encounter (prevent overwrite)
+            const existingPendingEncounter = await loadPendingEncounter();
+            if (existingPendingEncounter) {
+              console.warn('Background encounter already pending, skipping new encounter to prevent overwrite');
+              // Don't update refs - let the existing pending encounter be loaded when app comes to foreground
+              // The refs will be updated when checkPendingEncounter loads the pending encounter
+              return; // Skip saving this encounter
+            }
+            
+            // Update refs immediately to prevent race condition with GPS callbacks
+            // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+            // This ensures the check at line 351 works correctly for background encounters
+            encounterRef.current = encounter; // Set to new encounter immediately
+            isMinimizedRef.current = false; // Reset minimized state immediately
+            showCombatModalRef.current = false; // Ensure combat modal is closed
+            victoryProcessedRef.current = false; // Reset victory flag for new encounter
+            fleeProcessedRef.current = false; // Reset flee flag for new encounter
+            
             // Save encounter to storage (serialize encounter data)
             const encounterData: EncounterData = {
               creature: {
