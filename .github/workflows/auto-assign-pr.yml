@@ -12,6 +12,7 @@ jobs:
     steps:
       - name: Assign PR creator
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             await github.rest.issues.addAssignees({
