@@ -62,3 +62,6 @@ fastlane/test_output
 .vscode/
 .idea/
 
+# Personal documentation (not for other developers)
+docs/personal/
+
