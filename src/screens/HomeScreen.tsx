@@ -84,6 +84,25 @@ export default function HomeScreen() {
     checkPendingEncounter();
   }, []);
 
+  // Set up foreground notification event handler with proper cleanup
+  useEffect(() => {
+    // Background handler is registered in index.ts (must be at app level)
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
+        // User tapped encounter notification - check for pending encounter
+        // Fire and forget - errors are handled in checkPendingEncounter
+        checkPendingEncounter().catch((error) => {
+          console.error('Error in notification handler:', error);
+        });
+      }
+    });
+
+    // Cleanup function to unsubscribe from events when component unmounts
+    return () => {
+      unsubscribe();
+    };
+  }, []); // Empty deps - only set up once on mount
+
   // Monitor app state changes (foreground/background)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -186,7 +205,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Initialize notification service
+  // Initialize notification service (channel creation and permissions)
   const initializeNotifications = async (): Promise<void> => {
     try {
       await NotificationService.initialize();
@@ -194,18 +213,6 @@ export default function HomeScreen() {
       if (!hasPermission) {
         console.warn('Notification permissions not granted');
       }
-      
-      // Set up foreground notification event handler
-      // Background handler is registered in index.ts (must be at app level)
-      notifee.onForegroundEvent(({ type, detail }) => {
-        if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
-          // User tapped encounter notification - check for pending encounter
-          // Fire and forget - errors are handled in checkPendingEncounter
-          checkPendingEncounter().catch((error) => {
-            console.error('Error in notification handler:', error);
-          });
-        }
-      });
     } catch (error) {
       console.error('Error initializing notifications:', error);
     }
