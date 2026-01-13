@@ -7,14 +7,19 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
+import NotificationService from '../services/NotificationService';
+import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
 import { Encounter } from '../models/Encounter';
 import { Location } from '../models/Encounter';
-import { savePlayerData, loadPlayerData } from '../utils/storage';
+import { Creature } from '../models/Creature';
+import { savePlayerData, loadPlayerData, loadPendingEncounter, clearPendingEncounter, savePendingEncounter, EncounterData } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
 import EquipmentDisplay from '../components/Equipment';
@@ -46,6 +51,7 @@ export default function HomeScreen() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
   
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
@@ -62,10 +68,27 @@ export default function HomeScreen() {
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
 
-  // Load player data on mount
+  // Load player data and initialize notifications on mount
   useEffect(() => {
     initializePlayer();
+    initializeNotifications();
+    checkPendingEncounter();
   }, []);
+
+  // Monitor app state changes (foreground/background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Check for pending encounters when app comes to foreground
+  useEffect(() => {
+    if (appState === 'active') {
+      checkPendingEncounter();
+    }
+  }, [appState]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -150,6 +173,67 @@ export default function HomeScreen() {
     }
   };
 
+  // Initialize notification service
+  const initializeNotifications = async (): Promise<void> => {
+    try {
+      await NotificationService.initialize();
+      const hasPermission = await NotificationService.requestPermissions();
+      if (!hasPermission) {
+        console.warn('Notification permissions not granted');
+      }
+      
+      // Set up foreground notification event handler
+      // Background handler is registered in index.ts (must be at app level)
+      notifee.onForegroundEvent(({ type, detail }) => {
+        if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
+          // User tapped encounter notification - check for pending encounter
+          checkPendingEncounter();
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+    }
+  };
+
+  // Handle app state changes (foreground/background)
+  const handleAppStateChange = (nextAppState: AppStateStatus): void => {
+    setAppState(nextAppState);
+  };
+
+  // Check for pending encounters from background
+  const checkPendingEncounter = async (): Promise<void> => {
+    try {
+      const pendingEncounterData = await loadPendingEncounter();
+      if (pendingEncounterData) {
+        // Reconstruct encounter from saved data
+        const creature = new Creature(pendingEncounterData.creature);
+        const encounter = new Encounter({
+          creature,
+          location: pendingEncounterData.location,
+          timestamp: pendingEncounterData.timestamp,
+          playerLevel: pendingEncounterData.playerLevel,
+          status: pendingEncounterData.status,
+        });
+        
+        // Clear pending encounter
+        await clearPendingEncounter();
+        
+        // Show encounter in UI
+        encounterRef.current = encounter;
+        isMinimizedRef.current = false;
+        showCombatModalRef.current = false;
+        victoryProcessedRef.current = false;
+        fleeProcessedRef.current = false;
+        
+        setCurrentEncounter(encounter);
+        setShowEncounterModal(true);
+        setIsEncounterModalMinimized(false);
+      }
+    } catch (error) {
+      console.error('Error checking pending encounter:', error);
+    }
+  };
+
   // Handle location updates
   const handleLocationUpdate = (location: LocationData): void => {
     currentLocationRef.current = location; // Update ref synchronously to avoid stale closures
@@ -157,7 +241,7 @@ export default function HomeScreen() {
   };
 
   // Handle distance updates
-  const handleDistanceUpdate = (distanceData: DistanceData): void => {
+  const handleDistanceUpdate = async (distanceData: DistanceData): Promise<void> => {
     const { incremental, total, location } = distanceData;
     setCurrentDistance(total);
 
@@ -236,17 +320,55 @@ export default function HomeScreen() {
       );
 
       if (encounter) {
-        // Update refs immediately to prevent race condition with GPS callbacks
-        // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
-        encounterRef.current = encounter; // Set to new encounter immediately
-        isMinimizedRef.current = false; // Reset minimized state immediately
-        showCombatModalRef.current = false; // Ensure combat modal is closed
-        victoryProcessedRef.current = false; // Reset victory flag for new encounter
-        fleeProcessedRef.current = false; // Reset flee flag for new encounter
+        // Check if app is in background
+        const isInBackground = appState !== 'active';
         
-        setCurrentEncounter(encounter);
-        setShowEncounterModal(true);
-        setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
+        if (isInBackground) {
+          // App is in background - save encounter and show notification
+          try {
+            // Save encounter to storage (serialize encounter data)
+            const encounterData: EncounterData = {
+              creature: {
+                id: encounter.creature.id,
+                name: encounter.creature.name,
+                type: encounter.creature.type,
+                level: encounter.creature.level,
+                hp: encounter.creature.hp,
+                maxHp: encounter.creature.maxHp,
+                attack: encounter.creature.attack,
+                defense: encounter.creature.defense,
+                speed: encounter.creature.speed,
+                rarity: encounter.creature.rarity,
+                description: encounter.creature.description,
+                encounterRate: encounter.creature.encounterRate,
+              },
+              location: encounter.location,
+              timestamp: encounter.timestamp,
+              playerLevel: encounter.playerLevel,
+              status: encounter.status,
+            };
+            await savePendingEncounter(encounterData);
+            
+            // Show notification
+            await NotificationService.showEncounterNotification(encounter);
+          } catch (error) {
+            console.error('Error handling background encounter:', error);
+          }
+        } else {
+          // App is in foreground - show encounter modal
+          // Update refs immediately to prevent race condition with GPS callbacks
+          // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
+          encounterRef.current = encounter; // Set to new encounter immediately
+          isMinimizedRef.current = false; // Reset minimized state immediately
+          showCombatModalRef.current = false; // Ensure combat modal is closed
+          victoryProcessedRef.current = false; // Reset victory flag for new encounter
+          fleeProcessedRef.current = false; // Reset flee flag for new encounter
+          
+          setCurrentEncounter(encounter);
+          setShowEncounterModal(true);
+          setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
+        }
+        
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
         // Store the probability that was used when this encounter occurred
