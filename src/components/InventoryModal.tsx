@@ -160,6 +160,8 @@ export default function InventoryModal({
 
   const renderInventorySlot = (item: Item | null, index: number) => {
     const isEmpty = item === null;
+    const slotBorderColor = !isEmpty && item ? getRarityColor(item.rarity) : '#d0d0d0';
+    const slotBorderStyle: 'solid' | 'dashed' = isEmpty ? 'dashed' : 'solid';
 
     return (
       <TouchableOpacity
@@ -173,10 +175,7 @@ export default function InventoryModal({
           style={[
             styles.slot,
             isEmpty && styles.emptySlot,
-            !isEmpty && item && {
-              borderColor: getRarityColor(item.rarity),
-              borderWidth: 2,
-            },
+            { borderColor: slotBorderColor, borderStyle: slotBorderStyle },
           ]}
         >
           {isEmpty ? (
