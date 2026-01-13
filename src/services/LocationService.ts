@@ -156,11 +156,17 @@ class LocationService {
             this.totalDistance += distance;
 
             if (this.onDistanceUpdate) {
-              this.onDistanceUpdate({
+              const result = this.onDistanceUpdate({
                 incremental: distance,
                 total: this.totalDistance,
                 location: location, // Pass current location so callback can use it
               });
+              // Handle async callbacks that return promises
+              if (result instanceof Promise) {
+                result.catch((error) => {
+                  console.error('Error in distance update callback:', error);
+                });
+              }
             }
           }
         }
