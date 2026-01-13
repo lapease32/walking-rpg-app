@@ -801,7 +801,15 @@ export default function HomeScreen() {
       )}
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.visible && APP_CONFIG.BETA_INDICATOR.position === 'top' ? styles.scrollViewWithBetaTop : undefined}
+        contentContainerStyle={
+          APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.visible
+            ? APP_CONFIG.BETA_INDICATOR.position === 'top'
+              ? styles.scrollViewWithBetaTop
+              : APP_CONFIG.BETA_INDICATOR.position === 'bottom'
+              ? styles.scrollViewWithBetaBottom
+              : undefined
+            : undefined
+        }
       >
         <View style={styles.content}>
           <Text style={styles.title}>Walking RPG</Text>
@@ -1072,6 +1080,9 @@ const styles = StyleSheet.create({
   },
   scrollViewWithBetaTop: {
     paddingTop: 60, // Add padding when beta indicator is at top
+  },
+  scrollViewWithBetaBottom: {
+    paddingBottom: 60, // Add padding when beta indicator is at bottom
   },
   scrollView: {
     flex: 1,
