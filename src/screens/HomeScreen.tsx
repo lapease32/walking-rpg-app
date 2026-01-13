@@ -254,7 +254,8 @@ export default function HomeScreen() {
     
     try {
       // Check if there's already an active encounter (prevent overwriting combat progress)
-      if (encounterRef.current) {
+      // Use state (currentEncounter) as source of truth, not ref, since state represents what's displayed in UI
+      if (currentEncounter) {
         // Active encounter exists - don't load pending encounter to avoid overwriting
         // Clear any stale pending encounter data silently
         await clearPendingEncounter();
@@ -434,16 +435,10 @@ export default function HomeScreen() {
               return; // Exit early - encounter not saved, so don't proceed
             }
             
-            // Save succeeded - now update refs to prevent race condition with GPS callbacks
-            // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
-            // This ensures the check at line 351 works correctly for background encounters
-            encounterRef.current = encounter; // Set to new encounter immediately
-            isMinimizedRef.current = false; // Reset minimized state immediately
-            showCombatModalRef.current = false; // Ensure combat modal is closed
-            victoryProcessedRef.current = false; // Reset victory flag for new encounter
-            fleeProcessedRef.current = false; // Reset flee flag for new encounter
-            
-            // Show notification (only if save succeeded)
+            // Save succeeded - show notification
+            // NOTE: Do NOT set encounterRef.current here - it will be set when checkPendingEncounter
+            // loads the encounter from storage and displays it in the UI. Setting it here would cause
+            // checkPendingEncounter to return early without loading the encounter from storage.
             await NotificationService.showEncounterNotification(encounter);
           } catch (error) {
             console.error('Error handling background encounter:', error);
