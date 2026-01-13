@@ -254,8 +254,9 @@ export default function HomeScreen() {
     
     try {
       // Check if there's already an active encounter (prevent overwriting combat progress)
-      // Use state (currentEncounter) as source of truth, not ref, since state represents what's displayed in UI
-      if (currentEncounter) {
+      // Use ref (encounterRef.current) instead of state to avoid stale closure issues
+      // when called from notification handler with empty deps (which captures initial state value)
+      if (encounterRef.current) {
         // Active encounter exists - don't load pending encounter to avoid overwriting
         // Clear any stale pending encounter data silently
         await clearPendingEncounter();
