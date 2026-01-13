@@ -17,8 +17,6 @@ interface CombatModalProps {
   visible: boolean;
   onAttack: (attackType: AttackType) => void;
   onClose: () => void;
-  debugMode?: boolean;
-  onDebugDefeat?: () => void;
 }
 
 /**
@@ -30,8 +28,6 @@ export default function CombatModal({
   visible,
   onAttack,
   onClose,
-  debugMode = false,
-  onDebugDefeat,
 }: CombatModalProps) {
   const [cooldowns, setCooldowns] = useState<Record<AttackType, number>>({
     BASIC: 0,
@@ -273,22 +269,6 @@ export default function CombatModal({
               })}
             </View>
 
-            {/* Debug Defeat Button */}
-            {debugMode && onDebugDefeat && (
-              <TouchableOpacity
-                style={[
-                  styles.debugDefeatButton,
-                  (isDefeated || playerDefeated) && styles.debugDefeatButtonDisabled,
-                ]}
-                onPress={onDebugDefeat}
-                disabled={isDefeated || playerDefeated}
-              >
-                <Text style={styles.debugDefeatButtonText}>
-                  ⚡ Instant Defeat (Debug)
-                </Text>
-              </TouchableOpacity>
-            )}
-
             {(isDefeated || playerDefeated) && (
               <View style={styles.statusMessage}>
                 <Text style={styles.statusText}>
@@ -478,26 +458,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#856404',
     textAlign: 'center',
-  },
-  debugDefeatButton: {
-    backgroundColor: '#f44336',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#d32f2f',
-  },
-  debugDefeatButtonDisabled: {
-    backgroundColor: '#ccc',
-    borderColor: '#999',
-    opacity: 0.6,
-  },
-  debugDefeatButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 

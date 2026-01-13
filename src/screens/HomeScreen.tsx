@@ -1015,6 +1015,8 @@ export default function HomeScreen() {
         onFight={handleFight}
         onFlee={handleFlee}
         onMinimize={handleMinimize}
+        debugMode={debugMode}
+        onDebugDefeat={handleDebugDefeat}
       />
       <CombatModal
         encounter={currentEncounter}
@@ -1022,8 +1024,6 @@ export default function HomeScreen() {
         visible={showCombatModal}
         onAttack={handleAttack}
         onClose={handleCloseCombatModal}
-        debugMode={debugMode}
-        onDebugDefeat={handleDebugDefeat}
       />
       <InventoryModal
         inventory={player?.inventory || []}

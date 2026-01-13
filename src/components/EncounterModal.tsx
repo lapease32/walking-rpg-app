@@ -20,6 +20,8 @@ interface EncounterModalProps {
   onFight: () => void;
   onFlee: () => void;
   onMinimize?: () => void;
+  debugMode?: boolean;
+  onDebugDefeat?: () => void;
 }
 
 /**
@@ -35,6 +37,8 @@ export default function EncounterModal({
   onFight,
   onFlee,
   onMinimize,
+  debugMode = false,
+  onDebugDefeat,
 }: EncounterModalProps) {
   if (!encounter || !encounter.creature) {
     return null;
@@ -177,6 +181,22 @@ export default function EncounterModal({
             <View style={styles.defeatedBanner}>
               <Text style={styles.defeatedText}>DEFEATED!</Text>
             </View>
+          )}
+
+          {/* Debug Defeat Button */}
+          {debugMode && onDebugDefeat && (
+            <TouchableOpacity
+              style={[
+                styles.debugDefeatButton,
+                (isDefeated || playerDefeated) && styles.debugDefeatButtonDisabled,
+              ]}
+              onPress={onDebugDefeat}
+              disabled={isDefeated || playerDefeated}
+            >
+              <Text style={styles.debugDefeatButtonText}>
+                ⚡ Instant Defeat (Debug)
+              </Text>
+            </TouchableOpacity>
           )}
 
           <View style={styles.buttonContainer}>
@@ -402,6 +422,25 @@ const styles = StyleSheet.create({
   playerStatValue: {
     fontSize: 14,
     color: '#333',
+    fontWeight: 'bold',
+  },
+  debugDefeatButton: {
+    backgroundColor: '#f44336',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#d32f2f',
+  },
+  debugDefeatButtonDisabled: {
+    backgroundColor: '#ccc',
+    borderColor: '#999',
+    opacity: 0.6,
+  },
+  debugDefeatButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
