@@ -62,6 +62,12 @@ export default function HomeScreen() {
   // Ref to prevent multiple flee processing for the same encounter
   const fleeProcessedRef = useRef<boolean>(false);
   
+  // Ref to prevent concurrent checkPendingEncounter calls (race condition protection)
+  const isCheckingPendingEncounterRef = useRef<boolean>(false);
+  
+  // Ref to track previous app state (to detect transitions, not initial mount)
+  const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
+  
   // Ref to track current player state for async callbacks
   const playerRef = useRef<Player | null>(null);
   
@@ -112,10 +118,13 @@ export default function HomeScreen() {
   }, [handleAppStateChange]);
 
   // Check for pending encounters when app comes to foreground
+  // Only check when transitioning TO 'active' from a different state (not on initial mount)
   useEffect(() => {
-    if (appState === 'active') {
+    // Only check if transitioning from non-active to active (not on initial mount)
+    if (appState === 'active' && prevAppStateRef.current !== 'active') {
       checkPendingEncounter();
     }
+    prevAppStateRef.current = appState;
   }, [appState]);
 
   // Keep refs in sync with state
@@ -220,6 +229,13 @@ export default function HomeScreen() {
 
   // Check for pending encounters from background
   const checkPendingEncounter = async (): Promise<void> => {
+    // Prevent concurrent execution (race condition protection)
+    if (isCheckingPendingEncounterRef.current) {
+      return; // Already checking, skip this call
+    }
+    
+    isCheckingPendingEncounterRef.current = true;
+    
     try {
       const pendingEncounterData = await loadPendingEncounter();
       if (pendingEncounterData) {
@@ -249,6 +265,9 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error checking pending encounter:', error);
+    } finally {
+      // Always reset the flag, even if an error occurred
+      isCheckingPendingEncounterRef.current = false;
     }
   };
 
