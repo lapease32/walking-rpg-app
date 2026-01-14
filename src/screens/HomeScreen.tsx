@@ -1040,7 +1040,6 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => {
-                console.log('Settings button pressed');
                 setShowSettingsModal(true);
               }}
               activeOpacity={0.7}
