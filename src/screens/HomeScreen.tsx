@@ -26,6 +26,7 @@ import EquipmentDisplay from '../components/Equipment';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import InventoryModal from '../components/InventoryModal';
+import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG } from '../constants/config';
 import { EquipmentSlot } from '../models/Player';
@@ -42,6 +43,8 @@ export default function HomeScreen() {
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
   const [showCombatModal, setShowCombatModal] = useState<boolean>(false);
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [accuracyLevel, setAccuracyLevel] = useState<'high' | 'balanced' | 'battery'>('balanced');
   const [selectedEquipmentSlot, setSelectedEquipmentSlot] = useState<EquipmentSlot | null>(null);
   const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false); // Debug toggle to force item drops
@@ -1033,7 +1036,18 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Walking RPG</Text>
+          <View style={styles.titleContainer}>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => {
+                setShowSettingsModal(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingsButtonText}>⚙️</Text>
+            </TouchableOpacity>
+            <Text style={styles.title}>Walking RPG</Text>
+          </View>
 
           <PlayerStats player={player} />
 
@@ -1290,6 +1304,15 @@ export default function HomeScreen() {
           }
         }}
       />
+      <SettingsModal
+        visible={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        accuracyLevel={accuracyLevel}
+        onAccuracyLevelChange={(level) => {
+          setAccuracyLevel(level);
+          // TODO: Implement functionality to change distance interval
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1311,11 +1334,32 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  settingsButton: {
+    position: 'absolute',
+    left: 0,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: '#F5F5F5',
+    zIndex: 10,
+  },
+  settingsButtonText: {
+    fontSize: 20,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 24,
+    flex: 1,
     color: '#333',
   },
   statusContainer: {
