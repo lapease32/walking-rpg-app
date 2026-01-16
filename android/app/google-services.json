@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "127260614524",
+    "project_id": "walking-rpg-app",
+    "storage_bucket": "walking-rpg-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127260614524:android:fee3b7d86f6c4d79bacef9",
+        "android_client_info": {
+          "package_name": "com.walkingrpgtemp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY6Z21MMfJVlkGcgWSc23u30tKu7yiNRQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
