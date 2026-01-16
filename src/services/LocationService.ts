@@ -1,5 +1,6 @@
 import Geolocation from 'react-native-geolocation-service';
 import { Location } from '../models/Encounter';
+import ErrorReportingService from './ErrorReportingService';
 
 export interface GeolocationPosition {
   coords: {
@@ -126,6 +127,10 @@ class LocationService {
       })
       .catch((error) => {
         console.error('Error getting initial location:', error);
+        ErrorReportingService.recordNonFatalError(error as Error, {
+          context: 'LocationService.startTracking',
+          action: 'getInitialLocation',
+        });
       });
 
     // Watch for position changes
@@ -165,6 +170,10 @@ class LocationService {
               if (result instanceof Promise) {
                 result.catch((error) => {
                   console.error('Error in distance update callback:', error);
+                  ErrorReportingService.recordNonFatalError(error as Error, {
+                    context: 'LocationService',
+                    action: 'distanceUpdateCallback',
+                  });
                 });
               }
             }
@@ -180,14 +189,28 @@ class LocationService {
       },
       (error: GeolocationError) => {
         console.error('Location tracking error:', error);
+        
+        // Report to Crashlytics with context
+        const errorContext: Record<string, string> = {
+          context: 'LocationService.watchPosition',
+          errorCode: String(error.code),
+        };
+        
         // Handle different error codes
         if (error.code === 1) {
           console.error('Location permission denied');
+          errorContext.errorType = 'PermissionDenied';
         } else if (error.code === 2) {
           console.error('Location position unavailable');
+          errorContext.errorType = 'PositionUnavailable';
         } else if (error.code === 3) {
           console.error('Location request timeout');
+          errorContext.errorType = 'Timeout';
         }
+        
+        // Create Error object from GeolocationError
+        const jsError = new Error(error.message || `Geolocation error code: ${error.code}`);
+        ErrorReportingService.recordNonFatalError(jsError, errorContext);
       },
       this.config
     );

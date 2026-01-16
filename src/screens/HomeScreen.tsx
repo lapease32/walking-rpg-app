@@ -30,6 +30,7 @@ import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG } from '../constants/config';
 import { EquipmentSlot } from '../models/Player';
+import ErrorReportingService from '../services/ErrorReportingService';
 
 /**
  * Main home screen with location tracking and encounter handling
@@ -109,6 +110,10 @@ export default function HomeScreen() {
         checkPendingEncounter()
           .catch((error) => {
             console.error('Error in notification handler:', error);
+            ErrorReportingService.recordNonFatalError(error as Error, {
+              context: 'HomeScreen',
+              action: 'notificationHandler',
+            });
           })
           .finally(() => {
             // Clear flag after processing completes
@@ -229,6 +234,10 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error initializing player:', error);
+      ErrorReportingService.recordNonFatalError(error as Error, {
+        context: 'HomeScreen',
+        action: 'initializePlayer',
+      });
       setPlayer(new Player());
     }
   };
@@ -243,6 +252,10 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error initializing notifications:', error);
+      ErrorReportingService.recordNonFatalError(error as Error, {
+        context: 'HomeScreen',
+        action: 'initializeNotifications',
+      });
     }
   };
 
@@ -310,6 +323,10 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error checking pending encounter:', error);
+      ErrorReportingService.recordNonFatalError(error as Error, {
+        context: 'HomeScreen',
+        action: 'checkPendingEncounter',
+      });
     } finally {
       // Always reset the flag, even if an error occurred
       isCheckingPendingEncounterRef.current = false;
@@ -455,6 +472,10 @@ export default function HomeScreen() {
             await NotificationService.showEncounterNotification(encounter);
           } catch (error) {
             console.error('Error handling background encounter:', error);
+            ErrorReportingService.recordNonFatalError(error as Error, {
+              context: 'HomeScreen',
+              action: 'handleBackgroundEncounter',
+            });
           }
         } else {
           // App is in foreground - show encounter modal
