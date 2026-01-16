@@ -21,12 +21,25 @@ buildscript {
 }
 
 // Enable BuildConfig for all subprojects (required for AGP 8.0+)
+// Also automatically add namespace from AndroidManifest.xml if not specified (required for AGP 8.0+)
 subprojects {
     afterEvaluate { project ->
         if (project.hasProperty("android")) {
             android {
                 buildFeatures {
                     buildConfig = true
+                }
+                
+                // Automatically set namespace from AndroidManifest.xml if not already set
+                if (namespace == null) {
+                    def manifestFile = file("${project.projectDir}/src/main/AndroidManifest.xml")
+                    if (manifestFile.exists()) {
+                        def manifestContent = manifestFile.getText()
+                        def namespaceMatcher = manifestContent =~ /package=["']([^"']+)["']/
+                        if (namespaceMatcher.find()) {
+                            namespace = namespaceMatcher.group(1)
+                        }
+                    }
                 }
             }
         }
