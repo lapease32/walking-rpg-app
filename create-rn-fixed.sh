@@ -47,10 +47,10 @@ cat > package.json << 'EOF'
 EOF
 
 echo "Installing React Native 0.72.6..."
-npm install react-native@0.72.6 react@18.2.0 --save-exact --legacy-peer-deps
+yarn add react-native@0.72.6 react@18.2.0 --exact
 
 echo "Installing React Native CLI..."
-npm install --save-dev @react-native-community/cli@11.3.9 --legacy-peer-deps
+yarn add --dev @react-native-community/cli@11.3.9
 
 echo ""
 echo "Now initializing React Native structure..."

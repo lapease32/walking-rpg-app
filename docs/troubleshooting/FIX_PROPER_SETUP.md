@@ -53,8 +53,8 @@ The temp project's `package.json` will have the correct React Native setup. You'
 
 ```bash
 cd "/Users/lancepease/Java Projects/Walking App"
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules yarn.lock
+yarn install
 
 # iOS dependencies
 cd ios && pod install && cd ..
@@ -77,27 +77,18 @@ cd "/Users/lancepease/Java Projects/Walking App"
 rm -rf node_modules
 
 # Clear all caches
-npm cache clean --force
+yarn cache clean
 rm -rf ${TMPDIR:-/tmp}/metro-*
 rm -rf ${TMPDIR:-/tmp}/react-*
 
-# Use npm with legacy peer deps (helps with resolution)
-npm install --legacy-peer-deps
+# Reinstall with yarn
+yarn install
 
 # Try running
-npm run ios
-```
-
-## If Using Yarn
-
-Yarn handles dependency resolution better. Try:
-
-```bash
-cd "/Users/lancepease/Java Projects/Walking App"
-rm -rf node_modules yarn.lock package-lock.json
-yarn install
 yarn ios
 ```
 
-The `resolutions` field I added to package.json will only work with Yarn, not npm.
+## Note on Package Manager
+
+This project uses Yarn because the `resolutions` field in package.json only works with Yarn, not npm. Always use `yarn` commands instead of `npm`.
 

@@ -14,16 +14,16 @@ Run these commands in your terminal:
 cd "/Users/lancepease/Java Projects/Walking App"
 
 # 1. Remove existing dependencies
-rm -rf node_modules package-lock.json
+rm -rf node_modules yarn.lock
 
-# 2. Clear npm cache (optional but recommended)
-npm cache clean --force
+# 2. Clear yarn cache (optional but recommended)
+yarn cache clean
 
 # 3. Reinstall dependencies
-npm install
+yarn install
 
 # 4. Verify installation worked
-npm list metro-cache-key
+yarn list --pattern metro-cache-key
 ```
 
 If step 4 shows `metro-cache-key`, you're good to go!
@@ -36,14 +36,14 @@ Try this more thorough approach:
 cd "/Users/lancepease/Java Projects/Walking App"
 
 # Remove everything
-rm -rf node_modules package-lock.json
+rm -rf node_modules yarn.lock
 
 # Clear all caches
-npm cache clean --force
+yarn cache clean
 watchman watch-del-all 2>/dev/null || true
 
 # Reinstall
-npm install
+yarn install
 
 # If you have iOS native folders, reinstall pods too
 cd ios && pod install && cd ..
@@ -58,9 +58,9 @@ If you're still getting the error after a clean reinstall, the issue might be:
    node --version
    ```
 
-2. **npm version**: Update npm if it's very old
+2. **Yarn version**: Update yarn if it's very old
    ```bash
-   npm install -g npm@latest
+   npm install -g yarn@latest
    ```
 
 3. **Missing React Native CLI**: Make sure React Native CLI is available
@@ -68,11 +68,11 @@ If you're still getting the error after a clean reinstall, the issue might be:
    npx react-native --version
    ```
 
-4. **Try using yarn instead of npm**:
+4. **If yarn doesn't work, try npm as fallback**:
    ```bash
-   npm install -g yarn
-   rm -rf node_modules package-lock.json
-   yarn install
+   npm install -g npm@latest
+   rm -rf node_modules yarn.lock
+   npm install
    ```
 
 ## Quick Test
@@ -80,12 +80,12 @@ If you're still getting the error after a clean reinstall, the issue might be:
 After reinstalling, test if metro works:
 
 ```bash
-npm start
+yarn start
 ```
 
 If Metro starts without errors, then try:
 
 ```bash
-npm run ios
+yarn ios
 ```
 

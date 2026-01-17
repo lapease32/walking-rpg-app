@@ -135,10 +135,10 @@ emulator -avd Pixel5_API33
 
 ```bash
 # Start Metro bundler (in one terminal)
-npm start
+yarn start
 
 # Build and run on Android (in another terminal)
-npm run android
+yarn android
 ```
 
 ### Alternative: Build APK
@@ -214,7 +214,7 @@ If location doesn't work:
 
 ## Next Steps
 
-1. **Test Build**: Try `npm run android` to verify build works
+1. **Test Build**: Try `yarn android` to verify build works
 2. **Test Location**: Verify location permissions are requested and work
 3. **Test Encounters**: Use debug mode to test encounter system
 4. **Compare with iOS**: Ensure both platforms behave similarly

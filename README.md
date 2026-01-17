@@ -58,20 +58,20 @@ Built with **TypeScript** and **React Native** for type safety and better develo
 ### Installation
 
 ```bash
-npm install
+yarn install
 ```
 
 ### Running the App
 
 ```bash
 # Start Metro bundler
-npm start
+yarn start
 
 # Run on iOS
-npm run ios
+yarn ios
 
 # Run on Android
-npm run android
+yarn android
 ```
 
 For detailed setup instructions, see the [Setup Guide](docs/setup/SETUP.md).

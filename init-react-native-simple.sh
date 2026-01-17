@@ -38,11 +38,11 @@ npx --yes @react-native-community/cli@11.3.9 init WalkingRPGTemp \
 
 echo ""
 echo "Installing dependencies with correct versions..."
-npm install react-native@0.72.6 react@18.2.0 --save-exact
+yarn add react-native@0.72.6 react@18.2.0 --exact
 
 echo ""
 echo "Installing remaining dependencies..."
-npm install
+yarn install
 
 echo ""
 echo "Installing iOS dependencies..."

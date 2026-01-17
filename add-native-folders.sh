@@ -53,7 +53,7 @@ cat > package.json << 'EOF'
 EOF
 
 echo "Installing React Native 0.72.6..."
-npm install react-native@0.72.6 react@18.2.0 --save-exact --legacy-peer-deps --no-save 2>&1 | tail -20
+yarn add react-native@0.72.6 react@18.2.0 --exact 2>&1 | tail -20
 
 # Now try to use React Native's template
 echo ""
@@ -126,5 +126,5 @@ echo ""
 echo "Next steps:"
 echo "1. Review ios/WalkingRPG/Info.plist and add location permissions"
 echo "2. Review android/app/src/main/AndroidManifest.xml and add location permissions"
-echo "3. Try running: npm run ios"
+echo "3. Try running: yarn ios"
 

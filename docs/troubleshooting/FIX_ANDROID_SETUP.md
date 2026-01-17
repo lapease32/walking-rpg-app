@@ -130,7 +130,7 @@ echo $ANDROID_HOME
 # Make sure emulator is running first
 # Then in your project directory:
 
-npm run android
+yarn android
 ```
 
 ## Troubleshooting
@@ -147,7 +147,7 @@ npm run android
 
 ### "No emulators found" error
 - Create an emulator using Android Studio (see Step 3)
-- Or start emulator manually before running `npm run android`
+- Or start emulator manually before running `yarn android`
 - Verify with: `emulator -list-avds`
 
 ### Build still fails
@@ -221,8 +221,8 @@ cd android
 ## Next Steps After Setup
 
 Once everything is working:
-1. Start emulator manually or let `npm run android` start it
-2. Run `npm run android` from project root
+1. Start emulator manually or let `yarn android` start it
+2. Run `yarn android` from project root
 3. App should build and launch on emulator
 4. Test location features
 5. Test debug mode features

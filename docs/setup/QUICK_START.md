@@ -6,7 +6,7 @@ Get up and running with your Walking RPG app in minutes!
 
 ```bash
 # Install dependencies
-npm install
+yarn install
 
 # For iOS (macOS only)
 cd ios && pod install && cd ..
@@ -37,13 +37,13 @@ Add to `android/app/src/main/AndroidManifest.xml`:
 
 ```bash
 # Start Metro
-npm start
+yarn start
 
 # Run on iOS
-npm run ios
+yarn ios
 
 # Run on Android
-npm run android
+yarn android
 ```
 
 ## Testing
@@ -132,8 +132,8 @@ Edit `src/services/LocationService.ts`:
 - Reduce `MIN_ENCOUNTER_DISTANCE` for testing
 
 **Build errors?**
-- Clear cache: `npm start -- --reset-cache`
-- Reinstall: `rm -rf node_modules && npm install`
+- Clear cache: `yarn start -- --reset-cache`
+- Reinstall: `rm -rf node_modules && yarn install`
 - iOS: `cd ios && pod install && cd ..`
 
 ## Need Help?
