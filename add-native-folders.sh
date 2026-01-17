@@ -53,7 +53,7 @@ cat > package.json << 'EOF'
 EOF
 
 echo "Installing React Native 0.72.6..."
-yarn add react-native@0.72.6 react@18.2.0 --exact --no-save 2>&1 | tail -20
+yarn add react-native@0.72.6 react@18.2.0 --exact 2>&1 | tail -20
 
 # Now try to use React Native's template
 echo ""
