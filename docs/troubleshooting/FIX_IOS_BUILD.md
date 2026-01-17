@@ -12,7 +12,7 @@ xcrun simctl list devices | grep Booted
 xcrun simctl shutdown all
 
 # Then try again
-npm run ios
+yarn ios
 ```
 
 ## Issue 2: Build Failed - PhaseScriptExecution Error
@@ -52,7 +52,7 @@ pod install
 
 # Back to root and try again
 cd ..
-npm run ios
+yarn ios
 ```
 
 ### Alternative: Use Absolute Node Path
@@ -63,7 +63,7 @@ If nvm still doesn't work, hardcode the node path in `.xcode.env.local`:
 cd ios
 echo 'export NODE_BINARY=/Users/lancepease/.nvm/versions/node/v18.20.8/bin/node' > .xcode.env.local
 cd ..
-npm run ios
+yarn ios
 ```
 
 ## Issue 3: Spaces in Path
@@ -94,6 +94,6 @@ EOF
 
 # 4. Try building
 cd ..
-npm run ios
+yarn ios
 ```
 

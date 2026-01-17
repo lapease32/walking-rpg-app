@@ -59,10 +59,10 @@ cat > package.json << 'EOF'
 EOF
 
 echo "Installing dependencies..."
-npm install
+yarn install
 
 echo "Installing React Native CLI for project setup..."
-npm install --save-dev @react-native-community/cli@11.3.9 @react-native-community/cli-platform-ios@11.3.9
+yarn add --dev @react-native-community/cli@11.3.9 @react-native-community/cli-platform-ios@11.3.9
 
 echo "Running React Native setup..."
 npx react-native init WalkingRPGTemp --directory . --skip-install --version 0.72.6 2>&1 | head -50 || {

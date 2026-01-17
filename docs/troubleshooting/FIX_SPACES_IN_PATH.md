@@ -41,7 +41,7 @@ cd ~/WalkingRPGApp
 cd ios
 pod install
 cd ..
-npm run ios
+yarn ios
 ```
 
 ## Alternative: Symlink Workaround (Temporary)
@@ -54,7 +54,7 @@ ln -s "/Users/lancepease/Java Projects/Walking App" ~/WalkingRPGApp
 
 # Work from the symlink
 cd ~/WalkingRPGApp
-npm run ios
+yarn ios
 ```
 
 But this may still have issues since the actual path still has spaces.

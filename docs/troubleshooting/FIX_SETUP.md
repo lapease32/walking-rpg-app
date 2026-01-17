@@ -44,11 +44,11 @@ Since we've already created the JavaScript source code, we need to scaffold the 
    cd ..
    ```
 
-6. **Reinstall npm dependencies:**
+6. **Reinstall dependencies:**
    ```bash
    cd "/Users/lancepease/Java Projects/Walking App"
-   rm -rf node_modules package-lock.json
-   npm install
+   rm -rf node_modules yarn.lock
+   yarn install
    ```
 
 ### Option 2: Use React Native CLI (Alternative)
@@ -80,7 +80,7 @@ Then merge your existing `src/` folder and configuration files.
 
 3. **Try running again:**
    ```bash
-   npm run ios
+   yarn ios
    ```
 
 ### Quick Check

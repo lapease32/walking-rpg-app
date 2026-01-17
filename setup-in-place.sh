@@ -120,7 +120,7 @@ fi
 
 echo ""
 echo "Step 5: Installing dependencies..."
-npm install
+yarn install
 
 echo ""
 echo "Step 6: Installing iOS dependencies..."
@@ -141,5 +141,5 @@ echo ""
 echo "Next steps:"
 echo "1. Review App.js - you may need to merge your version with React Native's"
 echo "2. Update App.js to import from './src/screens/HomeScreen' if needed"
-echo "3. Try running: npm run ios"
+echo "3. Try running: yarn ios"
 

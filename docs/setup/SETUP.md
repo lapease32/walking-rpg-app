@@ -9,7 +9,7 @@ This guide will help you set up and run the Walking RPG app on your development 
 
 2. **React Native CLI**
    ```bash
-   npm install -g react-native-cli
+   yarn global add react-native-cli
    ```
 
 3. **For iOS Development:**
@@ -27,7 +27,7 @@ This guide will help you set up and run the Walking RPG app on your development 
 ### 1. Install Dependencies
 
 ```bash
-npm install
+yarn install
 ```
 
 ### 2. iOS Setup (macOS only)
@@ -67,13 +67,13 @@ Add location permissions to `android/app/src/main/AndroidManifest.xml`:
 ### Start Metro Bundler
 
 ```bash
-npm start
+yarn start
 ```
 
 ### Run on iOS
 
 ```bash
-npm run ios
+yarn ios
 ```
 
 Or open `ios/WalkingRPG.xcworkspace` in Xcode and run from there.
@@ -81,7 +81,7 @@ Or open `ios/WalkingRPG.xcworkspace` in Xcode and run from there.
 ### Run on Android
 
 ```bash
-npm run android
+yarn android
 ```
 
 Make sure you have an Android emulator running or a device connected.
@@ -169,7 +169,7 @@ walking-rpg-app/
 
 ### Build Issues
 
-- Clear cache: `npm start -- --reset-cache`
+- Clear cache: `yarn start -- --reset-cache`
 - Clean build folders and reinstall dependencies
 - For iOS: `cd ios && pod install && cd ..`
 - For Android: Clean build in Android Studio

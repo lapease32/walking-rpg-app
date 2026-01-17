@@ -111,8 +111,8 @@ fi
 
 4. **Test:**
    ```bash
-   npm install  # Make sure all JS dependencies are installed
-   npm run ios  # Try running
+   yarn install  # Make sure all JS dependencies are installed
+   yarn ios  # Try running
    ```
 
 ## Which Option to Choose?
