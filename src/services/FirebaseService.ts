@@ -22,12 +22,14 @@ class FirebaseService {
       // Firebase is automatically initialized when the app starts
       // The native modules read from google-services.json (Android) and GoogleService-Info.plist (iOS)
       if (!firebase.apps.length) {
-        console.warn('Firebase apps array is empty - Firebase may not be properly configured');
-      } else {
-        console.log('Firebase initialized successfully');
-        console.log(`Platform: ${Platform.OS}`);
-        console.log(`Firebase app name: ${firebase.app().name}`);
+        const error = new Error('Firebase apps array is empty - Firebase may not be properly configured. Please ensure google-services.json (Android) and GoogleService-Info.plist (iOS) are properly configured.');
+        console.error('Firebase initialization failed:', error.message);
+        throw error;
       }
+
+      console.log('Firebase initialized successfully');
+      console.log(`Platform: ${Platform.OS}`);
+      console.log(`Firebase app name: ${firebase.app().name}`);
 
       this.initialized = true;
     } catch (error) {
