@@ -33,13 +33,42 @@ class FirebaseService {
 
   private async _doInitialize(): Promise<void> {
     try {
+      // Diagnostic logging for iOS Firebase initialization issues
+      console.log('🔍 Firebase initialization diagnostic:');
+      console.log(`Platform: ${Platform.OS}`);
+      console.log(`Firebase module available: ${typeof firebase !== 'undefined'}`);
+      
+      // Wait a bit for native Firebase to potentially auto-initialize
+      // React Native Firebase should auto-configure from GoogleService-Info.plist
+      let retries = 10;
+      while (!firebase.apps.length && retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries--;
+      }
+      
+      console.log(`Firebase apps length: ${firebase.apps.length}`);
+      
       // Check if Firebase apps are available
       // Firebase auto-initializes from native config files
       if (!firebase.apps.length) {
+        const diagnosticInfo = Platform.OS === 'ios' 
+          ? '\n\niOS Troubleshooting:\n' +
+            '1. Ensure GoogleService-Info.plist is in ios/WalkingRPGTemp/ folder\n' +
+            '2. Verify it\'s added to Xcode project and "Copy Bundle Resources" phase\n' +
+            '3. Clean build: cd ios && rm -rf build && pod install && cd ..\n' +
+            '4. Rebuild the app completely (not just reload JS)\n' +
+            '5. Check Xcode build logs for Firebase initialization errors'
+          : '\n\nAndroid Troubleshooting:\n' +
+            '1. Ensure google-services.json is in android/app/ folder\n' +
+            '2. Verify Google Services plugin is applied in build.gradle\n' +
+            '3. Clean build: cd android && ./gradlew clean && cd ..\n' +
+            '4. Rebuild the app completely';
+            
         const error = new Error(
           'Firebase apps array is empty - Firebase may not be properly configured. ' +
           'Please ensure google-services.json (Android) and GoogleService-Info.plist (iOS) ' +
-          'are properly configured and added to the native projects.'
+          'are properly configured and added to the native projects.' +
+          diagnosticInfo
         );
         console.error('Firebase initialization failed:', error.message);
         throw error;
