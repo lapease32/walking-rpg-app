@@ -47,6 +47,7 @@
   },
   "resolutions": {
     "metro": "^0.76.8",
-    "metro-cache-key": "^0.76.8"
+    "metro-cache-key": "^0.76.8",
+    "ip": "^1.1.9"
   }
 }
