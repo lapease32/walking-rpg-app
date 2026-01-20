@@ -2,6 +2,7 @@
 
 #import <React/RCTBundleURLProvider.h>
 #import <Firebase.h>
+#import <FirebaseCrashlytics/FirebaseCrashlytics.h>
 
 @implementation AppDelegate
 

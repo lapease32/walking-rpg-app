@@ -1,5 +1,6 @@
 import firebase from '@react-native-firebase/app';
 import { Platform } from 'react-native';
+import CrashlyticsService from './CrashlyticsService';
 
 /**
  * Firebase Service
@@ -86,6 +87,14 @@ class FirebaseService {
       console.log(`Platform: ${Platform.OS}`);
       console.log(`Firebase app name: ${app.name}`);
       console.log(`Firebase project ID: ${options.projectId}`);
+
+      // Initialize Crashlytics after Firebase is ready
+      try {
+        await CrashlyticsService.initialize();
+      } catch (error) {
+        console.warn('Crashlytics initialization failed (non-critical):', error);
+        // Don't throw - Crashlytics failure shouldn't prevent app startup
+      }
 
       this.initialized = true;
     } catch (error) {
