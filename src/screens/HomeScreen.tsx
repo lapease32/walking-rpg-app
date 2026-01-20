@@ -30,6 +30,7 @@ import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG } from '../constants/config';
 import { EquipmentSlot } from '../models/Player';
+import CrashlyticsService from '../services/CrashlyticsService';
 
 /**
  * Main home screen with location tracking and encounter handling
@@ -1005,6 +1006,53 @@ export default function HomeScreen() {
     );
   };
 
+  // Debug: Test Crashlytics crash
+  const handleTestCrash = (): void => {
+    Alert.alert(
+      '⚠️ Test Crash',
+      'This will crash the app immediately to test Crashlytics reporting. The crash report will appear in Firebase Console within a few minutes.\n\nAre you sure you want to proceed?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Crash App',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Ensure Crashlytics is initialized before crashing
+              if (!CrashlyticsService.isInitialized()) {
+                console.log('Initializing Crashlytics before crash test...');
+                await CrashlyticsService.initialize();
+              }
+              
+              // Ensure collection is enabled
+              await CrashlyticsService.setCollectionEnabled(true);
+              
+              // Set some attributes before crashing to see them in reports
+              CrashlyticsService.setAttribute('test_crash', 'true');
+              CrashlyticsService.setAttribute('player_level', player?.level || 0);
+              CrashlyticsService.log('User initiated test crash from debug menu');
+              
+              // Small delay to ensure everything is set
+              await new Promise(resolve => setTimeout(resolve, 200));
+              
+              // Force the crash
+              await CrashlyticsService.crash();
+            } catch (error) {
+              console.error('Error preparing crash test:', error);
+              Alert.alert(
+                'Error',
+                `Failed to prepare crash test: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!player) {
     return (
       <SafeAreaView style={styles.container}>
@@ -1239,6 +1287,12 @@ export default function HomeScreen() {
                 onPress={resetLevel}
               >
                 <Text style={styles.debugButtonText}>Reset Level</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.debugButton, styles.crashButton]}
+                onPress={handleTestCrash}
+              >
+                <Text style={styles.crashButtonText}>💥 Test Crashlytics Crash</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.debugToggle}
@@ -1505,6 +1559,17 @@ const styles = StyleSheet.create({
   resetButton: {
     backgroundColor: '#F44336',
     marginTop: 8,
+  },
+  crashButton: {
+    backgroundColor: '#D32F2F',
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: '#B71C1C',
+  },
+  crashButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   xpButtonContainer: {
     marginTop: 8,
