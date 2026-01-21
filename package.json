@@ -15,6 +15,7 @@
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^1.19.3",
     "@react-native-firebase/app": "^18.0.0",
+    "@react-native-firebase/app-distribution": "^18.0.0",
     "@react-native-firebase/crashlytics": "^18.0.0",
     "react": "18.2.0",
     "react-native": "0.72.6",

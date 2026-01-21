@@ -20,6 +20,8 @@ buildscript {
         classpath("com.google.gms:google-services:4.4.0")
         // Firebase Crashlytics Gradle plugin - required to generate build IDs
         classpath("com.google.firebase:firebase-crashlytics-gradle:2.9.9")
+        // Firebase App Distribution Gradle plugin
+        classpath("com.google.firebase:firebase-app-distribution-gradle:5.2.0")
     }
 }
 
