@@ -32,7 +32,16 @@ if ! command -v firebase &> /dev/null; then
 fi
 
 # Check if logged in to Firebase
-if ! firebase login:list &> /dev/null; then
+# firebase login:list exits 0 even when no accounts are logged in; we must check output.
+LOGIN_LIST=$(firebase login:list 2>&1) || true
+# Check for explicit "no accounts" message (case-insensitive)
+if echo "$LOGIN_LIST" | grep -qiE "(no accounts|not logged in)"; then
+  echo "❌ Not logged in to Firebase. Run:"
+  echo "   firebase login"
+  exit 1
+fi
+# Also check if output contains an email address (more reliable than just '@')
+if ! echo "$LOGIN_LIST" | grep -qE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'; then
   echo "❌ Not logged in to Firebase. Run:"
   echo "   firebase login"
   exit 1
