@@ -9,11 +9,19 @@ PODS:
     - React-Core (= 0.72.6)
     - React-jsi (= 0.72.6)
     - ReactCommon/turbomodule/core (= 0.72.6)
+  - Firebase/AppDistribution (10.20.0):
+    - Firebase/CoreOnly
+    - FirebaseAppDistribution (~> 10.20.0-beta)
   - Firebase/CoreOnly (10.20.0):
     - FirebaseCore (= 10.20.0)
   - Firebase/Crashlytics (10.20.0):
     - Firebase/CoreOnly
     - FirebaseCrashlytics (~> 10.20.0)
+  - FirebaseAppDistribution (10.20.0-beta):
+    - FirebaseCore (~> 10.0)
+    - FirebaseInstallations (~> 10.0)
+    - GoogleUtilities/AppDelegateSwizzler (~> 7.8)
+    - GoogleUtilities/UserDefaults (~> 7.8)
   - FirebaseCore (10.20.0):
     - FirebaseCoreInternal (~> 10.0)
     - GoogleUtilities/Environment (~> 7.12)
@@ -50,15 +58,28 @@ PODS:
     - GoogleUtilities/Environment (~> 7.7)
     - nanopb (< 2.30911.0, >= 2.30908.0)
     - PromisesObjC (< 3.0, >= 1.2)
+  - GoogleUtilities/AppDelegateSwizzler (7.13.3):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Network
+    - GoogleUtilities/Privacy
   - GoogleUtilities/Environment (7.13.3):
     - GoogleUtilities/Privacy
     - PromisesObjC (< 3.0, >= 1.2)
   - GoogleUtilities/Logger (7.13.3):
     - GoogleUtilities/Environment
     - GoogleUtilities/Privacy
+  - GoogleUtilities/Network (7.13.3):
+    - GoogleUtilities/Logger
+    - "GoogleUtilities/NSData+zlib"
+    - GoogleUtilities/Privacy
+    - GoogleUtilities/Reachability
   - "GoogleUtilities/NSData+zlib (7.13.3)":
     - GoogleUtilities/Privacy
   - GoogleUtilities/Privacy (7.13.3)
+  - GoogleUtilities/Reachability (7.13.3):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
   - GoogleUtilities/UserDefaults (7.13.3):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
@@ -491,6 +512,10 @@ PODS:
   - RNFBApp (18.9.0):
     - Firebase/CoreOnly (= 10.20.0)
     - React-Core
+  - RNFBAppDistribution (18.9.0):
+    - Firebase/AppDistribution (= 10.20.0)
+    - React-Core
+    - RNFBApp
   - RNFBCrashlytics (18.9.0):
     - Firebase/Crashlytics (= 10.20.0)
     - FirebaseCoreExtension (= 10.20.0)
@@ -550,6 +575,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
+  - "RNFBAppDistribution (from `../node_modules/@react-native-firebase/app-distribution`)"
   - "RNFBCrashlytics (from `../node_modules/@react-native-firebase/crashlytics`)"
   - "RNNotifee (from `../node_modules/@notifee/react-native`)"
   - RNPermissions (from `../node_modules/react-native-permissions`)
@@ -558,6 +584,7 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - Firebase
+    - FirebaseAppDistribution
     - FirebaseCore
     - FirebaseCoreExtension
     - FirebaseCoreInternal
@@ -657,6 +684,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-async-storage/async-storage"
   RNFBApp:
     :path: "../node_modules/@react-native-firebase/app"
+  RNFBAppDistribution:
+    :path: "../node_modules/@react-native-firebase/app-distribution"
   RNFBCrashlytics:
     :path: "../node_modules/@react-native-firebase/crashlytics"
   RNNotifee:
@@ -672,6 +701,7 @@ SPEC CHECKSUMS:
   FBLazyVector: 748c0ef74f2bf4b36cfcccf37916806940a64c32
   FBReactNativeSpec: 966f29e4e697de53a3b366355e8f57375c856ad9
   Firebase: 10c8cb12fb7ad2ae0c09ffc86cd9c1ab392a0031
+  FirebaseAppDistribution: a9cc7b0b1ecf7350c10c95a867041e8440e86d0d
   FirebaseCore: 28045c1560a2600d284b9c45a904fe322dc890b6
   FirebaseCoreExtension: 0659f035b88c5a7a15a9763c48c2e6ca8c0a2977
   FirebaseCoreInternal: df84dd300b561c27d5571684f389bf60b0a5c934
@@ -722,6 +752,7 @@ SPEC CHECKSUMS:
   ReactCommon: 2060ee7b68e71d23849968f6406550ba2df71bdb
   RNCAsyncStorage: b6410dead2732b5c72a7fdb1ecb5651bbcf4674b
   RNFBApp: 20bfba7e2a61a959518c1d57e5d48817c62ed3f6
+  RNFBAppDistribution: 6c6b01fe47142a8e58ad2307ebb6372c8131e01f
   RNFBCrashlytics: 35e45b650ea8caa14f341eba943a58d47073f23e
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
   RNPermissions: bd0d9ca7969ff7b999aa605ee2e5919c12522bfe
