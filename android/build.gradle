@@ -9,44 +9,27 @@ buildscript {
 
         // We use NDK 23 which has both M1 support and is the side-by-side NDK version from AGP.
         ndkVersion = "23.1.7779620"
+        kotlinVersion = "1.8.22"
     }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:8.0.1")
+        classpath("com.android.tools.build:gradle:7.4.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("com.google.gms:google-services:4.4.0")
-        // Firebase Crashlytics Gradle plugin - required to generate build IDs
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("com.google.gms:google-services:4.4.1")
+        // Firebase Crashlytics 2.9.9 is compatible with Gradle 7.6 (required for RN 0.72.6)
+        // Version 3.0.1 requires Gradle 8.0+, which has Kotlin compatibility issues with RN 0.72.6
         classpath("com.google.firebase:firebase-crashlytics-gradle:2.9.9")
-        // Firebase App Distribution Gradle plugin
-        classpath("com.google.firebase:firebase-app-distribution-gradle:5.2.0")
+        classpath("com.google.firebase:firebase-appdistribution-gradle:5.0.0")
     }
 }
 
-// Enable BuildConfig for all subprojects (required for AGP 8.0+)
-// Also automatically add namespace from AndroidManifest.xml if not specified (required for AGP 8.0+)
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty("android")) {
-            android {
-                buildFeatures {
-                    buildConfig = true
-                }
-                
-                // Automatically set namespace from AndroidManifest.xml if not already set
-                if (namespace == null) {
-                    def manifestFile = file("${project.projectDir}/src/main/AndroidManifest.xml")
-                    if (manifestFile.exists()) {
-                        def manifestContent = manifestFile.getText()
-                        def namespaceMatcher = manifestContent =~ /package=["']([^"']+)["']/
-                        if (namespaceMatcher.find()) {
-                            namespace = namespaceMatcher.group(1)
-                        }
-                    }
-                }
-            }
-        }
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
     }
 }
