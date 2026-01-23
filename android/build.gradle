@@ -9,7 +9,7 @@ buildscript {
 
         // We use NDK 23 which has both M1 support and is the side-by-side NDK version from AGP.
         ndkVersion = "23.1.7779620"
-        kotlinVersion = "1.8.22"
+        // kotlinVersion is defined in gradle.properties to avoid duplication
     }
     repositories {
         google()
@@ -18,7 +18,7 @@ buildscript {
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${project.findProperty('kotlinVersion') ?: '1.8.22'}")
         classpath("com.google.gms:google-services:4.4.1")
         // Firebase Crashlytics 2.9.9 is compatible with Gradle 7.6 (required for RN 0.72.6)
         // Version 3.0.1 requires Gradle 8.0+, which has Kotlin compatibility issues with RN 0.72.6
