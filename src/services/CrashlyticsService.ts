@@ -1,5 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { Platform } from 'react-native';
+import { ENV_CONFIG } from '../constants/environment';
 
 /**
  * Crashlytics Service
@@ -95,26 +96,31 @@ class CrashlyticsService {
   /**
    * Force a crash (for testing purposes only)
    * WARNING: This will crash the app!
+   * Available in development and testing environments only
    */
   async crash(): Promise<void> {
-    if (__DEV__) {
-      try {
-        // Ensure Crashlytics collection is enabled before crashing
-        // This is necessary because collection is disabled by default in debug mode
-        await crashlytics().setCrashlyticsCollectionEnabled(true);
-        console.warn('⚠️ Forcing crash for testing...');
-        console.warn('Crashlytics collection enabled, crashing now...');
-        
-        // Small delay to ensure the setting is applied
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        crashlytics().crash();
-      } catch (error) {
-        console.error('Error enabling Crashlytics collection or crashing:', error);
-        throw error;
-      }
-    } else {
-      console.warn('Crash test is only available in debug mode');
+    // Allow crash testing in development and testing environments
+    if (!ENV_CONFIG.enableCrashTest) {
+      console.warn('Crash test is only available in development or testing builds');
+      return;
+    }
+
+    try {
+      // Ensure Crashlytics collection is enabled
+      await crashlytics().setCrashlyticsCollectionEnabled(true);
+      
+      const envName = ENV_CONFIG.environmentName.toUpperCase();
+      console.warn(`⚠️ Forcing crash for testing (${envName} MODE)...`);
+      console.warn('Crashlytics collection enabled, crashing now...');
+      
+      // Small delay to ensure the setting is applied
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Force the crash
+      crashlytics().crash();
+    } catch (error) {
+      console.error('Error enabling Crashlytics collection or crashing:', error);
+      throw error;
     }
   }
 

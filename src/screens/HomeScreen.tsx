@@ -29,6 +29,7 @@ import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG } from '../constants/config';
+import { ENV_CONFIG } from '../constants/environment';
 import { EquipmentSlot } from '../models/Player';
 import CrashlyticsService from '../services/CrashlyticsService';
 
@@ -47,7 +48,7 @@ export default function HomeScreen() {
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [accuracyLevel, setAccuracyLevel] = useState<'high' | 'balanced' | 'battery'>('balanced');
   const [selectedEquipmentSlot, setSelectedEquipmentSlot] = useState<EquipmentSlot | null>(null);
-  const [debugMode, setDebugMode] = useState<boolean>(__DEV__); // Enable by default in dev mode
+  const [debugMode, setDebugMode] = useState<boolean>(ENV_CONFIG.enableDebugMode); // Enable based on environment
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false); // Debug toggle to force item drops
   const [encounterChance, setEncounterChance] = useState<number>(0); // Current encounter probability (distance-based)
   const [lastEncounterChance, setLastEncounterChance] = useState<number | null>(null); // Probability used when last encounter occurred
