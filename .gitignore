@@ -71,3 +71,6 @@ ios/GoogleService-Info.plist
 
 # Personal documentation (not for other developers)
 docs/personal/
+
+#Release folder
+releases/
