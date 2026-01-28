@@ -45,8 +45,9 @@ export const ENV_CONFIG = {
   // Show beta indicator (legacy - for testing builds)
   showBetaIndicator: APP_ENV === 'testing',
   
-  // Show environment banner (shows build type: development, testing, or production)
-  showEnvironmentBanner: APP_ENV === 'development' || APP_ENV === 'testing' || APP_ENV === 'production',
+  // Show environment banner (shows build type: development or testing)
+  // Excludes production to avoid showing banner to end users
+  showEnvironmentBanner: APP_ENV === 'development' || APP_ENV === 'testing',
   
   // Enable Crashlytics crash testing
   enableCrashTest: APP_ENV === 'development' || APP_ENV === 'testing',
