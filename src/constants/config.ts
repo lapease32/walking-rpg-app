@@ -100,7 +100,7 @@ export const APP_CONFIG = {
   // Update this when creating new beta builds
   VERSION: '1.0.0-beta.1',
   
-  // Beta indicator display options
+  // Beta indicator display options (legacy)
   BETA_INDICATOR: {
     // Show beta indicator based on environment
     visible: ENV_CONFIG.showBetaIndicator,
@@ -110,6 +110,21 @@ export const APP_CONFIG = {
     
     // Variant: 'badge' | 'banner'
     variant: 'banner' as const,
+  },
+  
+  // Environment banner display options (new - shows build type)
+  ENVIRONMENT_BANNER: {
+    // Show environment banner based on environment
+    visible: ENV_CONFIG.showEnvironmentBanner,
+    
+    // Position: 'top' | 'bottom' | 'inline'
+    position: 'top' as const,
+    
+    // Variant: 'badge' | 'banner'
+    variant: 'banner' as const,
+    
+    // Build type to display
+    buildType: ENV_CONFIG.environmentName,
   },
   
   // Environment info

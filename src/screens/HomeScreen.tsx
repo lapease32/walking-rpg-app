@@ -1064,26 +1064,32 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {APP_CONFIG.IS_BETA && (
+      {APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'bottom' && (
         <BetaIndicator
-          visible={APP_CONFIG.BETA_INDICATOR.visible}
+          visible={APP_CONFIG.ENVIRONMENT_BANNER.visible}
+          buildType={APP_CONFIG.ENVIRONMENT_BANNER.buildType}
           version={APP_CONFIG.VERSION}
-          position={APP_CONFIG.BETA_INDICATOR.position}
-          variant={APP_CONFIG.BETA_INDICATOR.variant}
+          position={APP_CONFIG.ENVIRONMENT_BANNER.position}
+          variant={APP_CONFIG.ENVIRONMENT_BANNER.variant}
         />
       )}
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={
-          APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.visible
-            ? APP_CONFIG.BETA_INDICATOR.position === 'top'
-              ? styles.scrollViewWithBetaTop
-              : APP_CONFIG.BETA_INDICATOR.position === 'bottom'
-              ? styles.scrollViewWithBetaBottom
-              : undefined
+          APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'bottom'
+            ? styles.scrollViewWithBetaBottom
             : undefined
         }
       >
+        {APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'top' && (
+          <BetaIndicator
+            visible={APP_CONFIG.ENVIRONMENT_BANNER.visible}
+            buildType={APP_CONFIG.ENVIRONMENT_BANNER.buildType}
+            version={APP_CONFIG.VERSION}
+            position="inline"
+            variant={APP_CONFIG.ENVIRONMENT_BANNER.variant}
+          />
+        )}
         <View style={styles.content}>
           <View style={styles.titleContainer}>
             <TouchableOpacity
@@ -1376,9 +1382,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  scrollViewWithBetaTop: {
-    paddingTop: 60, // Add padding when beta indicator is at top
   },
   scrollViewWithBetaBottom: {
     paddingBottom: 60, // Add padding when beta indicator is at bottom

@@ -42,8 +42,11 @@ export const ENV_CONFIG = {
   // Enable debug mode UI (debug menu, crash test button, etc.)
   enableDebugMode: APP_ENV === 'development' || APP_ENV === 'testing',
   
-  // Show beta indicator
+  // Show beta indicator (legacy - for testing builds)
   showBetaIndicator: APP_ENV === 'testing',
+  
+  // Show environment banner (shows build type: development, testing, or production)
+  showEnvironmentBanner: APP_ENV === 'development' || APP_ENV === 'testing' || APP_ENV === 'production',
   
   // Enable Crashlytics crash testing
   enableCrashTest: APP_ENV === 'development' || APP_ENV === 'testing',
