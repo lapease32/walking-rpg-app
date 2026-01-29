@@ -17,7 +17,7 @@ interface BetaIndicatorProps {
   
   /**
    * Build type/environment to display
-   * 'development' | 'testing' | 'production'
+   * 'development' | 'testing'
    */
   buildType?: AppEnvironment;
   
@@ -64,7 +64,6 @@ export default function BetaIndicator({
     // Color based on build type
     buildType === 'development' && styles.developmentBg,
     buildType === 'testing' && styles.testingBg,
-    buildType === 'production' && styles.productionBg,
   ];
 
   // Get display text and icon based on build type
@@ -74,8 +73,6 @@ export default function BetaIndicator({
         return { icon: '🔧', text: 'DEVELOPMENT BUILD' };
       case 'testing':
         return { icon: '🧪', text: 'TESTING BUILD' };
-      case 'production':
-        return { icon: '🚀', text: 'PRODUCTION BUILD' };
       default:
         return { icon: '🧪', text: 'BETA VERSION' };
     }
@@ -120,9 +117,6 @@ const styles = StyleSheet.create({
   },
   testingBg: {
     backgroundColor: '#FF9800', // Orange for testing
-  },
-  productionBg: {
-    backgroundColor: '#4CAF50', // Green for production
   },
   banner: {
     width: '100%',
