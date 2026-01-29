@@ -149,73 +149,73 @@ export default function CombatModal({
             </TouchableOpacity>
           </View>
 
+          {/* Creature Info - Fixed at top, always visible */}
+          <View style={styles.creatureInfo}>
+            <Text style={styles.creatureName}>{creature.name}</Text>
+            <View style={styles.hpBar}>
+              <View
+                style={[
+                  styles.hpFill,
+                  {
+                    width: `${creature.maxHp > 0 ? Math.max(0, (creature.hp / creature.maxHp) * 100) : 0}%`,
+                    backgroundColor: creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
+                      ? '#4CAF50'
+                      : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
+                        ? '#FF9800'
+                        : '#F44336',
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.hpText}>
+              {creature.hp} / {creature.maxHp} HP
+            </Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Attack</Text>
+                <Text style={styles.statValue}>{creature.attack}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Defense</Text>
+                <Text style={styles.statValue}>{creature.defense}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Player Info - Fixed, always visible */}
+          <View style={styles.playerInfo}>
+            <Text style={styles.playerName}>You</Text>
+            <View style={styles.hpBar}>
+              <View
+                style={[
+                  styles.hpFill,
+                  {
+                    width: `${player.maxHp > 0 ? Math.max(0, (player.hp / player.maxHp) * 100) : 0}%`,
+                    backgroundColor: player.maxHp > 0 && player.hp / player.maxHp > 0.5
+                      ? '#4CAF50'
+                      : player.maxHp > 0 && player.hp / player.maxHp > 0.25
+                        ? '#FF9800'
+                        : '#F44336',
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.hpText}>
+              {player.hp} / {player.maxHp} HP
+            </Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Attack</Text>
+                <Text style={styles.statValue}>{player.attack}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Defense</Text>
+                <Text style={styles.statValue}>{player.defense}</Text>
+              </View>
+            </View>
+          </View>
+
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            {/* Creature Info */}
-            <View style={styles.creatureInfo}>
-              <Text style={styles.creatureName}>{creature.name}</Text>
-              <View style={styles.hpBar}>
-                <View
-                  style={[
-                    styles.hpFill,
-                    {
-                      width: `${creature.maxHp > 0 ? Math.max(0, (creature.hp / creature.maxHp) * 100) : 0}%`,
-                      backgroundColor: creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
-                        ? '#4CAF50'
-                        : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
-                          ? '#FF9800'
-                          : '#F44336',
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.hpText}>
-                {creature.hp} / {creature.maxHp} HP
-              </Text>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Attack</Text>
-                  <Text style={styles.statValue}>{creature.attack}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Defense</Text>
-                  <Text style={styles.statValue}>{creature.defense}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Player Info */}
-            <View style={styles.playerInfo}>
-              <Text style={styles.playerName}>You</Text>
-              <View style={styles.hpBar}>
-                <View
-                  style={[
-                    styles.hpFill,
-                    {
-                      width: `${player.maxHp > 0 ? Math.max(0, (player.hp / player.maxHp) * 100) : 0}%`,
-                      backgroundColor: player.maxHp > 0 && player.hp / player.maxHp > 0.5
-                        ? '#4CAF50'
-                        : player.maxHp > 0 && player.hp / player.maxHp > 0.25
-                          ? '#FF9800'
-                          : '#F44336',
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.hpText}>
-                {player.hp} / {player.maxHp} HP
-              </Text>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Attack</Text>
-                  <Text style={styles.statValue}>{player.attack}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Defense</Text>
-                  <Text style={styles.statValue}>{player.defense}</Text>
-                </View>
-              </View>
-            </View>
-
             {/* Attack Buttons */}
             <View style={styles.attacksContainer}>
               <Text style={styles.attacksTitle}>Choose an Attack</Text>
@@ -329,50 +329,53 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   creatureInfo: {
-    marginBottom: 20,
-    padding: 16,
+    padding: 12,
+    paddingHorizontal: 20,
     backgroundColor: '#f9f9f9',
-    borderRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   creatureName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   playerInfo: {
-    marginBottom: 20,
-    padding: 16,
+    padding: 12,
+    paddingHorizontal: 20,
     backgroundColor: '#f0f7ff',
-    borderRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   playerName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   hpBar: {
-    height: 20,
+    height: 16,
     backgroundColor: '#e0e0e0',
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   hpFill: {
     height: '100%',
     borderRadius: 10,
   },
   hpText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     textAlign: 'center',
+    marginBottom: 6,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 6,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
@@ -380,31 +383,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 2,
     textTransform: 'uppercase',
     fontWeight: '600',
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
   attacksContainer: {
-    marginTop: 10,
+    marginTop: 8,
   },
   attacksTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   attackButton: {
     backgroundColor: '#2196F3',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -417,20 +420,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   attackIcon: {
-    fontSize: 32,
-    marginRight: 16,
+    fontSize: 28,
+    marginRight: 12,
   },
   attackInfo: {
     flex: 1,
   },
   attackName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   attackDamage: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#fff',
     opacity: 0.9,
   },
