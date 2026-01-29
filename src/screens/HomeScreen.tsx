@@ -1062,30 +1062,44 @@ export default function HomeScreen() {
     );
   }
 
+  const environmentBanner = APP_CONFIG.ENVIRONMENT_BANNER;
+
   return (
     <SafeAreaView style={styles.container}>
-      {APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'bottom' && (
+      {environmentBanner.visible && environmentBanner.position === 'top' && (
         <BetaIndicator
-          buildType={APP_CONFIG.ENVIRONMENT_BANNER.buildType}
+          buildType={environmentBanner.buildType}
           version={APP_CONFIG.VERSION}
-          position={APP_CONFIG.ENVIRONMENT_BANNER.position}
-          variant={APP_CONFIG.ENVIRONMENT_BANNER.variant}
+          position={environmentBanner.position}
+          variant={environmentBanner.variant}
+        />
+      )}
+      {environmentBanner.visible && environmentBanner.position === 'bottom' && (
+        <BetaIndicator
+          buildType={environmentBanner.buildType}
+          version={APP_CONFIG.VERSION}
+          position={environmentBanner.position}
+          variant={environmentBanner.variant}
         />
       )}
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={
-          APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'bottom'
-            ? styles.scrollViewWithBetaBottom
+          environmentBanner.visible
+            ? environmentBanner.position === 'bottom'
+              ? styles.scrollViewWithBetaBottom
+              : environmentBanner.position === 'top'
+                ? styles.scrollViewWithBetaTop
+                : undefined
             : undefined
         }
       >
-        {APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'top' && (
+        {environmentBanner.visible && environmentBanner.position === 'inline' && (
           <BetaIndicator
-            buildType={APP_CONFIG.ENVIRONMENT_BANNER.buildType}
+            buildType={environmentBanner.buildType}
             version={APP_CONFIG.VERSION}
             position="inline"
-            variant={APP_CONFIG.ENVIRONMENT_BANNER.variant}
+            variant={environmentBanner.variant}
           />
         )}
         <View style={styles.content}>
@@ -1380,6 +1394,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollViewWithBetaTop: {
+    paddingTop: 60, // Add padding when beta indicator is at top
   },
   scrollViewWithBetaBottom: {
     paddingBottom: 60, // Add padding when beta indicator is at bottom

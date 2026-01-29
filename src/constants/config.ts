@@ -116,8 +116,5 @@ export const APP_CONFIG = {
     variant: 'badge' | 'banner';
     buildType: typeof ENV_CONFIG.environmentName;
   },
-  
-  // Environment info
-  ENVIRONMENT: ENV_CONFIG.environmentName,
 } as const;
 
