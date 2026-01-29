@@ -28,7 +28,7 @@ import CombatModal from '../components/CombatModal';
 import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
-import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG, type BannerPosition } from '../constants/config';
+import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG } from '../constants/config';
 import { ENV_CONFIG } from '../constants/environment';
 import { EquipmentSlot } from '../models/Player';
 import CrashlyticsService from '../services/CrashlyticsService';
@@ -1064,45 +1064,27 @@ export default function HomeScreen() {
 
   const environmentBanner = APP_CONFIG.ENVIRONMENT_BANNER;
   const bannerVisible = environmentBanner.visible;
-  const bannerPosition = environmentBanner.position as BannerPosition;
   const betaIndicatorProps = {
     buildType: environmentBanner.buildType,
     version: APP_CONFIG.VERSION,
     variant: environmentBanner.variant,
   } as const;
 
-  const scrollViewContentStyle = bannerVisible
-    ? {
-        top: styles.scrollViewWithBetaTop,
-        bottom: styles.scrollViewWithBetaBottom,
-        inline: undefined,
-      }[bannerPosition]
-    : undefined;
+  // position is 'top' in config; padding only needed when banner is at top
+  const scrollViewContentStyle = bannerVisible ? styles.scrollViewWithBetaTop : undefined;
 
   return (
     <SafeAreaView style={styles.container}>
-      {bannerVisible && bannerPosition === 'top' && (
+      {bannerVisible && (
         <BetaIndicator
           {...betaIndicatorProps}
-          position="top"
+          position={environmentBanner.position}
         />
       )}
-      {bannerVisible && bannerPosition === 'bottom' && (
-        <BetaIndicator
-          {...betaIndicatorProps}
-          position="bottom"
-        />
-      )}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={scrollViewContentStyle}
       >
-        {bannerVisible && bannerPosition === 'inline' && (
-          <BetaIndicator
-            {...betaIndicatorProps}
-            position="inline"
-          />
-        )}
         <View style={styles.content}>
           <View style={styles.titleContainer}>
             <TouchableOpacity
