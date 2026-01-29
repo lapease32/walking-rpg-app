@@ -1070,8 +1070,15 @@ export default function HomeScreen() {
     variant: environmentBanner.variant,
   } as const;
 
-  // position is 'top' in config; padding only needed when banner is at top
-  const scrollViewContentStyle = bannerVisible ? styles.scrollViewWithBetaTop : undefined;
+  // Apply padding based on banner position so content doesn't overlap
+  const scrollViewContentStyle =
+    !bannerVisible
+      ? undefined
+      : environmentBanner.position === 'top'
+        ? styles.scrollViewWithBetaTop
+        : environmentBanner.position === 'bottom'
+          ? styles.scrollViewWithBetaBottom
+          : undefined;
 
   return (
     <SafeAreaView style={styles.container}>
