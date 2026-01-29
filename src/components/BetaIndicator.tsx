@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { AppEnvironment } from '../constants/environment';
+import { BannerPosition, BannerVariant } from '../constants/config';
 
 interface BetaIndicatorProps {
   /**
@@ -27,14 +28,14 @@ interface BetaIndicatorProps {
    * 'bottom' - Fixed at bottom of screen
    * 'inline' - Inline with content (for headers, etc.)
    */
-  position?: 'top' | 'bottom' | 'inline';
+  position?: BannerPosition;
   
   /**
    * Style variant
    * 'badge' - Small badge style
    * 'banner' - Full-width banner style
    */
-  variant?: 'badge' | 'banner';
+  variant?: BannerVariant;
 }
 
 /**

@@ -89,11 +89,17 @@ export type AttackType = keyof typeof ATTACK_TYPES;
 
 import { ENV_CONFIG } from './environment';
 
+/** Valid positions for the environment banner */
+export type BannerPosition = 'top' | 'bottom' | 'inline';
+
+/** Valid style variants for the environment banner */
+export type BannerVariant = 'badge' | 'banner';
+
 /** Environment banner display configuration */
 export interface EnvironmentBannerConfig {
   visible: boolean;
-  position: 'top' | 'bottom' | 'inline';
-  variant: 'badge' | 'banner';
+  position: BannerPosition;
+  variant: BannerVariant;
   buildType: typeof ENV_CONFIG.environmentName;
 }
 
