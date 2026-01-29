@@ -95,8 +95,8 @@ export type BannerPosition = 'top' | 'bottom' | 'inline';
 /** Valid style variants for the environment banner */
 export type BannerVariant = 'badge' | 'banner';
 
-/** Environment banner display configuration */
-export interface EnvironmentBannerConfig {
+/** Environment banner display configuration (internal type for satisfies check) */
+interface EnvironmentBannerConfig {
   visible: boolean;
   position: BannerPosition;
   variant: BannerVariant;
