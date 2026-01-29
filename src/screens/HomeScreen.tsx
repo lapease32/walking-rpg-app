@@ -28,7 +28,7 @@ import CombatModal from '../components/CombatModal';
 import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
-import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG, type EnvironmentBannerConfig } from '../constants/config';
+import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG, APP_CONFIG, type BannerPosition } from '../constants/config';
 import { ENV_CONFIG } from '../constants/environment';
 import { EquipmentSlot } from '../models/Player';
 import CrashlyticsService from '../services/CrashlyticsService';
@@ -1064,7 +1064,7 @@ export default function HomeScreen() {
 
   const environmentBanner = APP_CONFIG.ENVIRONMENT_BANNER;
   const bannerVisible = environmentBanner.visible;
-  const bannerPosition = environmentBanner.position as EnvironmentBannerConfig['position'];
+  const bannerPosition = environmentBanner.position as BannerPosition;
   const betaIndicatorProps = {
     buildType: environmentBanner.buildType,
     version: APP_CONFIG.VERSION,

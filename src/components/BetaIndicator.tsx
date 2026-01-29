@@ -62,9 +62,8 @@ export default function BetaIndicator({
     isBanner ? styles.banner : styles.badge,
     position === 'top' && styles.topPosition,
     position === 'bottom' && styles.bottomPosition,
-    // Color based on build type
+    // Color based on build type (container default is orange for testing)
     buildType === 'development' && styles.developmentBg,
-    buildType === 'testing' && styles.testingBg,
   ];
 
   // Get display text and icon based on build type
@@ -115,9 +114,6 @@ const styles = StyleSheet.create({
   },
   developmentBg: {
     backgroundColor: '#2196F3', // Blue for development
-  },
-  testingBg: {
-    backgroundColor: '#FF9800', // Orange for testing
   },
   banner: {
     width: '100%',
