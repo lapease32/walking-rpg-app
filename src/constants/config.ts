@@ -89,6 +89,14 @@ export type AttackType = keyof typeof ATTACK_TYPES;
 
 import { ENV_CONFIG } from './environment';
 
+/** Environment banner display configuration */
+export interface EnvironmentBannerConfig {
+  visible: boolean;
+  position: 'top' | 'bottom' | 'inline';
+  variant: 'badge' | 'banner';
+  buildType: typeof ENV_CONFIG.environmentName;
+}
+
 /**
  * App distribution and version configuration
  */
@@ -96,25 +104,13 @@ export const APP_CONFIG = {
   // Version string to display
   // Update this when creating new beta builds
   VERSION: '1.0.0-beta.1',
-  
+
   // Environment banner display options (shows build type)
   ENVIRONMENT_BANNER: {
-    // Show environment banner based on environment
     visible: ENV_CONFIG.showEnvironmentBanner,
-    
-    // Position: 'top' | 'bottom' | 'inline'
-    position: 'top' as 'top' | 'bottom' | 'inline',
-    
-    // Variant: 'badge' | 'banner'
-    variant: 'banner' as const,
-    
-    // Build type to display
+    position: 'top',
+    variant: 'banner',
     buildType: ENV_CONFIG.environmentName,
-  } as {
-    visible: boolean;
-    position: 'top' | 'bottom' | 'inline';
-    variant: 'badge' | 'banner';
-    buildType: typeof ENV_CONFIG.environmentName;
-  },
+  } satisfies EnvironmentBannerConfig,
 } as const;
 
