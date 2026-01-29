@@ -1063,43 +1063,44 @@ export default function HomeScreen() {
   }
 
   const environmentBanner = APP_CONFIG.ENVIRONMENT_BANNER;
+  const bannerVisible = environmentBanner.visible;
+  const bannerPosition = environmentBanner.position;
+  const betaIndicatorProps = {
+    buildType: environmentBanner.buildType,
+    version: APP_CONFIG.VERSION,
+    variant: environmentBanner.variant,
+  } as const;
 
   return (
     <SafeAreaView style={styles.container}>
-      {environmentBanner.visible && environmentBanner.position === 'top' && (
+      {bannerVisible && bannerPosition === 'top' && (
         <BetaIndicator
-          buildType={environmentBanner.buildType}
-          version={APP_CONFIG.VERSION}
-          position={environmentBanner.position}
-          variant={environmentBanner.variant}
+          {...betaIndicatorProps}
+          position="top"
         />
       )}
-      {environmentBanner.visible && environmentBanner.position === 'bottom' && (
+      {bannerVisible && bannerPosition === 'bottom' && (
         <BetaIndicator
-          buildType={environmentBanner.buildType}
-          version={APP_CONFIG.VERSION}
-          position={environmentBanner.position}
-          variant={environmentBanner.variant}
+          {...betaIndicatorProps}
+          position="bottom"
         />
       )}
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={
-          environmentBanner.visible
-            ? environmentBanner.position === 'bottom'
+          bannerVisible
+            ? bannerPosition === 'bottom'
               ? styles.scrollViewWithBetaBottom
-              : environmentBanner.position === 'top'
+              : bannerPosition === 'top'
                 ? styles.scrollViewWithBetaTop
                 : undefined
             : undefined
         }
       >
-        {environmentBanner.visible && environmentBanner.position === 'inline' && (
+        {bannerVisible && bannerPosition === 'inline' && (
           <BetaIndicator
-            buildType={environmentBanner.buildType}
-            version={APP_CONFIG.VERSION}
+            {...betaIndicatorProps}
             position="inline"
-            variant={environmentBanner.variant}
           />
         )}
         <View style={styles.content}>
