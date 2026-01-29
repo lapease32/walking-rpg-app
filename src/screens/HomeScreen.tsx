@@ -1071,6 +1071,14 @@ export default function HomeScreen() {
     variant: environmentBanner.variant,
   } as const;
 
+  const scrollViewContentStyle = bannerVisible
+    ? {
+        top: styles.scrollViewWithBetaTop,
+        bottom: styles.scrollViewWithBetaBottom,
+        inline: undefined,
+      }[bannerPosition]
+    : undefined;
+
   return (
     <SafeAreaView style={styles.container}>
       {bannerVisible && bannerPosition === 'top' && (
@@ -1087,15 +1095,7 @@ export default function HomeScreen() {
       )}
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={
-          bannerVisible
-            ? bannerPosition === 'bottom'
-              ? styles.scrollViewWithBetaBottom
-              : bannerPosition === 'top'
-                ? styles.scrollViewWithBetaTop
-                : undefined
-            : undefined
-        }
+        contentContainerStyle={scrollViewContentStyle}
       >
         {bannerVisible && bannerPosition === 'inline' && (
           <BetaIndicator
