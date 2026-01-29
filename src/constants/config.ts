@@ -93,26 +93,11 @@ import { ENV_CONFIG } from './environment';
  * App distribution and version configuration
  */
 export const APP_CONFIG = {
-  // Automatically set based on environment
-  IS_BETA: ENV_CONFIG.showBetaIndicator,
-  
   // Version string to display
   // Update this when creating new beta builds
   VERSION: '1.0.0-beta.1',
   
-  // Beta indicator display options (legacy)
-  BETA_INDICATOR: {
-    // Show beta indicator based on environment
-    visible: ENV_CONFIG.showBetaIndicator,
-    
-    // Position: 'top' | 'bottom' | 'inline'
-    position: 'top' as const,
-    
-    // Variant: 'badge' | 'banner'
-    variant: 'banner' as const,
-  },
-  
-  // Environment banner display options (new - shows build type)
+  // Environment banner display options (shows build type)
   ENVIRONMENT_BANNER: {
     // Show environment banner based on environment
     visible: ENV_CONFIG.showEnvironmentBanner,
