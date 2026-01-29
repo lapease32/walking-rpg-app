@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { AppEnvironment } from '../constants/environment';
 import { BannerPosition, BannerVariant } from '../constants/config';
 
@@ -60,7 +60,7 @@ export default function BetaIndicator({
   const containerStyle = [
     styles.container,
     isBanner ? styles.banner : styles.badge,
-    position === 'top' && styles.topPosition,
+    position === 'top' && (Platform.OS === 'ios' ? styles.topPositionIOS : styles.topPosition),
     position === 'bottom' && styles.bottomPosition,
     // Color based on build type (container default is orange for testing)
     buildType === 'development' && styles.developmentBg,
@@ -128,6 +128,15 @@ const styles = StyleSheet.create({
   topPosition: {
     position: 'absolute',
     top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
+  topPositionIOS: {
+    position: 'absolute',
+    // Position below Dynamic Island on newer iPhones
+    // Accounts for status bar (~44px) + Dynamic Island (~15px) = ~59px
+    top: 59,
     left: 0,
     right: 0,
     zIndex: 1000,

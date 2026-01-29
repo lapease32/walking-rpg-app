@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Item, canEquipInSlot } from '../models/Item';
 import { Rarity } from '../models/Creature';
@@ -251,8 +252,8 @@ export default function InventoryModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Text style={styles.title}>
               {equipmentSlot ? `${getSlotLabel(equipmentSlot)} Items` : 'Inventory'}
@@ -278,7 +279,7 @@ export default function InventoryModal({
             </View>
           </ScrollView>
         </View>
-      </View>
+      </Pressable>
 
       <ItemDetailsModal
         item={selectedItem}

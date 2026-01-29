@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Item } from '../models/Item';
 import { Rarity } from '../models/Creature';
@@ -85,8 +86,8 @@ export default function ItemDetailsModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Text style={styles.title}>Item Details</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -194,7 +195,7 @@ export default function ItemDetailsModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }

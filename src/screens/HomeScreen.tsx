@@ -9,6 +9,7 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  Platform,
 } from 'react-native';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
@@ -1071,11 +1072,14 @@ export default function HomeScreen() {
   } as const;
 
   // Apply padding based on banner position so content doesn't overlap
+  // On iOS, banner is positioned below Dynamic Island (59px offset), so needs more padding
   const scrollViewContentStyle =
     !bannerVisible
       ? undefined
       : environmentBanner.position === 'top'
-        ? styles.scrollViewWithBetaTop
+        ? Platform.OS === 'ios'
+          ? styles.scrollViewWithBetaTopIOS
+          : styles.scrollViewWithBetaTop
         : environmentBanner.position === 'bottom'
           ? styles.scrollViewWithBetaBottom
           : undefined;
@@ -1386,7 +1390,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   scrollViewWithBetaTop: {
-    paddingTop: 60, // Add padding when beta indicator is at top
+    paddingTop: 60, // Add padding when beta indicator is at top (Android)
+  },
+  scrollViewWithBetaTopIOS: {
+    // Banner is positioned 59px from top on iOS to avoid Dynamic Island
+    // Add padding for banner offset (59px) + banner height (~60-80px) ≈ 120px
+    paddingTop: 120,
   },
   scrollViewWithBetaBottom: {
     paddingBottom: 60, // Add padding when beta indicator is at bottom

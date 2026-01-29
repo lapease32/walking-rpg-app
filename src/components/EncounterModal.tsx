@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Encounter } from '../models/Encounter';
 import { Rarity } from '../models/Creature';
@@ -74,8 +75,11 @@ export default function EncounterModal({
       animationType="slide"
       onRequestClose={onMinimize || onFlee}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={onMinimize ?? onFlee}
+      >
+        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
             {onMinimize && (
@@ -217,7 +221,7 @@ export default function EncounterModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
