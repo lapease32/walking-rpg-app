@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
 
 export type AccuracyLevel = 'high' | 'balanced' | 'battery';
@@ -39,8 +40,8 @@ export default function SettingsModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Settings</Text>
             <TouchableOpacity
@@ -93,7 +94,7 @@ export default function SettingsModal({
             </View>
           </ScrollView>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { Encounter } from '../models/Encounter';
 import { Player } from '../models/Player';
@@ -140,8 +141,8 @@ export default function CombatModal({
       onRequestClose={onClose}
       presentationStyle="overFullScreen"
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Text style={styles.title}>Combat</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -280,7 +281,7 @@ export default function CombatModal({
             )}
           </ScrollView>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
