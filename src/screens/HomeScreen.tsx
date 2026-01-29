@@ -1062,27 +1062,35 @@ export default function HomeScreen() {
     );
   }
 
+  const environmentBanner = APP_CONFIG.ENVIRONMENT_BANNER;
+  const bannerVisible = environmentBanner.visible;
+  const betaIndicatorProps = {
+    buildType: environmentBanner.buildType,
+    version: APP_CONFIG.VERSION,
+    variant: environmentBanner.variant,
+  } as const;
+
+  // Apply padding based on banner position so content doesn't overlap
+  const scrollViewContentStyle =
+    !bannerVisible
+      ? undefined
+      : environmentBanner.position === 'top'
+        ? styles.scrollViewWithBetaTop
+        : environmentBanner.position === 'bottom'
+          ? styles.scrollViewWithBetaBottom
+          : undefined;
+
   return (
     <SafeAreaView style={styles.container}>
-      {APP_CONFIG.IS_BETA && (
+      {bannerVisible && (
         <BetaIndicator
-          visible={APP_CONFIG.BETA_INDICATOR.visible}
-          version={APP_CONFIG.VERSION}
-          position={APP_CONFIG.BETA_INDICATOR.position}
-          variant={APP_CONFIG.BETA_INDICATOR.variant}
+          {...betaIndicatorProps}
+          position={environmentBanner.position}
         />
       )}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={
-          APP_CONFIG.IS_BETA && APP_CONFIG.BETA_INDICATOR.visible
-            ? APP_CONFIG.BETA_INDICATOR.position === 'top'
-              ? styles.scrollViewWithBetaTop
-              : APP_CONFIG.BETA_INDICATOR.position === 'bottom'
-              ? styles.scrollViewWithBetaBottom
-              : undefined
-            : undefined
-        }
+        contentContainerStyle={scrollViewContentStyle}
       >
         <View style={styles.content}>
           <View style={styles.titleContainer}>

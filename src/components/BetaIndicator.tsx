@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { AppEnvironment } from '../constants/environment';
+import { BannerPosition, BannerVariant } from '../constants/config';
 
 interface BetaIndicatorProps {
   /**
@@ -15,30 +17,38 @@ interface BetaIndicatorProps {
   version?: string;
   
   /**
+   * Build type/environment to display
+   * 'development' | 'testing'
+   */
+  buildType?: AppEnvironment;
+  
+  /**
    * Position of the indicator
    * 'top' - Fixed at top of screen
    * 'bottom' - Fixed at bottom of screen
    * 'inline' - Inline with content (for headers, etc.)
    */
-  position?: 'top' | 'bottom' | 'inline';
+  position?: BannerPosition;
   
   /**
    * Style variant
    * 'badge' - Small badge style
    * 'banner' - Full-width banner style
    */
-  variant?: 'badge' | 'banner';
+  variant?: BannerVariant;
 }
 
 /**
  * Beta indicator component to clearly mark beta/test versions
+ * Now displays build type (development, testing, or production) based on environment
  * 
  * Usage:
- * <BetaIndicator visible={true} version="1.0.0-beta.1" />
+ * <BetaIndicator visible={true} buildType="testing" version="1.0.0-beta.1" />
  */
 export default function BetaIndicator({
   visible = true,
   version,
+  buildType,
   position = 'top',
   variant = 'banner',
 }: BetaIndicatorProps) {
@@ -52,21 +62,42 @@ export default function BetaIndicator({
     isBanner ? styles.banner : styles.badge,
     position === 'top' && styles.topPosition,
     position === 'bottom' && styles.bottomPosition,
+    // Color based on build type (container default is orange for testing)
+    buildType === 'development' && styles.developmentBg,
   ];
+
+  // Get display text and icon based on build type
+  const getBuildTypeDisplay = () => {
+    switch (buildType) {
+      case 'development':
+        return { icon: '🔧', text: 'DEVELOPMENT BUILD' };
+      case 'testing':
+        return { icon: '🧪', text: 'TESTING BUILD' };
+      default:
+        return { icon: '🧪', text: 'BETA VERSION' };
+    }
+  };
+
+  const { icon, text } = getBuildTypeDisplay();
 
   return (
     <View style={containerStyle}>
       <Text style={[styles.text, isBanner && styles.bannerText]}>
-        🧪 BETA VERSION
+        {icon} {text}
       </Text>
       {version && (
         <Text style={[styles.versionText, isBanner && styles.bannerVersionText]}>
           {version}
         </Text>
       )}
-      {isBanner && (
+      {isBanner && buildType === 'testing' && (
         <Text style={styles.warningText}>
           This is a test version. Features may be incomplete or unstable.
+        </Text>
+      )}
+      {isBanner && buildType === 'development' && (
+        <Text style={styles.warningText}>
+          Development build. Debug features enabled.
         </Text>
       )}
     </View>
@@ -75,11 +106,14 @@ export default function BetaIndicator({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#FF9800', // Default/testing color
     paddingHorizontal: 12,
     paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  developmentBg: {
+    backgroundColor: '#2196F3', // Blue for development
   },
   banner: {
     width: '100%',
