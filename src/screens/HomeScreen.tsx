@@ -1066,7 +1066,6 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       {APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'bottom' && (
         <BetaIndicator
-          visible={APP_CONFIG.ENVIRONMENT_BANNER.visible}
           buildType={APP_CONFIG.ENVIRONMENT_BANNER.buildType}
           version={APP_CONFIG.VERSION}
           position={APP_CONFIG.ENVIRONMENT_BANNER.position}
@@ -1083,7 +1082,6 @@ export default function HomeScreen() {
       >
         {APP_CONFIG.ENVIRONMENT_BANNER.visible && APP_CONFIG.ENVIRONMENT_BANNER.position === 'top' && (
           <BetaIndicator
-            visible={APP_CONFIG.ENVIRONMENT_BANNER.visible}
             buildType={APP_CONFIG.ENVIRONMENT_BANNER.buildType}
             version={APP_CONFIG.VERSION}
             position="inline"

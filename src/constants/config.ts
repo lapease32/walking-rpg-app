@@ -103,13 +103,18 @@ export const APP_CONFIG = {
     visible: ENV_CONFIG.showEnvironmentBanner,
     
     // Position: 'top' | 'bottom' | 'inline'
-    position: 'top' as const,
+    position: 'top' as 'top' | 'bottom' | 'inline',
     
     // Variant: 'badge' | 'banner'
     variant: 'banner' as const,
     
     // Build type to display
     buildType: ENV_CONFIG.environmentName,
+  } as {
+    visible: boolean;
+    position: 'top' | 'bottom' | 'inline';
+    variant: 'badge' | 'banner';
+    buildType: typeof ENV_CONFIG.environmentName;
   },
   
   // Environment info
