@@ -1357,15 +1357,19 @@ export default function HomeScreen() {
         }}
         equipmentSlot={selectedEquipmentSlot}
         onItemEquipped={() => {
-          if (player) {
-            const updatedPlayer = new Player(player.toJSON());
+          const currentPlayer = playerRef.current;
+          if (currentPlayer) {
+            const updatedPlayer = new Player(currentPlayer.toJSON());
+            playerRef.current = updatedPlayer;
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
           }
         }}
         onItemDeleted={() => {
-          if (player) {
-            const updatedPlayer = new Player(player.toJSON());
+          const currentPlayer = playerRef.current;
+          if (currentPlayer) {
+            const updatedPlayer = new Player(currentPlayer.toJSON());
+            playerRef.current = updatedPlayer;
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
           }
