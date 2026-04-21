@@ -47,7 +47,7 @@ function isValidPlayerData(data: unknown): data is PlayerData {
   return (
     typeof d.id === 'string' &&
     typeof d.name === 'string' &&
-    typeof d.level === 'number' &&
+    typeof d.level === 'number' && d.level >= 1 &&
     typeof d.experience === 'number' &&
     typeof d.attack === 'number' &&
     typeof d.defense === 'number' &&

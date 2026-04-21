@@ -188,8 +188,9 @@ export class Player {
    * Calculate experience needed for next level
    */
   getExperienceForNextLevel(): number {
-    // Exponential growth: 100 * level^1.5
-    return Math.floor(100 * Math.pow(this.level, 1.5));
+    // Exponential growth: 100 * level^1.5. Clamp to minimum 1 to prevent
+    // checkLevelUp() from infinite-looping if level is ever corrupted to 0.
+    return Math.floor(100 * Math.pow(Math.max(1, this.level), 1.5));
   }
 
   /**
