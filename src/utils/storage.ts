@@ -41,6 +41,24 @@ export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<
   }
 }
 
+function isValidPlayerData(data: unknown): data is PlayerData {
+  if (!data || typeof data !== 'object') { return false; }
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.id === 'string' &&
+    typeof d.name === 'string' &&
+    typeof d.level === 'number' &&
+    typeof d.experience === 'number' &&
+    typeof d.attack === 'number' &&
+    typeof d.defense === 'number' &&
+    typeof d.totalDistance === 'number' &&
+    typeof d.totalEncounters === 'number' &&
+    typeof d.creaturesCaught === 'number' &&
+    typeof d.creaturesDefeated === 'number' &&
+    typeof d.equipment === 'object' && d.equipment !== null
+  );
+}
+
 /**
  * Load player data from local storage
  */
@@ -48,7 +66,13 @@ export async function loadPlayerData(): Promise<PlayerData | null> {
   try {
     const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.PLAYER_DATA);
     if (jsonData) {
-      return JSON.parse(jsonData) as PlayerData;
+      const parsed: unknown = JSON.parse(jsonData);
+      if (!isValidPlayerData(parsed)) {
+        console.error('Corrupted player data in storage, resetting to new player');
+        await AsyncStorage.removeItem(STORAGE_KEYS.PLAYER_DATA);
+        return null;
+      }
+      return parsed;
     }
     return null;
   } catch (error) {
@@ -101,6 +125,18 @@ export async function savePendingEncounter(encounter: EncounterData): Promise<bo
   }
 }
 
+function isValidEncounterData(data: unknown): data is EncounterData {
+  if (!data || typeof data !== 'object') { return false; }
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.creature === 'object' && d.creature !== null &&
+    typeof d.location === 'object' && d.location !== null &&
+    typeof d.timestamp === 'number' &&
+    typeof d.playerLevel === 'number' &&
+    typeof d.status === 'string'
+  );
+}
+
 /**
  * Load pending encounter (for background encounters)
  */
@@ -108,7 +144,13 @@ export async function loadPendingEncounter(): Promise<EncounterData | null> {
   try {
     const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_ENCOUNTER);
     if (jsonData) {
-      return JSON.parse(jsonData);
+      const parsed: unknown = JSON.parse(jsonData);
+      if (!isValidEncounterData(parsed)) {
+        console.error('Corrupted encounter data in storage, clearing');
+        await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_ENCOUNTER);
+        return null;
+      }
+      return parsed;
     }
     return null;
   } catch (error) {
