@@ -34,20 +34,12 @@ class FirebaseService {
 
   private async _doInitialize(): Promise<void> {
     try {
-      // Diagnostic logging for iOS Firebase initialization issues
-      console.log('🔍 Firebase initialization diagnostic:');
-      console.log(`Platform: ${Platform.OS}`);
-      console.log(`Firebase module available: ${typeof firebase !== 'undefined'}`);
-      
-      // Wait a bit for native Firebase to potentially auto-initialize
-      // React Native Firebase should auto-configure from GoogleService-Info.plist
+      // Wait for native Firebase to auto-initialize from GoogleService-Info.plist / google-services.json
       let retries = 10;
       while (!firebase.apps.length && retries > 0) {
         await new Promise(resolve => setTimeout(resolve, 100));
         retries--;
       }
-      
-      console.log(`Firebase apps length: ${firebase.apps.length}`);
       
       // Check if Firebase apps are available
       // Firebase auto-initializes from native config files
@@ -84,9 +76,6 @@ class FirebaseService {
       }
 
       console.log('Firebase initialized successfully');
-      console.log(`Platform: ${Platform.OS}`);
-      console.log(`Firebase app name: ${app.name}`);
-      console.log(`Firebase project ID: ${options.projectId}`);
 
       // Initialize Crashlytics after Firebase is ready
       try {
