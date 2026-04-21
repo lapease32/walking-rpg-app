@@ -61,9 +61,9 @@ fastlane/test_output
 .env
 .env.local
 
-# Firebase/Google Services (contains API keys)
+# Firebase/Google Services (contains API keys - never commit these)
 android/app/google-services.json
-ios/GoogleService-Info.plist
+ios/**/GoogleService-Info.plist
 
 # Debug
 .vscode/
