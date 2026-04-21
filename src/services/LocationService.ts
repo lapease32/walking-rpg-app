@@ -42,7 +42,6 @@ type DistanceUpdateCallback = (distanceData: DistanceData) => void | Promise<voi
 class LocationService {
   private watchId: number | null = null;
   private currentLocation: LocationData | null = null;
-  private previousLocation: LocationData | null = null;
   private totalDistance: number = 0; // meters
   private onLocationUpdate: LocationUpdateCallback | null = null;
   private onDistanceUpdate: DistanceUpdateCallback | null = null;
@@ -119,7 +118,6 @@ class LocationService {
     // Get initial location
     this.getCurrentLocation()
       .then((location) => {
-        this.previousLocation = location;
         if (this.onLocationUpdate) {
           this.onLocationUpdate(location);
         }
@@ -142,10 +140,10 @@ class LocationService {
         };
 
         // Calculate distance if we have a previous location
-        if (this.previousLocation) {
+        if (this.currentLocation) {
           const distance = this.calculateDistance(
-            this.previousLocation.latitude,
-            this.previousLocation.longitude,
+            this.currentLocation.latitude,
+            this.currentLocation.longitude,
             location.latitude,
             location.longitude
           );
@@ -159,7 +157,7 @@ class LocationService {
               const result = this.onDistanceUpdate({
                 incremental: distance,
                 total: this.totalDistance,
-                location: location, // Pass current location so callback can use it
+                location: location,
               });
               // Handle async callbacks that return promises
               if (result instanceof Promise) {
@@ -171,7 +169,6 @@ class LocationService {
           }
         }
 
-        this.previousLocation = this.currentLocation;
         this.currentLocation = location;
 
         if (this.onLocationUpdate) {
