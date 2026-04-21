@@ -1357,15 +1357,33 @@ export default function HomeScreen() {
         }}
         equipmentSlot={selectedEquipmentSlot}
         onItemEquipped={() => {
-          if (player) {
-            const updatedPlayer = new Player(player.toJSON());
+          if (player && playerRef.current) {
+            // player has the equip mutation (inventory/equipment/recalculated stats)
+            // playerRef.current has the freshest distance/XP from GPS callbacks
+            // Merge: fresh base stats + mutated inventory/equipment/combat stats
+            const updatedPlayer = new Player({
+              ...playerRef.current.toJSON(),
+              inventory: player.inventory,
+              equipment: player.equipment,
+              attack: player.attack,
+              defense: player.defense,
+              hp: player.hp,
+              maxHp: player.maxHp,
+            });
+            playerRef.current = updatedPlayer;
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
           }
         }}
         onItemDeleted={() => {
-          if (player) {
-            const updatedPlayer = new Player(player.toJSON());
+          if (player && playerRef.current) {
+            // player has the delete mutation (inventory slot cleared)
+            // playerRef.current has the freshest distance/XP from GPS callbacks
+            const updatedPlayer = new Player({
+              ...playerRef.current.toJSON(),
+              inventory: player.inventory,
+            });
+            playerRef.current = updatedPlayer;
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
           }
