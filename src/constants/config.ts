@@ -103,6 +103,13 @@ interface EnvironmentBannerConfig {
   buildType: typeof ENV_CONFIG.environmentName;
 }
 
+const ENVIRONMENT_BANNER: EnvironmentBannerConfig = {
+  visible: ENV_CONFIG.showEnvironmentBanner,
+  position: 'top',
+  variant: 'banner',
+  buildType: ENV_CONFIG.environmentName,
+};
+
 /**
  * App distribution and version configuration
  */
@@ -112,11 +119,6 @@ export const APP_CONFIG = {
   VERSION: '1.0.0-beta.1',
 
   // Environment banner display options (shows build type)
-  ENVIRONMENT_BANNER: {
-    visible: ENV_CONFIG.showEnvironmentBanner,
-    position: 'top',
-    variant: 'banner',
-    buildType: ENV_CONFIG.environmentName,
-  } satisfies EnvironmentBannerConfig,
+  ENVIRONMENT_BANNER,
 } as const;
 
