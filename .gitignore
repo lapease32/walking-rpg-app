@@ -63,7 +63,6 @@ fastlane/test_output
 
 # Firebase/Google Services (contains API keys - never commit these)
 android/app/google-services.json
-ios/GoogleService-Info.plist
 ios/**/GoogleService-Info.plist
 
 # Debug
