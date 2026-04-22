@@ -77,7 +77,6 @@ export default function ItemDetailsModal({
   };
 
   const canEquip = player !== null && item.level <= player.level;
-  const levelRequirementMet = player !== null && item.level <= player.level;
 
   return (
     <Modal
@@ -165,7 +164,7 @@ export default function ItemDetailsModal({
             )}
 
             {/* Level Requirement Warning */}
-            {!levelRequirementMet && player && (
+            {!canEquip && player && (
               <View style={styles.warningContainer}>
                 <Text style={styles.warningText}>
                   ⚠️ Requires level {item.level} (You are level {player.level})
