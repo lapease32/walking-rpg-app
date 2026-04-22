@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerData } from '../models/Player';
 import { CreatureConstructorParams } from '../models/Creature';
-import { Location, EncounterStatus } from '../models/Encounter';
+import { Location, EncounterStatus, ENCOUNTER_STATUSES } from '../models/Encounter';
 
 /**
  * Storage utilities for persisting player data
@@ -133,7 +133,7 @@ function isValidEncounterData(data: unknown): data is EncounterData {
     typeof d.location === 'object' && d.location !== null &&
     typeof d.timestamp === 'number' &&
     typeof d.playerLevel === 'number' &&
-    ['active', 'caught', 'defeated', 'fled'].includes(d.status as string)
+    (ENCOUNTER_STATUSES as readonly string[]).includes(d.status as string)
   );
 }
 

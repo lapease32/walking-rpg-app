@@ -5,7 +5,8 @@ export interface Location {
   longitude: number;
 }
 
-export type EncounterStatus = 'active' | 'caught' | 'defeated' | 'fled';
+export const ENCOUNTER_STATUSES = ['active', 'caught', 'defeated', 'fled'] as const;
+export type EncounterStatus = typeof ENCOUNTER_STATUSES[number];
 
 export interface EncounterConstructorParams {
   creature: Creature;
