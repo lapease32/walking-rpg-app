@@ -65,8 +65,9 @@ export default function InventoryModal({
   useEffect(() => {
     if (selectedItemIndex !== -1 && selectedItem !== null) {
       const currentItem = inventory[selectedItemIndex];
-      // If the item at the index doesn't match the selected item, reset state
-      if (currentItem !== selectedItem) {
+      // Compare by id so player rebuilds (new object references) don't
+      // incorrectly dismiss the detail view when the item hasn't changed
+      if (currentItem?.id !== selectedItem.id) {
         setShowItemDetails(false);
         setSelectedItem(null);
         setSelectedItemIndex(-1);
@@ -111,7 +112,7 @@ export default function InventoryModal({
     if (selectedItemIndex !== -1 && player && selectedItem !== null) {
       // Validate that the item at the index still matches the selected item
       const currentItem = inventory[selectedItemIndex];
-      if (currentItem !== selectedItem) {
+      if (currentItem?.id !== selectedItem.id) {
         // Item has changed, reset state and abort
         setShowItemDetails(false);
         setSelectedItem(null);
@@ -135,7 +136,7 @@ export default function InventoryModal({
     if (selectedItemIndex !== -1 && player && selectedItem !== null) {
       // Validate that the item at the index still matches the selected item
       const currentItem = inventory[selectedItemIndex];
-      if (currentItem !== selectedItem) {
+      if (currentItem?.id !== selectedItem.id) {
         // Item has changed, reset state and abort
         setShowItemDetails(false);
         setSelectedItem(null);

@@ -508,11 +508,6 @@ export class Player {
         if (item.maxHp !== undefined) {
           baseMaxHp += item.maxHp;
         }
-        if (item.hp !== undefined) {
-          // HP bonuses are typically temporary, but we'll add to maxHp for now
-          // This might need adjustment based on game design
-          baseMaxHp += item.hp;
-        }
       }
     });
 
