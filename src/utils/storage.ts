@@ -133,7 +133,7 @@ function isValidEncounterData(data: unknown): data is EncounterData {
     typeof d.location === 'object' && d.location !== null &&
     typeof d.timestamp === 'number' &&
     typeof d.playerLevel === 'number' &&
-    typeof d.status === 'string'
+    ['active', 'caught', 'defeated', 'fled'].includes(d.status as string)
   );
 }
 
