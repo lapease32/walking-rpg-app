@@ -148,9 +148,8 @@ class LocationService {
             location.longitude
           );
 
-          // Only add distance if it's reasonable (filters out GPS jumps)
-          if (distance < 1000 && distance > 0) {
-            // Ignore if more than 1km (likely GPS error)
+          // Only add distance if it's reasonable (filters sub-meter noise and GPS jumps)
+          if (distance >= 1 && distance < 1000) {
             this.totalDistance += distance;
 
             if (this.onDistanceUpdate) {

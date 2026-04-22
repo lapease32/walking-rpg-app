@@ -5,11 +5,12 @@ export interface Location {
   longitude: number;
 }
 
-export type EncounterStatus = 'active' | 'caught' | 'defeated' | 'fled';
+export const ENCOUNTER_STATUSES = ['active', 'caught', 'defeated', 'fled'] as const;
+export type EncounterStatus = typeof ENCOUNTER_STATUSES[number];
 
 export interface EncounterConstructorParams {
-  creature?: Creature;
-  location?: Location;
+  creature: Creature;
+  location: Location;
   timestamp?: number;
   playerLevel?: number;
   status?: EncounterStatus;
@@ -32,13 +33,7 @@ export class Encounter {
     timestamp,
     playerLevel,
     status = 'active',
-  }: EncounterConstructorParams = {}) {
-    if (!creature) {
-      throw new Error('Creature is required for Encounter');
-    }
-    if (!location) {
-      throw new Error('Location is required for Encounter');
-    }
+  }: EncounterConstructorParams) {
     this.creature = creature;
     this.location = location;
     this.timestamp = timestamp || Date.now();
