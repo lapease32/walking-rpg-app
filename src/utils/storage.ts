@@ -53,7 +53,6 @@ function isValidPlayerData(data: unknown): data is PlayerData {
     typeof d.defense === 'number' &&
     typeof d.totalDistance === 'number' &&
     typeof d.totalEncounters === 'number' &&
-    typeof d.creaturesCaught === 'number' &&
     typeof d.creaturesDefeated === 'number' &&
     typeof d.equipment === 'object' && d.equipment !== null
   );

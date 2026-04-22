@@ -5,7 +5,7 @@ export interface Location {
   longitude: number;
 }
 
-export const ENCOUNTER_STATUSES = ['active', 'caught', 'defeated', 'fled'] as const;
+export const ENCOUNTER_STATUSES = ['active', 'defeated', 'fled'] as const;
 export type EncounterStatus = typeof ENCOUNTER_STATUSES[number];
 
 export interface EncounterConstructorParams {
@@ -61,13 +61,6 @@ export class Encounter {
       location,
       playerLevel,
     });
-  }
-
-  /**
-   * Mark encounter as caught
-   */
-  catch(): void {
-    this.status = 'caught';
   }
 
   /**

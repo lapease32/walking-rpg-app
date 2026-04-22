@@ -61,7 +61,6 @@ export interface PlayerData {
   maxHp?: number;
   totalDistance: number;
   totalEncounters: number;
-  creaturesCaught: number;
   creaturesDefeated: number;
   equipment: Equipment;
   inventory?: (Item | null)[]; // Optional for backwards compatibility with old saved data
@@ -79,7 +78,6 @@ export interface PlayerStats {
   maxHp: number;
   totalDistance: number;
   totalEncounters: number;
-  creaturesCaught: number;
   creaturesDefeated: number;
 }
 
@@ -94,7 +92,6 @@ export interface PlayerConstructorParams {
   maxHp?: number;
   totalDistance?: number;
   totalEncounters?: number;
-  creaturesCaught?: number;
   creaturesDefeated?: number;
   equipment?: Equipment;
   inventory?: (Item | null)[];
@@ -111,7 +108,6 @@ export class Player {
   maxHp: number;
   totalDistance: number;
   totalEncounters: number;
-  creaturesCaught: number;
   creaturesDefeated: number;
   equipment: Equipment;
   inventory: (Item | null)[];
@@ -127,7 +123,6 @@ export class Player {
     maxHp,
     totalDistance = 0,
     totalEncounters = 0,
-    creaturesCaught = 0,
     creaturesDefeated = 0,
     equipment,
     inventory,
@@ -152,7 +147,6 @@ export class Player {
     
     this.totalDistance = totalDistance;
     this.totalEncounters = totalEncounters;
-    this.creaturesCaught = creaturesCaught;
     this.creaturesDefeated = creaturesDefeated;
     // Initialize equipment with empty slots if not provided
     if (equipment) {
@@ -285,13 +279,6 @@ export class Player {
   }
 
   /**
-   * Increment creatures caught
-   */
-  catchCreature(): void {
-    this.creaturesCaught += 1;
-  }
-
-  /**
    * Increment creatures defeated
    */
   defeatCreature(): void {
@@ -344,7 +331,6 @@ export class Player {
       maxHp: this.maxHp,
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
-      creaturesCaught: this.creaturesCaught,
       creaturesDefeated: this.creaturesDefeated,
     };
   }
@@ -540,7 +526,6 @@ export class Player {
       maxHp: this.maxHp,
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
-      creaturesCaught: this.creaturesCaught,
       creaturesDefeated: this.creaturesDefeated,
       equipment: this.equipment,
       inventory: [...this.inventory], // Return a copy to prevent shared references
