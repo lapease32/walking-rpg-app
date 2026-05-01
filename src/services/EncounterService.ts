@@ -1,5 +1,5 @@
 import { Encounter, Location } from '../models/Encounter';
-import { DistanceData } from './LocationService';
+import type { DistanceData } from './LocationService';
 
 /**
  * Encounter Service
@@ -20,7 +20,7 @@ export interface EncounterStatus {
   timeSinceLastEncounter: number | null;
 }
 
-class EncounterService {
+export class EncounterService {
   private distanceSinceLastEncounter: number = 0; // meters
   private lastEncounterTime: number | null = null;
   private minEncounterDistance: number = 50; // Minimum meters before next encounter possible

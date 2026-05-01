@@ -41,7 +41,7 @@ export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<
   }
 }
 
-function isValidPlayerData(data: unknown): data is PlayerData {
+export function isValidPlayerData(data: unknown): data is PlayerData {
   if (!data || typeof data !== 'object') {
     return false;
   }
@@ -128,7 +128,7 @@ export async function savePendingEncounter(encounter: EncounterData): Promise<bo
   }
 }
 
-function isValidEncounterData(data: unknown): data is EncounterData {
+export function isValidEncounterData(data: unknown): data is EncounterData {
   if (!data || typeof data !== 'object') {
     return false;
   }
