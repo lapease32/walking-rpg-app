@@ -119,4 +119,3 @@ export const APP_CONFIG = {
     buildType: ENV_CONFIG.environmentName,
   } satisfies EnvironmentBannerConfig,
 } as const;
-

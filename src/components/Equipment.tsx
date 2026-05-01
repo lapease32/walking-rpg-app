@@ -45,9 +45,7 @@ export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentPr
         <Text style={[styles.slotLabel, isEmpty && styles.emptySlotText]}>
           {slotLabels[slotKey]}
         </Text>
-        {isEmpty && (
-          <Text style={styles.emptyText}>Empty</Text>
-        )}
+        {isEmpty && <Text style={styles.emptyText}>Empty</Text>}
         {!isEmpty && item && (
           <View style={styles.itemInfo}>
             <Text style={styles.itemName} numberOfLines={1}>
@@ -65,8 +63,7 @@ export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentPr
           key={slotKey}
           style={styles.slotContainer}
           onPress={() => onSlotPress(slotKey as EquipmentSlot)}
-          activeOpacity={0.7}
-        >
+          activeOpacity={0.7}>
           {slotContent}
         </TouchableOpacity>
       );
@@ -89,15 +86,9 @@ export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentPr
           {renderSlot('offhand')}
         </View>
         {/* Equipment slots */}
-        <View style={styles.equipmentRow}>
-          {renderSlot('head')}
-        </View>
-        <View style={styles.equipmentRow}>
-          {renderSlot('chest')}
-        </View>
-        <View style={styles.equipmentRow}>
-          {renderSlot('legs')}
-        </View>
+        <View style={styles.equipmentRow}>{renderSlot('head')}</View>
+        <View style={styles.equipmentRow}>{renderSlot('chest')}</View>
+        <View style={styles.equipmentRow}>{renderSlot('legs')}</View>
         <View style={styles.equipmentRow}>
           {renderSlot('boots')}
           {renderSlot('gloves')}
@@ -208,4 +199,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-

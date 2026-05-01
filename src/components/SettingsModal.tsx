@@ -28,26 +28,30 @@ export default function SettingsModal({
   onAccuracyLevelChange,
 }: SettingsModalProps) {
   const accuracyOptions = [
-    { value: 'high' as AccuracyLevel, label: 'High Accuracy', description: '3 meters (Best tracking, more battery usage)' },
-    { value: 'balanced' as AccuracyLevel, label: 'Balanced', description: '5 meters (Good balance of accuracy and battery)' },
-    { value: 'battery' as AccuracyLevel, label: 'Battery Saver', description: '10 meters (Lower accuracy, best battery life)' },
+    {
+      value: 'high' as AccuracyLevel,
+      label: 'High Accuracy',
+      description: '3 meters (Best tracking, more battery usage)',
+    },
+    {
+      value: 'balanced' as AccuracyLevel,
+      label: 'Balanced',
+      description: '5 meters (Good balance of accuracy and battery)',
+    },
+    {
+      value: 'battery' as AccuracyLevel,
+      label: 'Battery Saver',
+      description: '10 meters (Lower accuracy, best battery life)',
+    },
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Settings</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -58,31 +62,28 @@ export default function SettingsModal({
               <Text style={styles.sectionDescription}>
                 Choose how often your location is updated. Higher accuracy uses more battery.
               </Text>
-              
-              {accuracyOptions.map((option) => (
+
+              {accuracyOptions.map(option => (
                 <TouchableOpacity
                   key={option.value}
                   style={[
                     styles.optionButton,
                     accuracyLevel === option.value && styles.optionButtonSelected,
                   ]}
-                  onPress={() => onAccuracyLevelChange(option.value)}
-                >
+                  onPress={() => onAccuracyLevelChange(option.value)}>
                   <View style={styles.optionContent}>
                     <Text
                       style={[
                         styles.optionLabel,
                         accuracyLevel === option.value && styles.optionLabelSelected,
-                      ]}
-                    >
+                      ]}>
                       {option.label}
                     </Text>
                     <Text
                       style={[
                         styles.optionDescription,
                         accuracyLevel === option.value && styles.optionDescriptionSelected,
-                      ]}
-                    >
+                      ]}>
                       {option.description}
                     </Text>
                   </View>

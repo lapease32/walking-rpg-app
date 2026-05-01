@@ -9,19 +9,19 @@ interface BetaIndicatorProps {
    * Set to false to hide in production builds
    */
   visible?: boolean;
-  
+
   /**
    * Version string to display (optional)
    * e.g., "1.0.0-beta.1"
    */
   version?: string;
-  
+
   /**
    * Build type/environment to display
    * 'development' | 'testing'
    */
   buildType?: AppEnvironment;
-  
+
   /**
    * Position of the indicator
    * 'top' - Fixed at top of screen
@@ -29,7 +29,7 @@ interface BetaIndicatorProps {
    * 'inline' - Inline with content (for headers, etc.)
    */
   position?: BannerPosition;
-  
+
   /**
    * Style variant
    * 'badge' - Small badge style
@@ -41,7 +41,7 @@ interface BetaIndicatorProps {
 /**
  * Beta indicator component to clearly mark beta/test versions
  * Now displays build type (development, testing, or production) based on environment
- * 
+ *
  * Usage:
  * <BetaIndicator visible={true} buildType="testing" version="1.0.0-beta.1" />
  */
@@ -86,9 +86,7 @@ export default function BetaIndicator({
         {icon} {text}
       </Text>
       {version && (
-        <Text style={[styles.versionText, isBanner && styles.bannerVersionText]}>
-          {version}
-        </Text>
+        <Text style={[styles.versionText, isBanner && styles.bannerVersionText]}>{version}</Text>
       )}
       {isBanner && buildType === 'testing' && (
         <Text style={styles.warningText}>
@@ -96,9 +94,7 @@ export default function BetaIndicator({
         </Text>
       )}
       {isBanner && buildType === 'development' && (
-        <Text style={styles.warningText}>
-          Development build. Debug features enabled.
-        </Text>
+        <Text style={styles.warningText}>Development build. Debug features enabled.</Text>
       )}
     </View>
   );

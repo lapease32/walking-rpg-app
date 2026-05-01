@@ -42,7 +42,7 @@ class EncounterService {
   processDistanceUpdate(
     distanceData: DistanceData | null,
     playerLocation: Location | null,
-    playerLevel: number = 1
+    playerLevel: number = 1,
   ): Encounter | null {
     if (!distanceData || !playerLocation) {
       return null;
@@ -56,19 +56,13 @@ class EncounterService {
       ? Date.now() - this.lastEncounterTime
       : Infinity;
 
-    const timeConstraintMet = this.bypassTimeConstraint || timeSinceLastEncounter >= this.minTimeBetweenEncounters;
+    const timeConstraintMet =
+      this.bypassTimeConstraint || timeSinceLastEncounter >= this.minTimeBetweenEncounters;
 
-    if (
-      this.distanceSinceLastEncounter >= this.minEncounterDistance &&
-      timeConstraintMet
-    ) {
+    if (this.distanceSinceLastEncounter >= this.minEncounterDistance && timeConstraintMet) {
       // Calculate encounter probability
-      const extraDistance =
-        this.distanceSinceLastEncounter - this.minEncounterDistance;
-      const encounterProbability = Math.min(
-        1,
-        extraDistance * this.encounterChancePerMeter
-      );
+      const extraDistance = this.distanceSinceLastEncounter - this.minEncounterDistance;
+      const encounterProbability = Math.min(1, extraDistance * this.encounterChancePerMeter);
 
       // Roll for encounter
       if (Math.random() < encounterProbability) {
@@ -105,9 +99,8 @@ class EncounterService {
     if (this.distanceSinceLastEncounter < this.minEncounterDistance) {
       return 0; // Distance constraint not met
     }
-    
-    const extraDistance =
-      this.distanceSinceLastEncounter - this.minEncounterDistance;
+
+    const extraDistance = this.distanceSinceLastEncounter - this.minEncounterDistance;
     return Math.min(1, extraDistance * this.encounterChancePerMeter);
   }
 
@@ -121,12 +114,12 @@ class EncounterService {
       const timeSinceLastEncounter = this.lastEncounterTime
         ? Date.now() - this.lastEncounterTime
         : Infinity;
-      
+
       if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
         return 0; // Time constraint not met
       }
     }
-    
+
     // If time constraint is met (or bypassed), return distance-based probability
     return this.getDistanceBasedProbability();
   }
@@ -140,7 +133,7 @@ class EncounterService {
     if (distanceAfterIncremental < this.minEncounterDistance) {
       return 0; // Distance constraint not met
     }
-    
+
     const extraDistance = distanceAfterIncremental - this.minEncounterDistance;
     return Math.min(1, extraDistance * this.encounterChancePerMeter);
   }
@@ -155,12 +148,12 @@ class EncounterService {
       const timeSinceLastEncounter = this.lastEncounterTime
         ? Date.now() - this.lastEncounterTime
         : Infinity;
-      
+
       if (timeSinceLastEncounter < this.minTimeBetweenEncounters) {
         return 0; // Time constraint not met
       }
     }
-    
+
     // If time constraint is met (or bypassed), return distance-based probability after incremental
     return this.getDistanceBasedProbabilityAfterIncremental(incrementalDistance);
   }
@@ -247,13 +240,10 @@ class EncounterService {
       distanceSinceLastEncounter: this.distanceSinceLastEncounter,
       minEncounterDistance: this.minEncounterDistance,
       probability: this.getCurrentEncounterProbability(),
-      timeSinceLastEncounter: this.lastEncounterTime
-        ? Date.now() - this.lastEncounterTime
-        : null,
+      timeSinceLastEncounter: this.lastEncounterTime ? Date.now() - this.lastEncounterTime : null,
     };
   }
 }
 
 // Export singleton instance
 export default new EncounterService();
-

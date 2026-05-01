@@ -15,19 +15,12 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
   }
 
   const stats = player.getStats();
-  const progressPercentage = stats.experienceForNextLevel > 0
-    ? (stats.experience / stats.experienceForNextLevel) * 100
-    : 0;
+  const progressPercentage =
+    stats.experienceForNextLevel > 0 ? (stats.experience / stats.experienceForNextLevel) * 100 : 0;
 
   // Calculate HP percentage with guard against division by zero
-  const hpPercentage = stats.maxHp > 0
-    ? stats.hp / stats.maxHp
-    : 1;
-  const hpBarColor = hpPercentage > 0.5
-    ? '#4CAF50'
-    : hpPercentage > 0.25
-      ? '#FF9800'
-      : '#F44336';
+  const hpPercentage = stats.maxHp > 0 ? stats.hp / stats.maxHp : 1;
+  const hpBarColor = hpPercentage > 0.5 ? '#4CAF50' : hpPercentage > 0.25 ? '#FF9800' : '#F44336';
 
   return (
     <View style={styles.container}>
@@ -55,9 +48,7 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
 
       <View style={styles.expContainer}>
         <View style={styles.expBar}>
-          <View
-            style={[styles.expFill, { width: `${progressPercentage}%` }]}
-          />
+          <View style={[styles.expFill, { width: `${progressPercentage}%` }]} />
         </View>
         <Text style={styles.expText}>
           {stats.experience} / {stats.experienceForNextLevel} XP
@@ -201,4 +192,3 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
-

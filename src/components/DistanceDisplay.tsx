@@ -9,10 +9,7 @@ interface DistanceDisplayProps {
 /**
  * Display component for showing distance traveled
  */
-export default function DistanceDisplay({
-  distance,
-  unit = 'km',
-}: DistanceDisplayProps) {
+export default function DistanceDisplay({ distance, unit = 'km' }: DistanceDisplayProps) {
   const formatDistance = (meters: number): string => {
     if (unit === 'km') {
       const km = meters / 1000;
@@ -57,4 +54,3 @@ const styles = StyleSheet.create({
     color: '#333',
   },
 });
-

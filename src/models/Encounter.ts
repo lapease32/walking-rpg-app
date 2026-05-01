@@ -6,7 +6,7 @@ export interface Location {
 }
 
 export const ENCOUNTER_STATUSES = ['active', 'defeated', 'fled'] as const;
-export type EncounterStatus = typeof ENCOUNTER_STATUSES[number];
+export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 
 export interface EncounterConstructorParams {
   creature: Creature;
@@ -44,15 +44,9 @@ export class Encounter {
   /**
    * Create a random encounter
    */
-  static createRandomEncounter(
-    location: Location,
-    playerLevel: number = 1
-  ): Encounter {
+  static createRandomEncounter(location: Location, playerLevel: number = 1): Encounter {
     // Select a random creature template
-    const template =
-      CREATURE_TEMPLATES[
-        Math.floor(Math.random() * CREATURE_TEMPLATES.length)
-      ];
+    const template = CREATURE_TEMPLATES[Math.floor(Math.random() * CREATURE_TEMPLATES.length)];
 
     const creature = createCreatureFromTemplate(template, playerLevel);
 
@@ -84,4 +78,3 @@ export class Encounter {
     return this.status === 'active';
   }
 }
-

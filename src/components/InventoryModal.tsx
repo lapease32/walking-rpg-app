@@ -171,15 +171,13 @@ export default function InventoryModal({
         style={styles.slotContainer}
         onPress={() => handleItemPress(item, index)}
         disabled={isEmpty}
-        activeOpacity={isEmpty ? 1 : 0.7}
-      >
+        activeOpacity={isEmpty ? 1 : 0.7}>
         <View
           style={[
             styles.slot,
             isEmpty && styles.emptySlot,
             { borderColor: slotBorderColor, borderStyle: slotBorderStyle },
-          ]}
-        >
+          ]}>
           {isEmpty ? (
             <View style={styles.emptySlotContent}>
               <Text style={styles.emptySlotIcon}>📦</Text>
@@ -190,19 +188,16 @@ export default function InventoryModal({
               <View style={styles.itemContent}>
                 <Text style={styles.itemIcon}>{getItemIcon(item)}</Text>
                 <Text
-                  style={[
-                    styles.itemName,
-                    { color: getRarityColor(item.rarity) },
-                  ]}
-                  numberOfLines={2}
-                >
+                  style={[styles.itemName, { color: getRarityColor(item.rarity) }]}
+                  numberOfLines={2}>
                   {item.name}
                 </Text>
                 <Text style={styles.itemLevel}>Lv. {item.level}</Text>
-                <Text style={styles.itemRarity}>
-                  {item.rarity.toUpperCase()}
-                </Text>
-                {(item.attack !== undefined || item.defense !== undefined || item.hp !== undefined || item.maxHp !== undefined) && (
+                <Text style={styles.itemRarity}>{item.rarity.toUpperCase()}</Text>
+                {(item.attack !== undefined ||
+                  item.defense !== undefined ||
+                  item.hp !== undefined ||
+                  item.maxHp !== undefined) && (
                   <View style={styles.itemStats}>
                     {item.attack !== undefined && (
                       <Text style={styles.statText}>⚔️ {item.attack}</Text>
@@ -210,9 +205,7 @@ export default function InventoryModal({
                     {item.defense !== undefined && (
                       <Text style={styles.statText}>🛡️ {item.defense}</Text>
                     )}
-                    {item.hp !== undefined && (
-                      <Text style={styles.statText}>❤️ +{item.hp}</Text>
-                    )}
+                    {item.hp !== undefined && <Text style={styles.statText}>❤️ +{item.hp}</Text>}
                     {item.maxHp !== undefined && (
                       <Text style={styles.statText}>💚 +{item.maxHp}</Text>
                     )}
@@ -226,7 +219,7 @@ export default function InventoryModal({
     );
   };
 
-  const usedSlots = inventory.filter((item) => item !== null).length;
+  const usedSlots = inventory.filter(item => item !== null).length;
   const totalSlots = inventory.length;
   const filteredUsedSlots = filteredInventoryData.filter(({ item }) => item !== null).length;
 
@@ -247,12 +240,7 @@ export default function InventoryModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
@@ -267,7 +255,9 @@ export default function InventoryModal({
           <View style={styles.statsBar}>
             <Text style={styles.statsText}>
               {equipmentSlot
-                ? `${filteredUsedSlots} ${getSlotLabel(equipmentSlot).toLowerCase()} item${filteredUsedSlots !== 1 ? 's' : ''} available`
+                ? `${filteredUsedSlots} ${getSlotLabel(equipmentSlot).toLowerCase()} item${
+                    filteredUsedSlots !== 1 ? 's' : ''
+                  } available`
                 : `${usedSlots} / ${totalSlots} slots used`}
             </Text>
           </View>
@@ -275,7 +265,7 @@ export default function InventoryModal({
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <View style={styles.inventoryGrid}>
               {filteredInventoryData.map(({ item, originalIndex }) =>
-                renderInventorySlot(item, originalIndex)
+                renderInventorySlot(item, originalIndex),
               )}
             </View>
           </ScrollView>
@@ -426,4 +416,3 @@ const styles = StyleSheet.create({
     lineHeight: 8,
   },
 });
-

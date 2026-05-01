@@ -4,12 +4,31 @@
  */
 
 import { PLAYER_CONFIG } from '../constants/config';
-import { WeaponItem, OffhandItem, HeadItem, ChestItem, LegsItem, BootsItem, GlovesItem, AccessoryItem, Item } from './Item';
+import {
+  WeaponItem,
+  OffhandItem,
+  HeadItem,
+  ChestItem,
+  LegsItem,
+  BootsItem,
+  GlovesItem,
+  AccessoryItem,
+  Item,
+} from './Item';
 
 /**
  * Equipment slot types
  */
-export type EquipmentSlot = 'weapon' | 'offhand' | 'head' | 'chest' | 'legs' | 'boots' | 'gloves' | 'accessory1' | 'accessory2';
+export type EquipmentSlot =
+  | 'weapon'
+  | 'offhand'
+  | 'head'
+  | 'chest'
+  | 'legs'
+  | 'boots'
+  | 'gloves'
+  | 'accessory1'
+  | 'accessory2';
 
 /**
  * Equipment structure with equipment slots
@@ -131,20 +150,22 @@ export class Player {
     this.name = name;
     this.level = level;
     this.experience = experience;
-    
+
     // Calculate attack and defense based on level if not provided
     // Base stats + stats per level
-    this.attack = attack ?? (PLAYER_CONFIG.STARTING_ATTACK + (level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL);
-    this.defense = defense ?? (PLAYER_CONFIG.STARTING_DEFENSE + (level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL);
-    
+    this.attack =
+      attack ?? PLAYER_CONFIG.STARTING_ATTACK + (level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL;
+    this.defense =
+      defense ?? PLAYER_CONFIG.STARTING_DEFENSE + (level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+
     // Calculate max HP based on level if not provided
-    this.maxHp = maxHp ?? (PLAYER_CONFIG.STARTING_HP + (level - 1) * PLAYER_CONFIG.HP_PER_LEVEL);
+    this.maxHp = maxHp ?? PLAYER_CONFIG.STARTING_HP + (level - 1) * PLAYER_CONFIG.HP_PER_LEVEL;
     // Set current HP to maxHp if not provided, or use provided hp (but cap at maxHp)
     this.hp = hp ?? this.maxHp;
     if (this.hp > this.maxHp) {
       this.hp = this.maxHp;
     }
-    
+
     this.totalDistance = totalDistance;
     this.totalEncounters = totalEncounters;
     this.creaturesDefeated = creaturesDefeated;
@@ -207,7 +228,7 @@ export class Player {
       this.experience -= expNeeded;
       this.level += 1;
       levelsGained += 1;
-      
+
       // Increase stats on level up
       this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
       this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
@@ -218,7 +239,7 @@ export class Player {
       if (this.hp > this.maxHp) {
         this.hp = this.maxHp;
       }
-      
+
       expNeeded = this.getExperienceForNextLevel();
     }
 
@@ -478,12 +499,14 @@ export class Player {
    */
   private recalculateStats(): void {
     // Base stats from level
-    let baseAttack = PLAYER_CONFIG.STARTING_ATTACK + (this.level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL;
-    let baseDefense = PLAYER_CONFIG.STARTING_DEFENSE + (this.level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+    let baseAttack =
+      PLAYER_CONFIG.STARTING_ATTACK + (this.level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL;
+    let baseDefense =
+      PLAYER_CONFIG.STARTING_DEFENSE + (this.level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL;
     let baseMaxHp = PLAYER_CONFIG.STARTING_HP + (this.level - 1) * PLAYER_CONFIG.HP_PER_LEVEL;
 
     // Add equipment bonuses
-    Object.values(this.equipment).forEach((item) => {
+    Object.values(this.equipment).forEach(item => {
       if (item) {
         if (item.attack !== undefined) {
           baseAttack += item.attack;
@@ -539,4 +562,3 @@ export class Player {
     return new Player(data);
   }
 }
-

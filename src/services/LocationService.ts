@@ -94,7 +94,7 @@ class LocationService {
         (error: GeolocationError) => {
           reject(error);
         },
-        this.config
+        this.config,
       );
     });
   }
@@ -104,7 +104,7 @@ class LocationService {
    */
   startTracking(
     onLocationUpdate: LocationUpdateCallback,
-    onDistanceUpdate: DistanceUpdateCallback
+    onDistanceUpdate: DistanceUpdateCallback,
   ): void {
     if (this.isTracking) {
       console.warn('Location tracking is already active');
@@ -117,12 +117,12 @@ class LocationService {
 
     // Get initial location
     this.getCurrentLocation()
-      .then((location) => {
+      .then(location => {
         if (this.onLocationUpdate) {
           this.onLocationUpdate(location);
         }
       })
-      .catch((error) => {
+      .catch(error => {
         console.error('Error getting initial location:', error);
       });
 
@@ -145,7 +145,7 @@ class LocationService {
             this.currentLocation.latitude,
             this.currentLocation.longitude,
             location.latitude,
-            location.longitude
+            location.longitude,
           );
 
           // Only add distance if it's reasonable (filters sub-meter noise and GPS jumps)
@@ -160,7 +160,7 @@ class LocationService {
               });
               // Handle async callbacks that return promises
               if (result instanceof Promise) {
-                result.catch((error) => {
+                result.catch(error => {
                   console.error('Error in distance update callback:', error);
                 });
               }
@@ -185,7 +185,7 @@ class LocationService {
           console.error('Location request timeout');
         }
       },
-      this.config
+      this.config,
     );
   }
 
@@ -252,4 +252,3 @@ class LocationService {
 
 // Export singleton instance
 export default new LocationService();
-
