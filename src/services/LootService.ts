@@ -49,4 +49,3 @@ export function dropItem(forceDrop: boolean = false): Item | null {
   }
   return null;
 }
-

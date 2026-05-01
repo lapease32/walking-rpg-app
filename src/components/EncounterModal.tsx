@@ -59,26 +59,20 @@ export default function EncounterModal({
   const playerDefeated = playerHp !== undefined && playerHp <= 0;
 
   // Calculate HP percentage for color coding
-  const playerHpPercentage = playerHp !== undefined && playerMaxHp !== undefined && playerMaxHp > 0
-    ? playerHp / playerMaxHp
-    : 1;
-  const playerHpBarColor = playerHpPercentage > 0.5 
-    ? '#4CAF50' 
-    : playerHpPercentage > 0.25 
-      ? '#FF9800' 
-      : '#F44336';
+  const playerHpPercentage =
+    playerHp !== undefined && playerMaxHp !== undefined && playerMaxHp > 0
+      ? playerHp / playerMaxHp
+      : 1;
+  const playerHpBarColor =
+    playerHpPercentage > 0.5 ? '#4CAF50' : playerHpPercentage > 0.25 ? '#FF9800' : '#F44336';
 
   return (
     <Modal
       visible={visible}
       transparent={true}
       animationType="slide"
-      onRequestClose={onMinimize || onFlee}
-    >
-      <Pressable
-        style={styles.modalOverlay}
-        onPress={onMinimize ?? onFlee}
-      >
+      onRequestClose={onMinimize || onFlee}>
+      <Pressable style={styles.modalOverlay} onPress={onMinimize ?? onFlee}>
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
@@ -89,12 +83,13 @@ export default function EncounterModal({
             )}
           </View>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-
             {/* Player Stats Card */}
-            {(playerHp !== undefined || playerAttack !== undefined || playerDefense !== undefined) && (
+            {(playerHp !== undefined ||
+              playerAttack !== undefined ||
+              playerDefense !== undefined) && (
               <View style={styles.playerCard}>
                 <Text style={styles.playerCardTitle}>Your Stats</Text>
-                
+
                 {playerHp !== undefined && playerMaxHp !== undefined && (
                   <>
                     <View style={styles.playerHpBar}>
@@ -132,12 +127,8 @@ export default function EncounterModal({
             )}
 
             <View style={[styles.creatureCard, { borderColor: rarityColor }]}>
-              <View
-                style={[styles.rarityBadge, { backgroundColor: rarityColor }]}
-              >
-                <Text style={styles.rarityText}>
-                  {creature.rarity.toUpperCase()}
-                </Text>
+              <View style={[styles.rarityBadge, { backgroundColor: rarityColor }]}>
+                <Text style={styles.rarityText}>{creature.rarity.toUpperCase()}</Text>
               </View>
 
               <Text style={styles.creatureName}>{creature.name}</Text>
@@ -195,28 +186,25 @@ export default function EncounterModal({
                 (isDefeated || playerDefeated) && styles.debugDefeatButtonDisabled,
               ]}
               onPress={onDebugDefeat}
-              disabled={isDefeated || playerDefeated}
-            >
-              <Text style={styles.debugDefeatButtonText}>
-                ⚡ Instant Defeat (Debug)
-              </Text>
+              disabled={isDefeated || playerDefeated}>
+              <Text style={styles.debugDefeatButtonText}>⚡ Instant Defeat (Debug)</Text>
             </TouchableOpacity>
           )}
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.fightButton, (isDefeated || playerDefeated) && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                styles.fightButton,
+                (isDefeated || playerDefeated) && styles.buttonDisabled,
+              ]}
               onPress={onFight}
-              disabled={isDefeated || playerDefeated}
-            >
+              disabled={isDefeated || playerDefeated}>
               <Text style={styles.buttonText}>
                 {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.fleeButton]}
-              onPress={onFlee}
-            >
+            <TouchableOpacity style={[styles.button, styles.fleeButton]} onPress={onFlee}>
               <Text style={styles.buttonText}>Flee</Text>
             </TouchableOpacity>
           </View>
@@ -448,4 +436,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

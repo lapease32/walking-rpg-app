@@ -69,7 +69,9 @@ export default function CombatModal({
 
   // Update cooldowns every 100ms
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      return;
+    }
 
     const interval = setInterval(() => {
       // Read from ref (source of truth) to prevent race conditions
@@ -78,7 +80,7 @@ export default function CombatModal({
       const currentRef = { ...cooldownsRef.current };
       let changed = false;
 
-      (Object.keys(ATTACK_TYPES) as AttackType[]).forEach((type) => {
+      (Object.keys(ATTACK_TYPES) as AttackType[]).forEach(type => {
         if (currentRef[type] > 0) {
           currentRef[type] = Math.max(0, currentRef[type] - 100);
           changed = true;
@@ -113,7 +115,7 @@ export default function CombatModal({
     // Set cooldown in both ref (synchronous) and state (for UI updates)
     const cooldownMs = ATTACK_TYPES[attackType].cooldownMs;
     cooldownsRef.current[attackType] = cooldownMs;
-    setCooldowns((prev) => ({
+    setCooldowns(prev => ({
       ...prev,
       [attackType]: cooldownMs,
     }));
@@ -122,7 +124,9 @@ export default function CombatModal({
   };
 
   const formatCooldown = (ms: number): string => {
-    if (ms <= 0) return '';
+    if (ms <= 0) {
+      return '';
+    }
     const seconds = Math.ceil(ms / 1000);
     return `${seconds}s`;
   };
@@ -139,8 +143,7 @@ export default function CombatModal({
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
-      presentationStyle="overFullScreen"
-    >
+      presentationStyle="overFullScreen">
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
@@ -158,10 +161,13 @@ export default function CombatModal({
                 style={[
                   styles.hpFill,
                   {
-                    width: `${creature.maxHp > 0 ? Math.max(0, (creature.hp / creature.maxHp) * 100) : 0}%`,
-                    backgroundColor: creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
-                      ? '#4CAF50'
-                      : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
+                    width: `${
+                      creature.maxHp > 0 ? Math.max(0, (creature.hp / creature.maxHp) * 100) : 0
+                    }%`,
+                    backgroundColor:
+                      creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
+                        ? '#4CAF50'
+                        : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
                         ? '#FF9800'
                         : '#F44336',
                   },
@@ -191,10 +197,13 @@ export default function CombatModal({
                 style={[
                   styles.hpFill,
                   {
-                    width: `${player.maxHp > 0 ? Math.max(0, (player.hp / player.maxHp) * 100) : 0}%`,
-                    backgroundColor: player.maxHp > 0 && player.hp / player.maxHp > 0.5
-                      ? '#4CAF50'
-                      : player.maxHp > 0 && player.hp / player.maxHp > 0.25
+                    width: `${
+                      player.maxHp > 0 ? Math.max(0, (player.hp / player.maxHp) * 100) : 0
+                    }%`,
+                    backgroundColor:
+                      player.maxHp > 0 && player.hp / player.maxHp > 0.5
+                        ? '#4CAF50'
+                        : player.maxHp > 0 && player.hp / player.maxHp > 0.25
                         ? '#FF9800'
                         : '#F44336',
                   },
@@ -220,7 +229,7 @@ export default function CombatModal({
             {/* Attack Buttons */}
             <View style={styles.attacksContainer}>
               <Text style={styles.attacksTitle}>Choose an Attack</Text>
-              {(Object.keys(ATTACK_TYPES) as AttackType[]).map((attackType) => {
+              {(Object.keys(ATTACK_TYPES) as AttackType[]).map(attackType => {
                 const attack = ATTACK_TYPES[attackType];
                 const cooldown = cooldowns[attackType];
                 const isOnCooldown = cooldown > 0;
@@ -229,27 +238,22 @@ export default function CombatModal({
 
                 // Calculate expected damage (must match Player.calculateDamage logic)
                 const baseDamage = player.attack - creature.defense;
-                const expectedDamage = Math.max(1, Math.floor(
-                  baseDamage * attack.damageMultiplier
-                ));
+                const expectedDamage = Math.max(
+                  1,
+                  Math.floor(baseDamage * attack.damageMultiplier),
+                );
 
                 return (
                   <TouchableOpacity
                     key={attackType}
-                    style={[
-                      styles.attackButton,
-                      isDisabled && styles.attackButtonDisabled,
-                    ]}
+                    style={[styles.attackButton, isDisabled && styles.attackButtonDisabled]}
                     onPress={() => handleAttack(attackType)}
-                    disabled={isDisabled}
-                  >
+                    disabled={isDisabled}>
                     <View style={styles.attackButtonContent}>
                       <Text style={styles.attackIcon}>{attack.icon}</Text>
                       <View style={styles.attackInfo}>
                         <Text style={styles.attackName}>{attack.name}</Text>
-                        <Text style={styles.attackDamage}>
-                          ~{expectedDamage} damage
-                        </Text>
+                        <Text style={styles.attackDamage}>~{expectedDamage} damage</Text>
                         {isOnCooldown && (
                           <Text style={styles.cooldownText}>
                             Cooldown: {formatCooldown(cooldown)}
@@ -259,10 +263,7 @@ export default function CombatModal({
                     </View>
                     {isOnCooldown && (
                       <View
-                        style={[
-                          styles.cooldownOverlay,
-                          { width: `${cooldownPercent * 100}%` },
-                        ]}
+                        style={[styles.cooldownOverlay, { width: `${cooldownPercent * 100}%` }]}
                       />
                     )}
                   </TouchableOpacity>
@@ -273,9 +274,7 @@ export default function CombatModal({
             {(isDefeated || playerDefeated) && (
               <View style={styles.statusMessage}>
                 <Text style={styles.statusText}>
-                  {isDefeated
-                    ? 'Creature Defeated!'
-                    : 'You are Defeated!'}
+                  {isDefeated ? 'Creature Defeated!' : 'You are Defeated!'}
                 </Text>
               </View>
             )}
@@ -464,4 +463,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

@@ -20,7 +20,14 @@ import { Player } from '../models/Player';
 import { Encounter } from '../models/Encounter';
 import { Location } from '../models/Encounter';
 import { Creature } from '../models/Creature';
-import { savePlayerData, loadPlayerData, loadPendingEncounter, clearPendingEncounter, savePendingEncounter, EncounterData } from '../utils/storage';
+import {
+  savePlayerData,
+  loadPlayerData,
+  loadPendingEncounter,
+  clearPendingEncounter,
+  savePendingEncounter,
+  EncounterData,
+} from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
 import EquipmentDisplay from '../components/Equipment';
@@ -58,28 +65,28 @@ export default function HomeScreen() {
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
-  
+
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
-  
+
   // Ref to track app state for async callbacks (avoids stale closure)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  
+
   // Ref to prevent multiple flee processing for the same encounter
   const fleeProcessedRef = useRef<boolean>(false);
-  
+
   // Ref to prevent concurrent checkPendingEncounter calls (race condition protection)
   const isCheckingPendingEncounterRef = useRef<boolean>(false);
-  
+
   // Ref to track previous app state (to detect transitions, not initial mount)
   const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
-  
+
   // Ref to track if a notification tap is being processed (to skip appState transition check)
   const isProcessingNotificationTapRef = useRef<boolean>(false);
-  
+
   // Ref to track current player state for async callbacks
   const playerRef = useRef<Player | null>(null);
-  
+
   // Ref to track encounter state for async callbacks (to avoid stale closures)
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
@@ -110,7 +117,7 @@ export default function HomeScreen() {
         isProcessingNotificationTapRef.current = true;
         // Fire and forget - errors are handled in checkPendingEncounter
         checkPendingEncounter()
-          .catch((error) => {
+          .catch(error => {
             console.error('Error in notification handler:', error);
           })
           .finally(() => {
@@ -143,7 +150,11 @@ export default function HomeScreen() {
   useEffect(() => {
     // Only check if transitioning from non-active to active (not on initial mount)
     // Skip if notification tap is being processed (it will handle the check)
-    if (appState === 'active' && prevAppStateRef.current !== 'active' && !isProcessingNotificationTapRef.current) {
+    if (
+      appState === 'active' &&
+      prevAppStateRef.current !== 'active' &&
+      !isProcessingNotificationTapRef.current
+    ) {
       checkPendingEncounter();
     }
     prevAppStateRef.current = appState;
@@ -153,23 +164,23 @@ export default function HomeScreen() {
   useEffect(() => {
     playerRef.current = player;
   }, [player]);
-  
+
   useEffect(() => {
     encounterRef.current = currentEncounter;
   }, [currentEncounter]);
-  
+
   useEffect(() => {
     isMinimizedRef.current = isEncounterModalMinimized;
   }, [isEncounterModalMinimized]);
-  
+
   useEffect(() => {
     currentLocationRef.current = currentLocation;
   }, [currentLocation]);
-  
+
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
   }, [showCombatModal]);
-  
+
   useEffect(() => {
     appStateRef.current = appState;
   }, [appState]);
@@ -255,9 +266,9 @@ export default function HomeScreen() {
     if (isCheckingPendingEncounterRef.current) {
       return; // Already checking, skip this call
     }
-    
+
     isCheckingPendingEncounterRef.current = true;
-    
+
     try {
       // Check if there's already an active encounter (prevent overwriting combat progress)
       // Use ref (encounterRef.current) instead of state to avoid stale closure issues
@@ -268,7 +279,7 @@ export default function HomeScreen() {
         await clearPendingEncounter();
         return;
       }
-      
+
       const pendingEncounterData = await loadPendingEncounter();
       if (pendingEncounterData) {
         // Reconstruct encounter from saved data
@@ -280,7 +291,7 @@ export default function HomeScreen() {
           playerLevel: pendingEncounterData.playerLevel,
           status: pendingEncounterData.status,
         });
-        
+
         // Set encounterRef immediately to prevent race condition with GPS callbacks
         // This ensures handleDistanceUpdate will see the encounter and skip generation
         // even if a GPS callback interleaves before clearPendingEncounter completes
@@ -289,7 +300,7 @@ export default function HomeScreen() {
         showCombatModalRef.current = false;
         victoryProcessedRef.current = false;
         fleeProcessedRef.current = false;
-        
+
         // Clear pending encounter - check return value to prevent reload issue
         const clearSuccess = await clearPendingEncounter();
         if (!clearSuccess) {
@@ -301,10 +312,12 @@ export default function HomeScreen() {
           showCombatModalRef.current = false;
           victoryProcessedRef.current = false;
           fleeProcessedRef.current = false;
-          console.error('Failed to clear pending encounter - skipping encounter display to prevent data loss');
+          console.error(
+            'Failed to clear pending encounter - skipping encounter display to prevent data loss',
+          );
           return;
         }
-        
+
         // Clear succeeded - safe to show encounter
         // Show encounter in UI (refs already set above to prevent race condition)
         setCurrentEncounter(encounter);
@@ -337,7 +350,7 @@ export default function HomeScreen() {
 
     // Use ref to get current player state (avoids stale closure)
     const currentPlayer = playerRef.current;
-    
+
     // Update player distance
     if (currentPlayer) {
       const updatedPlayer = new Player(currentPlayer.toJSON());
@@ -352,22 +365,22 @@ export default function HomeScreen() {
     const currentEncounterState = encounterRef.current;
     const isMinimized = isMinimizedRef.current;
     const isInCombat = showCombatModalRef.current; // Use ref to avoid stale closure
-    
+
     if (currentEncounterState && isMinimized && location && !isInCombat) {
       const encounterLocation = currentEncounterState.location;
       const distanceFromEncounter = LocationService.calculateDistance(
         encounterLocation.latitude,
         encounterLocation.longitude,
         location.latitude,
-        location.longitude
+        location.longitude,
       );
-      
+
       // Auto-flee if user travels more than the threshold distance
       if (distanceFromEncounter > ENCOUNTER_CONFIG.AUTO_FLEE_DISTANCE) {
         Alert.alert(
           'Encounter Ended',
           `You traveled too far from the encounter location. The ${currentEncounterState.creature.name} has fled.`,
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
         handleFlee();
         return; // Don't process new encounters after auto-flee
@@ -392,34 +405,36 @@ export default function HomeScreen() {
         latitude: currentLocationData.latitude,
         longitude: currentLocationData.longitude,
       };
-      
+
       // Get probability that will be used (after incremental distance is added in processDistanceUpdate)
       const probabilityThatWillBeUsed = EncounterService.getProbabilityAfterIncremental(
-        distanceData.incremental
+        distanceData.incremental,
       );
-      
+
       const encounter = EncounterService.processDistanceUpdate(
         distanceData,
         locationForEncounter,
-        currentPlayer?.level || 1
+        currentPlayer?.level || 1,
       );
 
       if (encounter) {
         // Check if app is in background (use ref to avoid stale closure)
         const isInBackground = appStateRef.current !== 'active';
-        
+
         if (isInBackground) {
           // App is in background - save encounter and show notification
           try {
             // Check if there's already a pending encounter (prevent overwrite)
             const existingPendingEncounter = await loadPendingEncounter();
             if (existingPendingEncounter) {
-              console.warn('Background encounter already pending, skipping new encounter to prevent overwrite');
+              console.warn(
+                'Background encounter already pending, skipping new encounter to prevent overwrite',
+              );
               // Don't update refs - let the existing pending encounter be loaded when app comes to foreground
               // The refs will be updated when checkPendingEncounter loads the pending encounter
               return; // Skip saving this encounter
             }
-            
+
             // Save encounter to storage first (serialize encounter data)
             // We must save successfully before setting refs to avoid blocking the encounter system
             const encounterData: EncounterData = {
@@ -443,14 +458,16 @@ export default function HomeScreen() {
               status: encounter.status,
             };
             const saveSuccess = await savePendingEncounter(encounterData);
-            
+
             // Only set refs and show notification if save succeeded
             // If save fails, don't set refs (to avoid blocking encounter system) and don't show notification
             if (!saveSuccess) {
-              console.error('Failed to save pending encounter, skipping ref update and notification');
+              console.error(
+                'Failed to save pending encounter, skipping ref update and notification',
+              );
               return; // Exit early - encounter not saved, so don't proceed
             }
-            
+
             // Save succeeded - show notification
             // NOTE: Do NOT set encounterRef.current here - it will be set when checkPendingEncounter
             // loads the encounter from storage and displays it in the UI. Setting it here would cause
@@ -468,12 +485,12 @@ export default function HomeScreen() {
           showCombatModalRef.current = false; // Ensure combat modal is closed
           victoryProcessedRef.current = false; // Reset victory flag for new encounter
           fleeProcessedRef.current = false; // Reset flee flag for new encounter
-          
+
           setCurrentEncounter(encounter);
           setShowEncounterModal(true);
           setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
         }
-        
+
         // Encounter generated - distance tracking was reset, so chance is now 0
         setEncounterChance(0);
         // Store the probability that was used when this encounter occurred
@@ -512,13 +529,12 @@ export default function HomeScreen() {
     setIsTracking(false);
   };
 
-
   // Handle encounter fight - opens combat modal
   const handleFight = (): void => {
     // Use refs to get current state (avoids stale closure)
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
-    
+
     if (!currentEncounterState || !currentPlayer) {
       return;
     }
@@ -529,7 +545,7 @@ export default function HomeScreen() {
     }
 
     const creature = currentEncounterState.creature;
-    
+
     // Check if creature is already defeated
     if (creature.isDefeated()) {
       handleVictory();
@@ -539,7 +555,7 @@ export default function HomeScreen() {
     // Update ref immediately to prevent race condition with GPS callbacks
     // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
     showCombatModalRef.current = true;
-    
+
     // Open combat modal
     setShowCombatModal(true);
   };
@@ -549,7 +565,7 @@ export default function HomeScreen() {
     // Use refs to get current state (avoids stale closure)
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
-    
+
     if (!currentEncounterState || !currentPlayer) {
       return;
     }
@@ -560,7 +576,7 @@ export default function HomeScreen() {
     }
 
     const creature = currentEncounterState.creature;
-    
+
     // Defensive check: creature should not be defeated at this point
     // (handleFight already checked, but state could have changed)
     if (creature.isDefeated()) {
@@ -581,9 +597,9 @@ export default function HomeScreen() {
     // Calculate damage: (player attack - creature defense) * multiplier (minimum 1)
     const playerDamage = updatedPlayer.calculateDamage(
       creature.defense,
-      attackConfig.damageMultiplier
+      attackConfig.damageMultiplier,
     );
-    
+
     // Apply damage to creature
     creature.takeDamage(playerDamage);
 
@@ -591,7 +607,7 @@ export default function HomeScreen() {
     if (!creature.isDefeated()) {
       // Calculate damage: creature attack - player defense (minimum 1)
       const creatureDamage = creature.calculateDamage(updatedPlayer.defense);
-      
+
       // Apply damage to player
       updatedPlayer.takeDamage(creatureDamage);
     }
@@ -612,7 +628,7 @@ export default function HomeScreen() {
       playerLevel: currentEncounterState.playerLevel,
       status: currentEncounterState.status,
     });
-    
+
     // Update ref immediately to prevent race condition with GPS callbacks
     encounterRef.current = updatedEncounter;
     setCurrentEncounter(updatedEncounter);
@@ -630,26 +646,26 @@ export default function HomeScreen() {
       const healedPlayer = new Player(updatedPlayer.toJSON());
       healedPlayer.fullHeal();
       healedPlayer.incrementEncounters(); // Count the encounter like other outcomes
-      
+
       // Update refs immediately to prevent race condition with GPS callbacks
       playerRef.current = healedPlayer; // Update ref immediately to prevent data loss
       encounterRef.current = null;
       isMinimizedRef.current = false;
       showCombatModalRef.current = false;
-      
+
       setPlayer(healedPlayer);
       savePlayerData(healedPlayer);
       setIsEncounterModalMinimized(false);
       setShowCombatModal(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
-      
+
       // Show alert for user feedback (healing already done)
       Alert.alert(
         'Defeated!',
         'You have been defeated! Your HP has been restored to full.',
         [{ text: 'OK' }],
-        { cancelable: false } // Prevent dismissal on Android to ensure modal closes properly
+        { cancelable: false }, // Prevent dismissal on Android to ensure modal closes properly
       );
     }
   };
@@ -659,7 +675,7 @@ export default function HomeScreen() {
     // Use refs to get current state (avoids stale closure)
     const currentEncounterState = encounterRef.current;
     const currentPlayer = playerRef.current;
-    
+
     if (!currentEncounterState || !currentPlayer) {
       return;
     }
@@ -670,7 +686,7 @@ export default function HomeScreen() {
     }
 
     const creature = currentEncounterState.creature;
-    
+
     // Check if creature is already defeated
     if (creature.isDefeated()) {
       return;
@@ -679,7 +695,7 @@ export default function HomeScreen() {
     // Instantly defeat creature without taking damage
     // Deal exactly enough damage to defeat (current HP)
     creature.takeDamage(creature.hp);
-    
+
     // Update encounter with defeated creature
     const updatedEncounter = new Encounter({
       creature: creature,
@@ -688,11 +704,11 @@ export default function HomeScreen() {
       playerLevel: currentEncounterState.playerLevel,
       status: currentEncounterState.status,
     });
-    
+
     // Update ref immediately to prevent race condition with GPS callbacks
     encounterRef.current = updatedEncounter;
     setCurrentEncounter(updatedEncounter);
-    
+
     // Close combat modal and trigger victory
     // handleVictory will update refs, but update combat modal ref immediately
     showCombatModalRef.current = false;
@@ -706,7 +722,7 @@ export default function HomeScreen() {
     // Use provided player or fall back to ref player (avoids stale closure)
     const basePlayer = playerToUse || playerRef.current;
     const currentEncounterState = encounterRef.current;
-    
+
     if (!currentEncounterState || !basePlayer) {
       return;
     }
@@ -722,7 +738,7 @@ export default function HomeScreen() {
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
     updatedPlayer.incrementEncounters();
-    
+
     const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
 
@@ -761,12 +777,12 @@ export default function HomeScreen() {
     if (levelsGained > 0) {
       Alert.alert(
         'Victory & Level Up!',
-        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`
+        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`,
       );
     } else {
       Alert.alert(
         'Victory!',
-        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`
+        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`,
       );
     }
   };
@@ -801,13 +817,13 @@ export default function HomeScreen() {
     // Use refs to get current state (avoids stale closure)
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
-    
+
     // Update refs immediately to prevent stale values if rapid GPS updates occur
     // This prevents duplicate calls when handleDistanceUpdate is called again before React processes state updates
     encounterRef.current = null;
     isMinimizedRef.current = false;
     showCombatModalRef.current = false;
-    
+
     if (currentEncounterState && currentPlayer) {
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.incrementEncounters();
@@ -828,7 +844,7 @@ export default function HomeScreen() {
     // Use refs to get current state (avoids stale closure)
     const currentLocationData = currentLocationRef.current;
     const currentPlayer = playerRef.current;
-    
+
     const location: Location = currentLocationData
       ? {
           latitude: currentLocationData.latitude,
@@ -838,11 +854,8 @@ export default function HomeScreen() {
           latitude: 37.7749,
           longitude: -122.4194,
         };
-    const encounter = EncounterService.forceEncounter(
-      location,
-      currentPlayer?.level || 1
-    );
-    
+    const encounter = EncounterService.forceEncounter(location, currentPlayer?.level || 1);
+
     // Update refs immediately to prevent race condition with GPS callbacks
     // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
     encounterRef.current = encounter; // Set to new encounter immediately
@@ -850,7 +863,7 @@ export default function HomeScreen() {
     showCombatModalRef.current = false; // Ensure combat modal is closed
     victoryProcessedRef.current = false; // Reset victory flag for new encounter
     fleeProcessedRef.current = false; // Reset flee flag for new encounter
-    
+
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false); // Reset minimized state for new encounter
@@ -867,7 +880,7 @@ export default function HomeScreen() {
     const fakeDistance = 100; // meters
     const baseLat = currentLocationRef.current?.latitude || 37.7749;
     const baseLon = currentLocationRef.current?.longitude || -122.4194;
-    
+
     // Simulate location movement: move ~100m north (approximately 0.0009 degrees latitude)
     // 1 degree latitude ≈ 111,000 meters, so 100m ≈ 0.0009 degrees
     const latOffset = fakeDistance / 111000; // Move north
@@ -880,7 +893,7 @@ export default function HomeScreen() {
       speed: 0,
       timestamp: Date.now(),
     };
-    
+
     // Create distance data with location (location will be set in handleDistanceUpdate)
     const distanceData: DistanceData = {
       incremental: fakeDistance,
@@ -929,10 +942,10 @@ export default function HomeScreen() {
 
     const updatedPlayer = new Player(currentPlayer.toJSON());
     updatedPlayer.forceLevelUp();
-    
+
     // Update ref immediately to prevent race condition with GPS callbacks
     playerRef.current = updatedPlayer;
-    
+
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
     Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
@@ -948,22 +961,24 @@ export default function HomeScreen() {
 
     const updatedPlayer = new Player(currentPlayer.toJSON());
     const levelsGained = updatedPlayer.addExperience(amount);
-    
+
     // Update ref immediately to prevent race condition with GPS callbacks
     playerRef.current = updatedPlayer;
-    
+
     setPlayer(updatedPlayer);
     savePlayerData(updatedPlayer);
 
     if (levelsGained > 0) {
       Alert.alert(
         'XP Added & Level Up!',
-        `Added ${amount} XP!\nGained ${levelsGained} level(s)!\nYou are now level ${updatedPlayer.level}!`
+        `Added ${amount} XP!\nGained ${levelsGained} level(s)!\nYou are now level ${updatedPlayer.level}!`,
       );
     } else {
       Alert.alert(
         'XP Added',
-        `Added ${amount} XP!\nCurrent XP: ${updatedPlayer.experience}/${updatedPlayer.getExperienceForNextLevel()}`
+        `Added ${amount} XP!\nCurrent XP: ${
+          updatedPlayer.experience
+        }/${updatedPlayer.getExperienceForNextLevel()}`,
       );
     }
   };
@@ -995,16 +1010,16 @@ export default function HomeScreen() {
             }
             const updatedPlayer = new Player(currentPlayerAtConfirm.toJSON());
             updatedPlayer.resetLevel();
-            
+
             // Update ref immediately to prevent race condition with GPS callbacks
             playerRef.current = updatedPlayer;
-            
+
             setPlayer(updatedPlayer);
             savePlayerData(updatedPlayer);
             Alert.alert('Level Reset', 'You have been reset to level 1.');
           },
         },
-      ]
+      ],
     );
   };
 
@@ -1028,30 +1043,32 @@ export default function HomeScreen() {
                 console.log('Initializing Crashlytics before crash test...');
                 await CrashlyticsService.initialize();
               }
-              
+
               // Ensure collection is enabled
               await CrashlyticsService.setCollectionEnabled(true);
-              
+
               // Set some attributes before crashing to see them in reports
               CrashlyticsService.setAttribute('test_crash', 'true');
               CrashlyticsService.setAttribute('player_level', player?.level || 0);
               CrashlyticsService.log('User initiated test crash from debug menu');
-              
+
               // Small delay to ensure everything is set
               await new Promise(resolve => setTimeout(resolve, 200));
-              
+
               // Force the crash
               await CrashlyticsService.crash();
             } catch (error) {
               console.error('Error preparing crash test:', error);
               Alert.alert(
                 'Error',
-                `Failed to prepare crash test: ${error instanceof Error ? error.message : String(error)}`
+                `Failed to prepare crash test: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -1073,29 +1090,22 @@ export default function HomeScreen() {
 
   // Apply padding based on banner position so content doesn't overlap
   // On iOS, banner is positioned below Dynamic Island (59px offset), so needs more padding
-  const scrollViewContentStyle =
-    !bannerVisible
-      ? undefined
-      : environmentBanner.position === 'top'
-        ? Platform.OS === 'ios'
-          ? styles.scrollViewWithBetaTopIOS
-          : styles.scrollViewWithBetaTop
-        : environmentBanner.position === 'bottom'
-          ? styles.scrollViewWithBetaBottom
-          : undefined;
+  const scrollViewContentStyle = !bannerVisible
+    ? undefined
+    : environmentBanner.position === 'top'
+    ? Platform.OS === 'ios'
+      ? styles.scrollViewWithBetaTopIOS
+      : styles.scrollViewWithBetaTop
+    : environmentBanner.position === 'bottom'
+    ? styles.scrollViewWithBetaBottom
+    : undefined;
 
   return (
     <SafeAreaView style={styles.container}>
       {bannerVisible && (
-        <BetaIndicator
-          {...betaIndicatorProps}
-          position={environmentBanner.position}
-        />
+        <BetaIndicator {...betaIndicatorProps} position={environmentBanner.position} />
       )}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={scrollViewContentStyle}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={scrollViewContentStyle}>
         <View style={styles.content}>
           <View style={styles.titleContainer}>
             <TouchableOpacity
@@ -1103,8 +1113,7 @@ export default function HomeScreen() {
               onPress={() => {
                 setShowSettingsModal(true);
               }}
-              activeOpacity={0.7}
-            >
+              activeOpacity={0.7}>
               <Text style={styles.settingsButtonText}>⚙️</Text>
             </TouchableOpacity>
             <Text style={styles.title}>Walking RPG</Text>
@@ -1114,7 +1123,7 @@ export default function HomeScreen() {
 
           <EquipmentDisplay
             equipment={player.equipment}
-            onSlotPress={(slot) => {
+            onSlotPress={slot => {
               setSelectedEquipmentSlot(slot);
               setShowInventoryModal(true);
             }}
@@ -1125,8 +1134,7 @@ export default function HomeScreen() {
             onPress={() => {
               setSelectedEquipmentSlot(null); // Clear filter when opening normally
               setShowInventoryModal(true);
-            }}
-          >
+            }}>
             <Text style={styles.inventoryButtonText}>📦 View Inventory</Text>
           </TouchableOpacity>
 
@@ -1136,11 +1144,14 @@ export default function HomeScreen() {
             <View
               style={[
                 styles.statusIndicator,
-                { backgroundColor: (isTracking || LocationService.getIsTracking()) ? '#4CAF50' : '#9E9E9E' },
+                {
+                  backgroundColor:
+                    isTracking || LocationService.getIsTracking() ? '#4CAF50' : '#9E9E9E',
+                },
               ]}
             />
             <Text style={styles.statusText}>
-              {(isTracking || LocationService.getIsTracking()) ? 'Tracking Active' : 'Not Tracking'}
+              {isTracking || LocationService.getIsTracking() ? 'Tracking Active' : 'Not Tracking'}
             </Text>
           </View>
 
@@ -1148,8 +1159,7 @@ export default function HomeScreen() {
             <View style={styles.locationInfo}>
               <Text style={styles.locationLabel}>Current Location:</Text>
               <Text style={styles.locationText}>
-                {currentLocation.latitude.toFixed(6)},{' '}
-                {currentLocation.longitude.toFixed(6)}
+                {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
               </Text>
               {currentLocation.speed > 0 && (
                 <Text style={styles.speedText}>
@@ -1162,18 +1172,17 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[
               styles.trackButton,
-              (isTracking || LocationService.getIsTracking()) ? styles.stopButton : styles.startButton,
+              isTracking || LocationService.getIsTracking()
+                ? styles.stopButton
+                : styles.startButton,
             ]}
-            onPress={(isTracking || LocationService.getIsTracking()) ? stopTracking : startTracking}
-          >
+            onPress={isTracking || LocationService.getIsTracking() ? stopTracking : startTracking}>
             <Text style={styles.trackButtonText}>
-              {(isTracking || LocationService.getIsTracking()) ? 'Stop Tracking' : 'Start Walking'}
+              {isTracking || LocationService.getIsTracking() ? 'Stop Tracking' : 'Start Walking'}
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.infoText}>
-            Walk around to trigger random creature encounters!
-          </Text>
+          <Text style={styles.infoText}>Walk around to trigger random creature encounters!</Text>
 
           {/* Show minimized encounter indicator */}
           {currentEncounter && isEncounterModalMinimized && !showCombatModal && (
@@ -1185,8 +1194,7 @@ export default function HomeScreen() {
                 isMinimizedRef.current = false;
                 setIsEncounterModalMinimized(false);
                 setShowEncounterModal(true);
-              }}
-            >
+              }}>
               <Text style={styles.minimizedEncounterText}>
                 ⚠️ Active Encounter: {currentEncounter.creature.name} (Tap to view)
               </Text>
@@ -1204,9 +1212,7 @@ export default function HomeScreen() {
                     {(encounterChance * 100).toFixed(2)}%
                   </Text>
                   {isTimeBlocking && (
-                    <Text style={styles.timeBlockingText}>
-                      (Blocked: {timeRemaining}s)
-                    </Text>
+                    <Text style={styles.timeBlockingText}>(Blocked: {timeRemaining}s)</Text>
                   )}
                 </View>
               </View>
@@ -1221,106 +1227,71 @@ export default function HomeScreen() {
               <View style={styles.encounterChanceContainer}>
                 <Text style={styles.encounterChanceLabel}>Bypass Time Constraint:</Text>
                 <TouchableOpacity
-                  style={[
-                    styles.toggleButton,
-                    bypassTimeConstraint && styles.toggleButtonActive,
-                  ]}
-                  onPress={() => setBypassTimeConstraint(!bypassTimeConstraint)}
-                >
-                  <Text style={styles.toggleButtonText}>
-                    {bypassTimeConstraint ? 'ON' : 'OFF'}
-                  </Text>
+                  style={[styles.toggleButton, bypassTimeConstraint && styles.toggleButtonActive]}
+                  onPress={() => setBypassTimeConstraint(!bypassTimeConstraint)}>
+                  <Text style={styles.toggleButtonText}>{bypassTimeConstraint ? 'ON' : 'OFF'}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.encounterChanceContainer}>
                 <Text style={styles.encounterChanceLabel}>Force Item Drop:</Text>
                 <TouchableOpacity
-                  style={[
-                    styles.toggleButton,
-                    forceItemDrop && styles.toggleButtonActive,
-                  ]}
-                  onPress={() => setForceItemDrop(!forceItemDrop)}
-                >
-                  <Text style={styles.toggleButtonText}>
-                    {forceItemDrop ? 'ON' : 'OFF'}
-                  </Text>
+                  style={[styles.toggleButton, forceItemDrop && styles.toggleButtonActive]}
+                  onPress={() => setForceItemDrop(!forceItemDrop)}>
+                  <Text style={styles.toggleButtonText}>{forceItemDrop ? 'ON' : 'OFF'}</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.debugButton}
-                onPress={simulateLocationUpdate}
-              >
-                <Text style={styles.debugButtonText}>
-                  Simulate Location Update
-                </Text>
+              <TouchableOpacity style={styles.debugButton} onPress={simulateLocationUpdate}>
+                <Text style={styles.debugButtonText}>Simulate Location Update</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.debugButton}
-                onPress={simulateMovement}
-              >
-                <Text style={styles.debugButtonText}>
-                  Simulate 100m Movement
-                </Text>
+              <TouchableOpacity style={styles.debugButton} onPress={simulateMovement}>
+                <Text style={styles.debugButtonText}>Simulate 100m Movement</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.debugButton, styles.forceEncounterButton]}
-                onPress={forceEncounter}
-              >
+                onPress={forceEncounter}>
                 <Text style={styles.debugButtonText}>Force Encounter</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.debugButton, styles.levelControlButton]}
-                onPress={forceLevelUp}
-              >
+                onPress={forceLevelUp}>
                 <Text style={styles.debugButtonText}>Force Level Up</Text>
               </TouchableOpacity>
               <View style={styles.xpButtonContainer}>
                 <Text style={styles.xpButtonLabel}>Add XP:</Text>
                 <TouchableOpacity
                   style={[styles.debugButton, styles.xpButton]}
-                  onPress={() => addManualXP(100)}
-                >
+                  onPress={() => addManualXP(100)}>
                   <Text style={styles.debugButtonText}>+100 XP</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.debugButton, styles.xpButton]}
-                  onPress={() => addManualXP(500)}
-                >
+                  onPress={() => addManualXP(500)}>
                   <Text style={styles.debugButtonText}>+500 XP</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.debugButton, styles.xpButton]}
-                  onPress={() => addManualXP(1000)}
-                >
+                  onPress={() => addManualXP(1000)}>
                   <Text style={styles.debugButtonText}>+1000 XP</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
                 style={[styles.debugButton, styles.resetButton]}
-                onPress={resetLevel}
-              >
+                onPress={resetLevel}>
                 <Text style={styles.debugButtonText}>Reset Level</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.debugButton, styles.crashButton]}
-                onPress={handleTestCrash}
-              >
+                onPress={handleTestCrash}>
                 <Text style={styles.crashButtonText}>💥 Test Crashlytics Crash</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.debugToggle}
-                onPress={() => setDebugMode(false)}
-              >
+              <TouchableOpacity style={styles.debugToggle} onPress={() => setDebugMode(false)}>
                 <Text style={styles.debugToggleText}>Hide Debug</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {!debugMode && (
-            <TouchableOpacity
-              style={styles.debugToggle}
-              onPress={() => setDebugMode(true)}
-            >
+            <TouchableOpacity style={styles.debugToggle} onPress={() => setDebugMode(true)}>
               <Text style={styles.debugToggleText}>Show Debug Mode</Text>
             </TouchableOpacity>
           )}
@@ -1393,7 +1364,7 @@ export default function HomeScreen() {
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         accuracyLevel={accuracyLevel}
-        onAccuracyLevelChange={(level) => {
+        onAccuracyLevelChange={level => {
           setAccuracyLevel(level);
           // TODO: Implement functionality to change distance interval
         }}
@@ -1662,4 +1633,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

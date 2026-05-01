@@ -79,12 +79,7 @@ export default function ItemDetailsModal({
   const canEquip = player !== null && item.level <= player.level;
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
@@ -101,12 +96,7 @@ export default function ItemDetailsModal({
             </View>
 
             {/* Item Name */}
-            <Text
-              style={[
-                styles.itemName,
-                { color: getRarityColor(item.rarity) },
-              ]}
-            >
+            <Text style={[styles.itemName, { color: getRarityColor(item.rarity) }]}>
               {item.name}
             </Text>
 
@@ -182,14 +172,10 @@ export default function ItemDetailsModal({
                 !canEquip && styles.actionButtonDisabled,
               ]}
               onPress={onEquip}
-              disabled={!canEquip}
-            >
+              disabled={!canEquip}>
               <Text style={styles.actionButtonText}>Equip</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
-              onPress={onDelete}
-            >
+            <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={onDelete}>
               <Text style={styles.actionButtonText}>Delete</Text>
             </TouchableOpacity>
           </View>
@@ -356,4 +342,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

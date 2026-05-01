@@ -66,7 +66,7 @@ export const WEAPON_ITEMS: WeaponItem[] = [
   {
     id: 'weapon_dragon_fang',
     name: 'Dragon Fang',
-    description: 'A legendary blade forged from a dragon\'s fang. Extremely rare and powerful.',
+    description: "A legendary blade forged from a dragon's fang. Extremely rare and powerful.",
     type: 'weapon',
     slot: 'weapon',
     rarity: 'legendary',
@@ -129,7 +129,8 @@ export const OFFHAND_ITEMS: OffhandItem[] = [
   {
     id: 'offhand_shield_of_eternity',
     name: 'Shield of Eternity',
-    description: 'A legendary shield said to have protected the gods themselves. Grants immense power.',
+    description:
+      'A legendary shield said to have protected the gods themselves. Grants immense power.',
     type: 'offhand',
     slot: 'offhand',
     rarity: 'legendary',
@@ -563,20 +564,19 @@ export const ALL_ITEMS: Item[] = [
  * Get all items by type
  */
 export function getItemsByType(type: Item['type']): Item[] {
-  return ALL_ITEMS.filter((item) => item.type === type);
+  return ALL_ITEMS.filter(item => item.type === type);
 }
 
 /**
  * Get item by ID
  */
 export function getItemById(id: string): Item | undefined {
-  return ALL_ITEMS.find((item) => item.id === id);
+  return ALL_ITEMS.find(item => item.id === id);
 }
 
 /**
  * Get items by rarity
  */
 export function getItemsByRarity(rarity: Item['rarity']): Item[] {
-  return ALL_ITEMS.filter((item) => item.rarity === rarity);
+  return ALL_ITEMS.filter(item => item.rarity === rarity);
 }
-

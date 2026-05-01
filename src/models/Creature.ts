@@ -194,7 +194,7 @@ export const CREATURE_TEMPLATES: CreatureTemplate[] = [
  */
 export function createCreatureFromTemplate(
   template: CreatureTemplate,
-  playerLevel: number = 1
+  playerLevel: number = 1,
 ): Creature {
   // Level variation: ±2 levels from player level, minimum 1
   const levelVariation = Math.floor(Math.random() * 5) - 2;
@@ -212,4 +212,3 @@ export function createCreatureFromTemplate(
     speed: Math.floor(template.speed * levelMultiplier),
   });
 }
-

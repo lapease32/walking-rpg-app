@@ -42,19 +42,23 @@ export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<
 }
 
 function isValidPlayerData(data: unknown): data is PlayerData {
-  if (!data || typeof data !== 'object') { return false; }
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
   const d = data as Record<string, unknown>;
   return (
     typeof d.id === 'string' &&
     typeof d.name === 'string' &&
-    typeof d.level === 'number' && d.level >= 1 &&
+    typeof d.level === 'number' &&
+    d.level >= 1 &&
     typeof d.experience === 'number' &&
     typeof d.attack === 'number' &&
     typeof d.defense === 'number' &&
     typeof d.totalDistance === 'number' &&
     typeof d.totalEncounters === 'number' &&
     typeof d.creaturesDefeated === 'number' &&
-    typeof d.equipment === 'object' && d.equipment !== null
+    typeof d.equipment === 'object' &&
+    d.equipment !== null
   );
 }
 
@@ -125,11 +129,15 @@ export async function savePendingEncounter(encounter: EncounterData): Promise<bo
 }
 
 function isValidEncounterData(data: unknown): data is EncounterData {
-  if (!data || typeof data !== 'object') { return false; }
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
   const d = data as Record<string, unknown>;
   return (
-    typeof d.creature === 'object' && d.creature !== null &&
-    typeof d.location === 'object' && d.location !== null &&
+    typeof d.creature === 'object' &&
+    d.creature !== null &&
+    typeof d.location === 'object' &&
+    d.location !== null &&
     typeof d.timestamp === 'number' &&
     typeof d.playerLevel === 'number' &&
     (ENCOUNTER_STATUSES as readonly string[]).includes(d.status as string)
@@ -187,4 +195,3 @@ export async function clearAllData(): Promise<boolean> {
     return false;
   }
 }
-

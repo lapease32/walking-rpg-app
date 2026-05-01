@@ -108,14 +108,14 @@ class CrashlyticsService {
     try {
       // Ensure Crashlytics collection is enabled
       await crashlytics().setCrashlyticsCollectionEnabled(true);
-      
+
       const envName = ENV_CONFIG.environmentName.toUpperCase();
       console.warn(`⚠️ Forcing crash for testing (${envName} MODE)...`);
       console.warn('Crashlytics collection enabled, crashing now...');
-      
+
       // Small delay to ensure the setting is applied
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Force the crash
       crashlytics().crash();
     } catch (error) {

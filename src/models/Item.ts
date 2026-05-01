@@ -120,4 +120,3 @@ export function canEquipInSlot(item: Item, slot: EquipmentSlot): boolean {
   }
   return item.slot === slot;
 }
-
