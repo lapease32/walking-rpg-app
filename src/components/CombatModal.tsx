@@ -65,7 +65,7 @@ export default function CombatModal({
     }
     // Note: We don't reset encounterRef.current when modal closes
     // This prevents cooldown reset exploit when reopening the same encounter
-  }, [encounter?.timestamp, visible]);
+  }, [encounter, encounter?.timestamp, visible]);
 
   // Update cooldowns every 100ms
   useEffect(() => {

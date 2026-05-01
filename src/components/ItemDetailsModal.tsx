@@ -48,7 +48,7 @@ export default function ItemDetailsModal({
     return rarityColors[rarity] || '#9E9E9E';
   };
 
-  const getItemIcon = (item: Item): string => {
+  const getItemIcon = (targetItem: Item): string => {
     const iconMap: Record<Item['type'], string> = {
       weapon: '⚔️',
       offhand: '🛡️',
@@ -59,10 +59,10 @@ export default function ItemDetailsModal({
       gloves: '🧤',
       accessory: '💍',
     };
-    return iconMap[item.type] || '📦';
+    return iconMap[targetItem.type] || '📦';
   };
 
-  const getSlotName = (item: Item): string => {
+  const getSlotName = (targetItem: Item): string => {
     const slotMap: Record<Item['type'], string> = {
       weapon: 'Weapon',
       offhand: 'Offhand',
@@ -73,7 +73,7 @@ export default function ItemDetailsModal({
       gloves: 'Gloves',
       accessory: 'Accessory',
     };
-    return slotMap[item.type] || 'Unknown';
+    return slotMap[targetItem.type] || 'Unknown';
   };
 
   const canEquip = player !== null && item.level <= player.level;

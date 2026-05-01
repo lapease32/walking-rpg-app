@@ -18,7 +18,6 @@ class FirebaseService {
   async initialize(): Promise<void> {
     // If already initialized, return immediately
     if (this.initialized) {
-      console.log('Firebase already initialized');
       return;
     }
 
@@ -75,8 +74,6 @@ class FirebaseService {
       if (!options.projectId) {
         throw new Error('Firebase project ID is missing. Check your configuration files.');
       }
-
-      console.log('Firebase initialized successfully');
 
       // Initialize Crashlytics after Firebase is ready
       try {

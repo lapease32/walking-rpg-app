@@ -1040,7 +1040,6 @@ export default function HomeScreen() {
             try {
               // Ensure Crashlytics is initialized before crashing
               if (!CrashlyticsService.isInitialized()) {
-                console.log('Initializing Crashlytics before crash test...');
                 await CrashlyticsService.initialize();
               }
 

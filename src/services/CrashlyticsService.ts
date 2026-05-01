@@ -1,5 +1,4 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../constants/environment';
 
 /**
@@ -15,7 +14,6 @@ class CrashlyticsService {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      console.log('Crashlytics already initialized');
       return;
     }
 
@@ -25,14 +23,12 @@ class CrashlyticsService {
       if (__DEV__) {
         // Enable crash reporting in debug mode for testing
         await crashlytics().setCrashlyticsCollectionEnabled(true);
-        console.log('Crashlytics enabled for debug mode');
       }
 
       // Set user identifier (optional - set when user logs in)
       // await crashlytics().setUserId('user-123');
 
       this.initialized = true;
-      console.log('Crashlytics initialized successfully');
     } catch (error) {
       console.error('Error initializing Crashlytics:', error);
       throw error;
