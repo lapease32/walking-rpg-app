@@ -34,11 +34,11 @@
         </intent-filter>
       </activity>
       
-      <!-- Override notifee's ForegroundService to fix invalid foregroundServiceType attribute -->
+      <!-- Declare foreground service type so Android 14+ allows location access while backgrounded -->
       <service
         android:name="app.notifee.core.ForegroundService"
         android:exported="false"
-        tools:node="merge"
-        tools:remove="android:foregroundServiceType" />
+        android:foregroundServiceType="location"
+        tools:node="merge" />
     </application>
 </manifest>

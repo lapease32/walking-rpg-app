@@ -537,6 +537,7 @@ export default function HomeScreen() {
     LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
     setIsTracking(true);
     saveTrackingState(true);
+    NotificationService.startForegroundService().catch(console.error);
   };
 
   // Stop tracking
@@ -544,6 +545,7 @@ export default function HomeScreen() {
     LocationService.stopTracking();
     setIsTracking(false);
     saveTrackingState(false);
+    NotificationService.stopForegroundService().catch(console.error);
   };
 
   // Handle encounter fight - opens combat modal
