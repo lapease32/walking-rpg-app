@@ -1,4 +1,5 @@
 jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
   default: {
     getItem: jest.fn(),
     setItem: jest.fn(),
@@ -7,7 +8,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-import { isValidPlayerData, isValidEncounterData } from '../../utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isValidPlayerData, isValidEncounterData, saveTrackingState, loadTrackingState } from '../../utils/storage';
+
+const mockSetItem = AsyncStorage.setItem as jest.Mock;
+const mockGetItem = AsyncStorage.getItem as jest.Mock;
 
 const validPlayerData = () => ({
   id: 'player1',
@@ -120,5 +125,65 @@ describe('isValidEncounterData', () => {
     const data = validEncounterData();
     delete (data as any).playerLevel;
     expect(isValidEncounterData(data)).toBe(false);
+  });
+});
+
+describe('saveTrackingState', () => {
+  beforeEach(() => {
+    mockSetItem.mockReset();
+    mockGetItem.mockReset();
+  });
+
+  it('calls AsyncStorage.setItem with true', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    const result = await saveTrackingState(true);
+    expect(result).toBe(true);
+    expect(mockSetItem).toHaveBeenCalledWith(
+      '@walking_rpg:tracking_state',
+      'true',
+    );
+  });
+
+  it('calls AsyncStorage.setItem with false', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    const result = await saveTrackingState(false);
+    expect(result).toBe(true);
+    expect(mockSetItem).toHaveBeenCalledWith(
+      '@walking_rpg:tracking_state',
+      'false',
+    );
+  });
+
+  it('returns false when AsyncStorage throws', async () => {
+    mockSetItem.mockRejectedValue(new Error('storage error'));
+    const result = await saveTrackingState(true);
+    expect(result).toBe(false);
+  });
+});
+
+describe('loadTrackingState', () => {
+  beforeEach(() => {
+    mockSetItem.mockReset();
+    mockGetItem.mockReset();
+  });
+
+  it('returns true when stored value is true', async () => {
+    mockGetItem.mockResolvedValue('true');
+    expect(await loadTrackingState()).toBe(true);
+  });
+
+  it('returns false when stored value is false', async () => {
+    mockGetItem.mockResolvedValue('false');
+    expect(await loadTrackingState()).toBe(false);
+  });
+
+  it('returns false when no value is stored', async () => {
+    mockGetItem.mockResolvedValue(null);
+    expect(await loadTrackingState()).toBe(false);
+  });
+
+  it('returns false when AsyncStorage throws', async () => {
+    mockGetItem.mockRejectedValue(new Error('storage error'));
+    expect(await loadTrackingState()).toBe(false);
   });
 });

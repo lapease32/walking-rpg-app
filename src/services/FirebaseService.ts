@@ -36,7 +36,7 @@ class FirebaseService {
       // Wait for native Firebase to auto-initialize from GoogleService-Info.plist / google-services.json
       let retries = 10;
       while (!firebase.apps.length && retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
         retries--;
       }
 

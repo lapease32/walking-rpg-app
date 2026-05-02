@@ -1,7 +1,20 @@
 import { EncounterService } from '../../services/EncounterService';
+import type { DistanceData } from '../../services/LocationService';
 
 const makeLocation = () => ({ latitude: 37.7749, longitude: -122.4194 });
-const makeDistanceData = (incremental: number) => ({ incremental, total: incremental });
+const makeDistanceData = (incremental: number): DistanceData => ({
+  incremental,
+  total: incremental,
+  location: {
+    latitude: 37.7749,
+    longitude: -122.4194,
+    accuracy: 10,
+    altitude: null,
+    heading: null,
+    speed: 0,
+    timestamp: Date.now(),
+  },
+});
 
 describe('EncounterService', () => {
   let service: EncounterService;

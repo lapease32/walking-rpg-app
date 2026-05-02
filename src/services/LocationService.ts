@@ -46,11 +46,20 @@ class LocationService {
   private onLocationUpdate: LocationUpdateCallback | null = null;
   private onDistanceUpdate: DistanceUpdateCallback | null = null;
   private isTracking: boolean = false;
-  private config = {
+  private readonly getCurrentPositionConfig = {
     enableHighAccuracy: true,
     timeout: 15000,
     maximumAge: 10000,
+  };
+
+  private readonly watchConfig = {
+    enableHighAccuracy: true,
     distanceFilter: 5, // Minimum distance (in meters) to trigger update
+    // iOS: show the blue status-bar pill while backgrounded (required for background mode UX)
+    showsBackgroundLocationIndicator: true,
+    // Android: poll every 5 s; allow bursts down to 2 s when movement is detected
+    interval: 5000,
+    fastestInterval: 2000,
   };
 
   /**
@@ -94,7 +103,7 @@ class LocationService {
         (error: GeolocationError) => {
           reject(error);
         },
-        this.config,
+        this.getCurrentPositionConfig,
       );
     });
   }
@@ -176,7 +185,6 @@ class LocationService {
       },
       (error: GeolocationError) => {
         console.error('Location tracking error:', error);
-        // Handle different error codes
         if (error.code === 1) {
           console.error('Location permission denied');
         } else if (error.code === 2) {
@@ -185,7 +193,7 @@ class LocationService {
           console.error('Location request timeout');
         }
       },
-      this.config,
+      this.watchConfig,
     );
   }
 

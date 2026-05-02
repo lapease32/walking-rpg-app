@@ -110,7 +110,7 @@ class CrashlyticsService {
       console.warn('Crashlytics collection enabled, crashing now...');
 
       // Small delay to ensure the setting is applied
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
 
       // Force the crash
       crashlytics().crash();
