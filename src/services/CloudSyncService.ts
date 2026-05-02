@@ -28,11 +28,17 @@ class CloudSyncService {
     if (!this.user) {
       return;
     }
+    const docRef = firestore().collection('players').doc(this.user.uid);
     try {
-      await firestore()
-        .collection('players')
-        .doc(this.user.uid)
-        .set({ playerData, lastSavedAt });
+      await firestore().runTransaction(async transaction => {
+        const doc = await transaction.get(docRef);
+        const existing = doc.data() as { lastSavedAt?: number } | undefined;
+        // Only write if this save is strictly newer than what's in Firestore,
+        // preventing out-of-order fire-and-forget writes from overwriting newer data
+        if (!existing || (existing.lastSavedAt ?? 0) < lastSavedAt) {
+          transaction.set(docRef, { playerData, lastSavedAt });
+        }
+      });
     } catch (error) {
       console.error('CloudSyncService: failed to save player data:', error);
       // Non-fatal — local save already succeeded
