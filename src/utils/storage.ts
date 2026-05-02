@@ -217,6 +217,7 @@ export async function clearAllData(): Promise<boolean> {
       STORAGE_KEYS.PLAYER_DATA,
       STORAGE_KEYS.SETTINGS,
       STORAGE_KEYS.PENDING_ENCOUNTER,
+      STORAGE_KEYS.TRACKING_STATE,
     ]);
     return true;
   } catch (error) {
