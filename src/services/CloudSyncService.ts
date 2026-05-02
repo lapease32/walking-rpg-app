@@ -28,8 +28,8 @@ class CloudSyncService {
     if (!this.user) {
       return;
     }
-    const docRef = firestore().collection('players').doc(this.user.uid);
     try {
+      const docRef = firestore().collection('players').doc(this.user.uid);
       await firestore().runTransaction(async transaction => {
         const doc = await transaction.get(docRef);
         const existing = doc.data() as { lastSavedAt?: number } | undefined;
