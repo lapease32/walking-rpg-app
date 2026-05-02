@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Location-based RPG app with random creature encounters while walking",
   "main": "index.ts",
+  "packageManager": "yarn@1.22.22",
   "scripts": {
     "start": "react-native start",
     "android": "react-native run-android",
