@@ -240,6 +240,7 @@ export async function clearAllData(): Promise<boolean> {
   try {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.PLAYER_DATA,
+      STORAGE_KEYS.PLAYER_SAVED_AT,
       STORAGE_KEYS.SETTINGS,
       STORAGE_KEYS.PENDING_ENCOUNTER,
       STORAGE_KEYS.TRACKING_STATE,
