@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   PLAYER_DATA: '@walking_rpg:player_data',
   SETTINGS: '@walking_rpg:settings',
   PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
+  TRACKING_STATE: '@walking_rpg:tracking_state',
 } as const;
 
 export interface AppSettings {
@@ -175,6 +176,34 @@ export async function clearPendingEncounter(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Error clearing pending encounter:', error);
+    return false;
+  }
+}
+
+/**
+ * Save whether location tracking was active when the app was last running.
+ * Used to auto-resume tracking after an OS-kill/restart.
+ */
+export async function saveTrackingState(isTracking: boolean): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.TRACKING_STATE, JSON.stringify(isTracking));
+    return true;
+  } catch (error) {
+    console.error('Error saving tracking state:', error);
+    return false;
+  }
+}
+
+/**
+ * Load whether location tracking was active in the previous session.
+ * Returns false if no state was saved or on error.
+ */
+export async function loadTrackingState(): Promise<boolean> {
+  try {
+    const value = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_STATE);
+    return value !== null ? (JSON.parse(value) as boolean) : false;
+  } catch (error) {
+    console.error('Error loading tracking state:', error);
     return false;
   }
 }

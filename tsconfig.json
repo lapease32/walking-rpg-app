@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "commonjs",
-    "lib": ["es2017"],
+    "lib": ["es2017", "es2018"],
     "allowJs": true,
     "jsx": "react-native",
     "noEmit": true,
@@ -17,7 +17,8 @@
     "baseUrl": ".",
     "paths": {
       "*": ["*", "src/*"]
-    }
+    },
+    "types": ["jest"]
   },
   "include": [
     "src/**/*",

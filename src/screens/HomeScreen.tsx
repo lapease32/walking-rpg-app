@@ -26,6 +26,8 @@ import {
   loadPendingEncounter,
   clearPendingEncounter,
   savePendingEncounter,
+  saveTrackingState,
+  loadTrackingState,
   EncounterData,
 } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
@@ -99,11 +101,24 @@ export default function HomeScreen() {
     setAppState(nextAppState);
   }, []);
 
+  // Resume tracking if the OS killed the app while tracking was active
+  const initializeTracking = async (): Promise<void> => {
+    try {
+      const wasTracking = await loadTrackingState();
+      if (wasTracking) {
+        startTracking();
+      }
+    } catch (error) {
+      console.error('Error resuming tracking state:', error);
+    }
+  };
+
   // Load player data and initialize notifications on mount
   useEffect(() => {
     initializePlayer();
     initializeNotifications();
     checkPendingEncounter();
+    initializeTracking();
   }, []);
 
   // Set up foreground notification event handler with proper cleanup
@@ -521,12 +536,14 @@ export default function HomeScreen() {
   const startTracking = (): void => {
     LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
     setIsTracking(true);
+    saveTrackingState(true);
   };
 
   // Stop tracking
   const stopTracking = (): void => {
     LocationService.stopTracking();
     setIsTracking(false);
+    saveTrackingState(false);
   };
 
   // Handle encounter fight - opens combat modal
@@ -1052,7 +1069,7 @@ export default function HomeScreen() {
               CrashlyticsService.log('User initiated test crash from debug menu');
 
               // Small delay to ensure everything is set
-              await new Promise(resolve => setTimeout(resolve, 200));
+              await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
 
               // Force the crash
               await CrashlyticsService.crash();
