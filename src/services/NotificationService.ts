@@ -43,6 +43,7 @@ class NotificationService {
     }
     try {
       await notifee.displayNotification({
+        id: 'location_tracking_service',
         title: 'Walking RPG',
         body: 'Tracking your location for encounters',
         android: {
