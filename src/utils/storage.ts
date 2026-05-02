@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerData } from '../models/Player';
 import { CreatureConstructorParams } from '../models/Creature';
 import { Location, EncounterStatus, ENCOUNTER_STATUSES } from '../models/Encounter';
+import CloudSyncService from '../services/CloudSyncService';
 
 /**
  * Storage utilities for persisting player data
@@ -28,13 +29,12 @@ export interface EncounterData {
   status: EncounterStatus;
 }
 
-/**
- * Save player data to local storage
- */
 export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<boolean> {
   try {
-    const jsonData = JSON.stringify(player.toJSON());
-    await AsyncStorage.setItem(STORAGE_KEYS.PLAYER_DATA, jsonData);
+    const playerData = player.toJSON();
+    await AsyncStorage.setItem(STORAGE_KEYS.PLAYER_DATA, JSON.stringify(playerData));
+    // Fire-and-forget cloud sync — local save already succeeded
+    CloudSyncService.savePlayerData(playerData);
     return true;
   } catch (error) {
     console.error('Error saving player data:', error);
@@ -63,10 +63,16 @@ export function isValidPlayerData(data: unknown): data is PlayerData {
   );
 }
 
-/**
- * Load player data from local storage
- */
 export async function loadPlayerData(): Promise<PlayerData | null> {
+  // Prefer cloud data — it may be more recent (e.g. from another device)
+  const cloudData = await CloudSyncService.loadPlayerData();
+  if (cloudData !== null && isValidPlayerData(cloudData)) {
+    // Keep local cache in sync
+    AsyncStorage.setItem(STORAGE_KEYS.PLAYER_DATA, JSON.stringify(cloudData)).catch(console.error);
+    return cloudData;
+  }
+
+  // Fall back to local AsyncStorage (offline or first install)
   try {
     const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.PLAYER_DATA);
     if (jsonData) {
