@@ -2,12 +2,16 @@ import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { PlayerData } from '../models/Player';
 
+export interface CloudPlayerRecord {
+  playerData: PlayerData;
+  lastSavedAt: number;
+}
+
 class CloudSyncService {
   private user: FirebaseAuthTypes.User | null = null;
 
   async initialize(): Promise<void> {
     try {
-      // Reuse existing anonymous session or create one
       if (auth().currentUser) {
         this.user = auth().currentUser;
       } else {
@@ -20,11 +24,7 @@ class CloudSyncService {
     }
   }
 
-  get uid(): string | null {
-    return this.user?.uid ?? null;
-  }
-
-  async savePlayerData(playerData: PlayerData): Promise<void> {
+  async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
     if (!this.user) {
       return;
     }
@@ -32,14 +32,14 @@ class CloudSyncService {
       await firestore()
         .collection('players')
         .doc(this.user.uid)
-        .set({ ...playerData, updatedAt: firestore.FieldValue.serverTimestamp() });
+        .set({ playerData, lastSavedAt });
     } catch (error) {
       console.error('CloudSyncService: failed to save player data:', error);
       // Non-fatal — local save already succeeded
     }
   }
 
-  async loadPlayerData(): Promise<PlayerData | null> {
+  async loadPlayerData(): Promise<CloudPlayerRecord | null> {
     if (!this.user) {
       return null;
     }
@@ -51,21 +51,15 @@ class CloudSyncService {
       if (!doc.exists) {
         return null;
       }
-      const data = doc.data();
-      if (!data) {
+      const data = doc.data() as { playerData: PlayerData; lastSavedAt: number } | undefined;
+      if (!data?.playerData) {
         return null;
       }
-      // Strip server-side fields before returning as PlayerData
-      const { updatedAt: _updatedAt, ...playerData } = data;
-      return playerData as PlayerData;
+      return { playerData: data.playerData, lastSavedAt: data.lastSavedAt };
     } catch (error) {
       console.error('CloudSyncService: failed to load player data:', error);
       return null;
     }
-  }
-
-  isAuthenticated(): boolean {
-    return this.user !== null;
   }
 }
 
