@@ -15,9 +15,9 @@
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^1.19.3",
     "@react-native-firebase/app": "^24.0.0",
-    "@react-native-firebase/app-distribution": "^18.0.0",
+    "@react-native-firebase/app-distribution": "^24.0.0",
     "@react-native-firebase/auth": "^24.0.0",
-    "@react-native-firebase/crashlytics": "^18.0.0",
+    "@react-native-firebase/crashlytics": "^24.0.0",
     "@react-native-firebase/firestore": "^24.0.0",
     "react": "18.2.0",
     "react-native": "0.72.6",
@@ -28,8 +28,8 @@
     "@babel/core": "^7.20.0",
     "@babel/preset-env": "^7.20.0",
     "@babel/runtime": "^7.20.0",
-    "@react-native-community/cli": "^11.3.9",
-    "@react-native-community/cli-platform-ios": "^11.3.9",
+    "@react-native-community/cli": "^11.4.1",
+    "@react-native-community/cli-platform-ios": "^11.4.1",
     "@react-native/eslint-config": "^0.72.2",
     "@react-native/metro-config": "^0.72.11",
     "@tsconfig/react-native": "^3.0.0",
@@ -38,7 +38,7 @@
     "@types/react-test-renderer": "^18.0.0",
     "babel-jest": "^29.2.1",
     "eslint": "^8.19.0",
-    "firebase-tools": "^13.35.1",
+    "firebase-tools": "^15.16.0",
     "jest": "^29.2.1",
     "metro": "^0.76.8",
     "metro-cache-key": "^0.76.8",
@@ -55,6 +55,8 @@
   "resolutions": {
     "metro": "^0.76.8",
     "metro-cache-key": "^0.76.8",
-    "ip": "^1.1.9"
+    "ip": "^1.1.9",
+    "protobufjs": "^7.5.5",
+    "yaml": "^2.8.3"
   }
 }
