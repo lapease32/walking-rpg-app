@@ -2,12 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerData } from '../models/Player';
 import { CreatureConstructorParams } from '../models/Creature';
 import { Location, EncounterStatus, ENCOUNTER_STATUSES } from '../models/Encounter';
+import CloudSyncService from '../services/CloudSyncService';
 
 /**
  * Storage utilities for persisting player data
  */
 const STORAGE_KEYS = {
   PLAYER_DATA: '@walking_rpg:player_data',
+  PLAYER_SAVED_AT: '@walking_rpg:player_saved_at',
   SETTINGS: '@walking_rpg:settings',
   PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
   TRACKING_STATE: '@walking_rpg:tracking_state',
@@ -28,13 +30,16 @@ export interface EncounterData {
   status: EncounterStatus;
 }
 
-/**
- * Save player data to local storage
- */
 export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<boolean> {
   try {
-    const jsonData = JSON.stringify(player.toJSON());
-    await AsyncStorage.setItem(STORAGE_KEYS.PLAYER_DATA, jsonData);
+    const playerData = player.toJSON();
+    const savedAt = Date.now();
+    await AsyncStorage.multiSet([
+      [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(playerData)],
+      [STORAGE_KEYS.PLAYER_SAVED_AT, String(savedAt)],
+    ]);
+    // Fire-and-forget cloud sync — local save already succeeded
+    CloudSyncService.savePlayerData(playerData, savedAt);
     return true;
   } catch (error) {
     console.error('Error saving player data:', error);
@@ -63,26 +68,46 @@ export function isValidPlayerData(data: unknown): data is PlayerData {
   );
 }
 
-/**
- * Load player data from local storage
- */
 export async function loadPlayerData(): Promise<PlayerData | null> {
-  try {
-    const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.PLAYER_DATA);
-    if (jsonData) {
-      const parsed: unknown = JSON.parse(jsonData);
+  // Load local data and its timestamp in parallel with the cloud fetch
+  const [cloudRecord, localResult] = await Promise.all([
+    CloudSyncService.loadPlayerData(),
+    AsyncStorage.multiGet([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]).catch(
+      () => null,
+    ),
+  ]);
+
+  const localJson = localResult?.[0]?.[1] ?? null;
+  const localSavedAt = Number(localResult?.[1]?.[1] ?? 0);
+
+  // Use cloud data only when it is strictly newer than what we have locally
+  if (cloudRecord !== null && isValidPlayerData(cloudRecord.playerData)) {
+    if (cloudRecord.lastSavedAt > localSavedAt) {
+      AsyncStorage.multiSet([
+        [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(cloudRecord.playerData)],
+        [STORAGE_KEYS.PLAYER_SAVED_AT, String(cloudRecord.lastSavedAt)],
+      ]).catch(console.error);
+      return cloudRecord.playerData;
+    }
+  }
+
+  // Local data is at least as fresh — use it
+  if (localJson) {
+    try {
+      const parsed: unknown = JSON.parse(localJson);
       if (!isValidPlayerData(parsed)) {
         console.error('Corrupted player data in storage, resetting to new player');
-        await AsyncStorage.removeItem(STORAGE_KEYS.PLAYER_DATA);
+        await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
         return null;
       }
       return parsed;
+    } catch (error) {
+      console.error('Error loading player data:', error);
+      return null;
     }
-    return null;
-  } catch (error) {
-    console.error('Error loading player data:', error);
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -215,6 +240,7 @@ export async function clearAllData(): Promise<boolean> {
   try {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.PLAYER_DATA,
+      STORAGE_KEYS.PLAYER_SAVED_AT,
       STORAGE_KEYS.SETTINGS,
       STORAGE_KEYS.PENDING_ENCOUNTER,
       STORAGE_KEYS.TRACKING_STATE,

@@ -14,6 +14,7 @@ import {
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
+import CloudSyncService from '../services/CloudSyncService';
 import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
@@ -115,8 +116,12 @@ export default function HomeScreen() {
 
   // Load player data and initialize notifications on mount
   useEffect(() => {
-    initializePlayer();
     checkPendingEncounter();
+    // Auth must be ready before loadPlayerData so cloud data is available on first load
+    (async () => {
+      await CloudSyncService.initialize();
+      await initializePlayer();
+    })();
     // initializeTracking must await initializeNotifications so the tracking
     // channel exists before startForegroundService can be called on cold-start resume
     (async () => {
