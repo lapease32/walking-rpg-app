@@ -50,7 +50,7 @@
     "typescript": "5.0.4"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "resolutions": {
     "metro": "^0.76.8",
