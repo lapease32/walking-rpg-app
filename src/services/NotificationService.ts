@@ -2,17 +2,10 @@ import notifee, { AndroidImportance, NotificationSettings } from '@notifee/react
 import { Platform } from 'react-native';
 import { Encounter } from '../models/Encounter';
 
-/**
- * Notification Service
- * Handles local notifications for background encounters
- */
 class NotificationService {
   private channelId: string = 'encounter_channel';
+  private trackingChannelId: string = 'tracking_channel';
 
-  /**
-   * Initialize notification service
-   * Creates notification channel for Android
-   */
   async initialize(): Promise<void> {
     if (Platform.OS === 'android') {
       await notifee.createChannel({
@@ -23,25 +16,62 @@ class NotificationService {
         sound: 'default',
         vibration: true,
       });
+      await notifee.createChannel({
+        id: this.trackingChannelId,
+        name: 'Location Tracking',
+        description: 'Persistent notification while location tracking is active',
+        importance: AndroidImportance.LOW,
+        sound: undefined,
+        vibration: false,
+      });
     }
   }
 
-  /**
-   * Request notification permissions
-   */
   async requestPermissions(): Promise<boolean> {
     try {
       const settings = await notifee.requestPermission();
-      return settings.authorizationStatus >= 1; // Authorized or Provisional
+      return settings.authorizationStatus >= 1;
     } catch (error) {
       console.error('Error requesting notification permissions:', error);
       return false;
     }
   }
 
-  /**
-   * Show notification for a new encounter
-   */
+  async startForegroundService(): Promise<void> {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    try {
+      await notifee.displayNotification({
+        id: 'location_tracking_service',
+        title: 'Walking RPG',
+        body: 'Tracking your location for encounters',
+        android: {
+          channelId: this.trackingChannelId,
+          asForegroundService: true,
+          ongoing: true,
+          pressAction: {
+            id: 'default',
+            launchActivity: 'default',
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Error starting foreground service:', error);
+    }
+  }
+
+  async stopForegroundService(): Promise<void> {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    try {
+      await notifee.stopForegroundService();
+    } catch (error) {
+      console.error('Error stopping foreground service:', error);
+    }
+  }
+
   async showEncounterNotification(encounter: Encounter): Promise<string> {
     const creature = encounter.creature;
     const title = '🎮 Creature Encounter!';
@@ -82,9 +112,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Cancel a specific notification
-   */
   async cancelNotification(notificationId: string): Promise<void> {
     try {
       await notifee.cancelNotification(notificationId);
@@ -93,9 +120,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Cancel all notifications
-   */
   async cancelAllNotifications(): Promise<void> {
     try {
       await notifee.cancelAllNotifications();
@@ -104,9 +128,6 @@ class NotificationService {
     }
   }
 
-  /**
-   * Get notification settings
-   */
   async getSettings(): Promise<NotificationSettings | null> {
     try {
       return await notifee.getNotificationSettings();
@@ -117,5 +138,4 @@ class NotificationService {
   }
 }
 
-// Export singleton instance
 export default new NotificationService();

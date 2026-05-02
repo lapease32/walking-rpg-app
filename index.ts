@@ -14,5 +14,10 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   }
 });
 
+// Required by notifee before any foreground service notification is displayed.
+// The runner promise is kept pending — service lifetime is managed explicitly
+// via NotificationService.stopForegroundService().
+notifee.registerForegroundService(() => new Promise(() => {}));
+
 AppRegistry.registerComponent(appName, () => App);
 

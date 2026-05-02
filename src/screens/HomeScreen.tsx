@@ -116,9 +116,13 @@ export default function HomeScreen() {
   // Load player data and initialize notifications on mount
   useEffect(() => {
     initializePlayer();
-    initializeNotifications();
     checkPendingEncounter();
-    initializeTracking();
+    // initializeTracking must await initializeNotifications so the tracking
+    // channel exists before startForegroundService can be called on cold-start resume
+    (async () => {
+      await initializeNotifications();
+      await initializeTracking();
+    })();
   }, []);
 
   // Set up foreground notification event handler with proper cleanup
@@ -537,6 +541,7 @@ export default function HomeScreen() {
     LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
     setIsTracking(true);
     saveTrackingState(true);
+    NotificationService.startForegroundService().catch(console.error);
   };
 
   // Stop tracking
@@ -544,6 +549,7 @@ export default function HomeScreen() {
     LocationService.stopTracking();
     setIsTracking(false);
     saveTrackingState(false);
+    NotificationService.stopForegroundService().catch(console.error);
   };
 
   // Handle encounter fight - opens combat modal
