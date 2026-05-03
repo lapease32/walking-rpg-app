@@ -6,6 +6,19 @@ updates:
       interval: 'weekly'
       day: 'monday'
     open-pull-requests-limit: 10
+    ignore:
+      # RN ecosystem major bumps must be done as a deliberate migration (RN 0.74+ upgrade)
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native-async-storage/async-storage'
+        update-types: ['version-update:semver-major']
+      # Prettier 3 requires reformatting all files — defer until planned
+      - dependency-name: 'prettier'
+        update-types: ['version-update:semver-major']
     groups:
       react-native-firebase:
         patterns:
