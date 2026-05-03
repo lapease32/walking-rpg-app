@@ -58,6 +58,11 @@
     "metro-cache-key": "^0.76.8",
     "ip": "^1.1.9",
     "protobufjs": "^7.5.5",
-    "yaml": "^2.8.3"
+    "yaml": "^2.8.3",
+    "lodash": "^4.18.0",
+    "qs": "^6.14.2",
+    "basic-ftp": "^5.2.2",
+    "flatted": "^3.4.2",
+    "picomatch": "^4.0.4"
   }
 }
