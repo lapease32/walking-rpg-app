@@ -7812,10 +7812,12 @@ metro-babel-transformer@0.84.4:
     metro-cache-key "0.84.4"
     nullthrows "^1.1.1"
 
-metro-cache-key@0.84.4, metro-cache-key@^0.76.8:
-  version "0.76.9"
-  resolved "https://registry.npmjs.org/metro-cache-key/-/metro-cache-key-0.76.9.tgz"
-  integrity sha512-ugJuYBLngHVh1t2Jj+uP9pSCQl7enzVXkuh6+N3l0FETfqjgOaSHlcnIhMPn6yueGsjmkiIfxQU4fyFVXRtSTw==
+metro-cache-key@0.84.4, metro-cache-key@^0.84.4:
+  version "0.84.4"
+  resolved "https://registry.yarnpkg.com/metro-cache-key/-/metro-cache-key-0.84.4.tgz#52059d32da68ef2e06d5a3d4770defdc6d8bad77"
+  integrity sha512-wVO79aGrkYImpnaVS4+d5RrRBRPX31QtvKB3wKGBuiNSznduZTQHzsrJZRroFJSwnygrzdsGUtDQPuqqFjFdvw==
+  dependencies:
+    flow-enums-runtime "^0.0.6"
 
 metro-cache@0.76.8:
   version "0.76.8"
