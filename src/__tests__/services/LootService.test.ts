@@ -1,5 +1,6 @@
 import { shouldDropItem, selectRandomItem, dropItem } from '../../services/LootService';
 import { ALL_ITEMS } from '../../models/items';
+import { LOOT_CONFIG } from '../../constants/config';
 
 describe('LootService', () => {
   afterEach(() => {
@@ -18,7 +19,7 @@ describe('LootService', () => {
     });
 
     it('returns false at exactly the threshold boundary', () => {
-      jest.spyOn(Math, 'random').mockReturnValue(0.3); // not < 0.3
+      jest.spyOn(Math, 'random').mockReturnValue(LOOT_CONFIG.BASE_DROP_CHANCE); // not < threshold
       expect(shouldDropItem()).toBe(false);
     });
   });

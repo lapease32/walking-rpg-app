@@ -62,11 +62,8 @@ export function createEmptyEquipment(): Equipment {
   };
 }
 
-/**
- * Create an empty inventory with 50 slots (all set to null)
- */
 export function createEmptyInventory(): (Item | null)[] {
-  return new Array(50).fill(null);
+  return new Array(PLAYER_CONFIG.MAX_INVENTORY_SIZE).fill(null);
 }
 
 export interface PlayerData {
@@ -175,20 +172,17 @@ export class Player {
     } else {
       this.equipment = createEmptyEquipment();
     }
-    // Initialize inventory with exactly 50 slots
-    // Validate and normalize inventory to ensure it has exactly 50 slots
     // Always create a copy to avoid shared references between Player instances
-    if (inventory && Array.isArray(inventory) && inventory.length === 50) {
+    const maxSlots = PLAYER_CONFIG.MAX_INVENTORY_SIZE;
+    if (inventory && Array.isArray(inventory) && inventory.length === maxSlots) {
       this.inventory = [...inventory];
     } else {
-      // Create new 50-slot inventory, or pad/truncate existing one if provided
       if (inventory && Array.isArray(inventory)) {
-        // Normalize to 50 slots: pad with null if shorter, truncate if longer
         const normalized = [...inventory];
-        while (normalized.length < 50) {
+        while (normalized.length < maxSlots) {
           normalized.push(null);
         }
-        this.inventory = normalized.slice(0, 50);
+        this.inventory = normalized.slice(0, maxSlots);
       } else {
         this.inventory = createEmptyInventory();
       }
