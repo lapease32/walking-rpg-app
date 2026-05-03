@@ -39,7 +39,7 @@
     "@types/jest": "^30.0.0",
     "@types/react": "^18.0.24",
     "@types/react-test-renderer": "^18.0.0",
-    "babel-jest": "^29.2.1",
+    "babel-jest": "^30.3.0",
     "eslint": "^8.19.0",
     "firebase-tools": "^15.16.0",
     "jest": "^30.3.0",
