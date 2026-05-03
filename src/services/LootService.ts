@@ -5,14 +5,7 @@
 
 import { Item } from '../models/Item';
 import { ALL_ITEMS } from '../models/items';
-
-/**
- * Configuration for loot drops
- */
-const LOOT_CONFIG = {
-  // Base chance that a creature will drop an item (0.0 to 1.0)
-  BASE_DROP_CHANCE: 0.3, // 30% chance to drop an item
-} as const;
+import { LOOT_CONFIG } from '../constants/config';
 
 /**
  * Calculate if a creature should drop an item

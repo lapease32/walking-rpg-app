@@ -47,6 +47,9 @@ export const PLAYER_CONFIG = {
   // Experience calculation
   BASE_EXPERIENCE_MULTIPLIER: 100,
   EXPERIENCE_POWER: 1.5,
+
+  // Maximum number of item slots in the player's inventory
+  MAX_INVENTORY_SIZE: 50,
 } as const;
 
 import { Rarity } from '../models/Creature';
@@ -58,6 +61,67 @@ export const CREATURE_RARITY_WEIGHTS: Record<Rarity, number> = {
   epic: 4,
   legendary: 1,
 };
+
+// Probability weights for item drops — skewed slightly more generous than creature rarity
+export const ITEM_RARITY_WEIGHTS: Record<Rarity, number> = {
+  common: 55,
+  uncommon: 28,
+  rare: 12,
+  epic: 4,
+  legendary: 1,
+};
+
+// Stat multipliers applied to base item stats per rarity tier
+export const ITEM_RARITY_STAT_MULTIPLIERS: Record<Rarity, number> = {
+  common: 1.0,
+  uncommon: 1.3,
+  rare: 1.7,
+  epic: 2.3,
+  legendary: 3.2,
+};
+
+export const LOOT_CONFIG = {
+  // Base probability of any loot dropping from an idle auto-combat win
+  BASE_DROP_CHANCE: 0.4,
+
+  // Additional drop chance when player wins via active (manual) combat
+  ACTIVE_COMBAT_DROP_CHANCE_BONUS: 0.2,
+
+  // How much better item stat rolls are when earned through active combat
+  ACTIVE_COMBAT_LOOT_MULTIPLIER: 2.0,
+
+  // Maximum number of items that can drop from a single encounter
+  MAX_DROPS_PER_ENCOUNTER: 2,
+
+  // Proportional variance applied to item stat rolls (e.g. 0.15 = ±15%)
+  ITEM_STAT_VARIANCE: 0.15,
+} as const;
+
+export const COMBAT_CONFIG = {
+  // Probability that auto-combat (idle) wins an encounter at even level
+  AUTO_COMBAT_BASE_WIN_RATE: 0.75,
+
+  // XP multiplier for winning via active (manual) combat vs idle
+  ACTIVE_COMBAT_XP_MULTIPLIER: 1.5,
+
+  // XP earned from a loss (partial credit for attempting the encounter)
+  LOSS_XP_FRACTION: 0.25,
+} as const;
+
+// Each zone is this many km from the player's session start point.
+// Enemies and loot quality scale with the zone the player is currently in.
+export const WORLD_CONFIG = {
+  ZONE_SIZE_KM: 1.0,
+
+  // Flat enemy level bonus added per zone beyond zone 0
+  ZONE_ENEMY_LEVEL_BONUS: 2,
+
+  // Additive loot quality bonus per zone (e.g. 0.1 = +10% per zone)
+  ZONE_LOOT_QUALITY_BONUS: 0.1,
+
+  // Hard cap on zone scaling — prevents infinite difficulty for ultra-long walks
+  MAX_ZONE: 10,
+} as const;
 
 export const WALKING_SPEED = {
   MIN_KMH: 3, // Minimum speed to be considered walking
