@@ -2929,10 +2929,10 @@
   resolved "https://registry.yarnpkg.com/@tsconfig/node16/-/node16-1.0.4.tgz#0b92dcc0cc1c81f6f306a381f28e31b1a56536e9"
   integrity sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==
 
-"@tsconfig/react-native@^3.0.0":
-  version "3.0.8"
-  resolved "https://registry.npmjs.org/@tsconfig/react-native/-/react-native-3.0.8.tgz"
-  integrity sha512-UYj/xmU3JizeDj6E4pdGCFNlLCB7WdMg0Yyxnma4W3UNcKwJUtdBJ8BR8azwdLlOy2iKszl59nt4mWn/pS+bqQ==
+"@tsconfig/react-native@^3.0.9":
+  version "3.0.9"
+  resolved "https://registry.yarnpkg.com/@tsconfig/react-native/-/react-native-3.0.9.tgz#fc4eb859a47a52e58e5cff990a054ed4557d2de1"
+  integrity sha512-+PuvMuxb0OTHo/o04vEQI7LfUoiPH33pePvAH+qxf5ZPsRAVwtespj7LqysOTAYcsmRvjLPjik7V8pIcm84dEQ==
 
 "@types/babel__core@^7.1.14":
   version "7.20.5"
