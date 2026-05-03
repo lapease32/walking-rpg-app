@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 10
+    groups:
+      react-native-firebase:
+        patterns:
+          - '@react-native-firebase/*'
+      react-native-ecosystem:
+        patterns:
+          - 'react-native'
+          - 'react'
+          - '@react-native/*'
+          - '@react-native-community/*'
+          - 'react-native-*'
+      babel:
+        patterns:
+          - '@babel/*'
+      types:
+        patterns:
+          - '@types/*'
+      testing:
+        patterns:
+          - 'jest'
+          - 'jest-*'
+          - '@jest/*'
+          - 'ts-jest'
