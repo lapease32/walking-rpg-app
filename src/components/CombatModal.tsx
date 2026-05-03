@@ -168,8 +168,8 @@ export default function CombatModal({
                       creature.maxHp > 0 && creature.hp / creature.maxHp > 0.5
                         ? '#4CAF50'
                         : creature.maxHp > 0 && creature.hp / creature.maxHp > 0.25
-                        ? '#FF9800'
-                        : '#F44336',
+                          ? '#FF9800'
+                          : '#F44336',
                   },
                 ]}
               />
@@ -204,8 +204,8 @@ export default function CombatModal({
                       player.maxHp > 0 && player.hp / player.maxHp > 0.5
                         ? '#4CAF50'
                         : player.maxHp > 0 && player.hp / player.maxHp > 0.25
-                        ? '#FF9800'
-                        : '#F44336',
+                          ? '#FF9800'
+                          : '#F44336',
                   },
                 ]}
               />
