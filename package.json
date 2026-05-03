@@ -9,6 +9,8 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "test": "jest",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "postinstall": "patch-package",
     "firebase": "firebase"
   },

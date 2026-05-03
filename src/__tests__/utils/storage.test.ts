@@ -9,7 +9,12 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isValidPlayerData, isValidEncounterData, saveTrackingState, loadTrackingState } from '../../utils/storage';
+import {
+  isValidPlayerData,
+  isValidEncounterData,
+  saveTrackingState,
+  loadTrackingState,
+} from '../../utils/storage';
 
 const mockSetItem = AsyncStorage.setItem as jest.Mock;
 const mockGetItem = AsyncStorage.getItem as jest.Mock;
@@ -28,7 +33,15 @@ const validPlayerData = () => ({
 });
 
 const validEncounterData = () => ({
-  creature: { id: 'test', name: 'Test', type: 'Nature', maxHp: 50, attack: 15, defense: 5, speed: 20 },
+  creature: {
+    id: 'test',
+    name: 'Test',
+    type: 'Nature',
+    maxHp: 50,
+    attack: 15,
+    defense: 5,
+    speed: 20,
+  },
   location: { latitude: 37.7, longitude: -122.4 },
   timestamp: Date.now(),
   playerLevel: 1,
@@ -138,20 +151,14 @@ describe('saveTrackingState', () => {
     mockSetItem.mockResolvedValue(undefined);
     const result = await saveTrackingState(true);
     expect(result).toBe(true);
-    expect(mockSetItem).toHaveBeenCalledWith(
-      '@walking_rpg:tracking_state',
-      'true',
-    );
+    expect(mockSetItem).toHaveBeenCalledWith('@walking_rpg:tracking_state', 'true');
   });
 
   it('calls AsyncStorage.setItem with false', async () => {
     mockSetItem.mockResolvedValue(undefined);
     const result = await saveTrackingState(false);
     expect(result).toBe(true);
-    expect(mockSetItem).toHaveBeenCalledWith(
-      '@walking_rpg:tracking_state',
-      'false',
-    );
+    expect(mockSetItem).toHaveBeenCalledWith('@walking_rpg:tracking_state', 'false');
   });
 
   it('returns false when AsyncStorage throws', async () => {
