@@ -41,6 +41,7 @@
     "@types/react-test-renderer": "^18.0.0",
     "babel-jest": "^30.3.0",
     "eslint": "^8.19.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "firebase-tools": "^15.16.0",
     "jest": "^30.3.0",
     "metro": "^0.84.4",
