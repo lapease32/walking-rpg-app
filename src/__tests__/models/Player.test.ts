@@ -39,8 +39,12 @@ describe('Player', () => {
 
     it('scales stats based on level when stats not explicitly provided', () => {
       const player = new Player({ level: 3 });
-      expect(player.attack).toBe(PLAYER_CONFIG.STARTING_ATTACK + 2 * PLAYER_CONFIG.ATTACK_PER_LEVEL);
-      expect(player.defense).toBe(PLAYER_CONFIG.STARTING_DEFENSE + 2 * PLAYER_CONFIG.DEFENSE_PER_LEVEL);
+      expect(player.attack).toBe(
+        PLAYER_CONFIG.STARTING_ATTACK + 2 * PLAYER_CONFIG.ATTACK_PER_LEVEL,
+      );
+      expect(player.defense).toBe(
+        PLAYER_CONFIG.STARTING_DEFENSE + 2 * PLAYER_CONFIG.DEFENSE_PER_LEVEL,
+      );
       expect(player.maxHp).toBe(PLAYER_CONFIG.STARTING_HP + 2 * PLAYER_CONFIG.HP_PER_LEVEL);
     });
 
@@ -88,7 +92,9 @@ describe('Player', () => {
     it('grows larger at higher levels', () => {
       const level5 = new Player({ level: 5 });
       const level10 = new Player({ level: 10 });
-      expect(level10.getExperienceForNextLevel()).toBeGreaterThan(level5.getExperienceForNextLevel());
+      expect(level10.getExperienceForNextLevel()).toBeGreaterThan(
+        level5.getExperienceForNextLevel(),
+      );
     });
   });
 

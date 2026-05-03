@@ -28,7 +28,11 @@ describe('Encounter', () => {
 
     it('uses provided timestamp', () => {
       const ts = 1234567890;
-      const encounter = new Encounter({ creature: makeCreature(), location: makeLocation(), timestamp: ts });
+      const encounter = new Encounter({
+        creature: makeCreature(),
+        location: makeLocation(),
+        timestamp: ts,
+      });
       expect(encounter.timestamp).toBe(ts);
     });
 

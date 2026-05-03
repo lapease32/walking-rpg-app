@@ -50,10 +50,7 @@ class CloudSyncService {
       return null;
     }
     try {
-      const doc = await firestore()
-        .collection('players')
-        .doc(this.user.uid)
-        .get();
+      const doc = await firestore().collection('players').doc(this.user.uid).get();
       if (!doc.exists) {
         return null;
       }
