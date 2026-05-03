@@ -128,6 +128,10 @@ export default function HomeScreen() {
       await initializeNotifications();
       await initializeTracking();
     })();
+    // initializeTracking and initializePlayer are defined inside the component but are
+    // intentionally run only once on mount; adding them to deps would cause re-initialization
+    // on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Set up foreground notification event handler with proper cleanup
