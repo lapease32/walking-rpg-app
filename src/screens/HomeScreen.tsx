@@ -945,8 +945,8 @@ export default function HomeScreen() {
 
     // Move slightly (simulate walking ~10 meters)
     const newLocation: LocationData = {
-      latitude: baseLat + (Math.random() - 0.5) * 0.0001, // ~10m variation
-      longitude: baseLon + (Math.random() - 0.5) * 0.0001,
+      latitude: baseLat + (Math.random() - 0.5) * 0.0001, // ~10m variation // CodeQL[js/insecure-randomness] debug-only GPS jitter, not security-sensitive
+      longitude: baseLon + (Math.random() - 0.5) * 0.0001, // CodeQL[js/insecure-randomness] debug-only GPS jitter, not security-sensitive
       accuracy: 10,
       altitude: 0,
       heading: Math.random() * 360,
