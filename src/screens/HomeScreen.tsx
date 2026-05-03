@@ -1124,12 +1124,12 @@ export default function HomeScreen() {
   const scrollViewContentStyle = !bannerVisible
     ? undefined
     : environmentBanner.position === 'top'
-    ? Platform.OS === 'ios'
-      ? styles.scrollViewWithBetaTopIOS
-      : styles.scrollViewWithBetaTop
-    : environmentBanner.position === 'bottom'
-    ? styles.scrollViewWithBetaBottom
-    : undefined;
+      ? Platform.OS === 'ios'
+        ? styles.scrollViewWithBetaTopIOS
+        : styles.scrollViewWithBetaTop
+      : environmentBanner.position === 'bottom'
+        ? styles.scrollViewWithBetaBottom
+        : undefined;
 
   return (
     <SafeAreaView style={styles.container}>
