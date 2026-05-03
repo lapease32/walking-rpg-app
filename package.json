@@ -43,7 +43,7 @@
     "eslint": "^8.19.0",
     "firebase-tools": "^15.16.0",
     "jest": "^29.2.1",
-    "metro": "^0.76.8",
+    "metro": "^0.84.4",
     "metro-cache-key": "^0.76.8",
     "metro-react-native-babel-preset": "0.77.0",
     "patch-package": "^8.0.1",
@@ -56,7 +56,7 @@
     "node": ">=20"
   },
   "resolutions": {
-    "metro": "^0.76.8",
+    "metro": "^0.84.4",
     "metro-cache-key": "^0.76.8",
     "ip": "^1.1.9",
     "protobufjs": "^7.5.5",
