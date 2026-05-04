@@ -1239,10 +1239,13 @@ export default function HomeScreen() {
               {player && (
                 <View style={styles.debugStatsBlock}>
                   <Text style={styles.debugStatRow}>
-                    ❤️ HP: {player.hp} / {player.maxHp}{'  '}⚔️ ATK: {player.attack}{'  '}🛡️ DEF: {player.defense}
+                    ❤️ HP: {player.hp} / {player.maxHp}
+                    {'  '}⚔️ ATK: {player.attack}
+                    {'  '}🛡️ DEF: {player.defense}
                   </Text>
                   <Text style={styles.debugStatRow}>
-                    ⭐ Lv {player.level}{'  '}XP: {player.experience} / {player.getExperienceForNextLevel()}
+                    ⭐ Lv {player.level}
+                    {'  '}XP: {player.experience} / {player.getExperienceForNextLevel()}
                   </Text>
                 </View>
               )}
