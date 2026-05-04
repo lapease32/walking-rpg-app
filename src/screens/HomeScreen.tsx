@@ -1236,6 +1236,19 @@ export default function HomeScreen() {
           {debugMode && (
             <View style={styles.debugContainer}>
               <Text style={styles.debugTitle}>🐛 Debug Mode</Text>
+              {player && (
+                <View style={styles.debugStatsBlock}>
+                  <Text style={styles.debugStatRow}>
+                    ❤️ HP: {player.hp} / {player.maxHp}
+                    {'  '}⚔️ ATK: {player.attack}
+                    {'  '}🛡️ DEF: {player.defense}
+                  </Text>
+                  <Text style={styles.debugStatRow}>
+                    ⭐ Lv {player.level}
+                    {'  '}XP: {player.experience} / {player.getExperienceForNextLevel()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.encounterChanceContainer}>
                 <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
                 <View style={styles.encounterChanceValueContainer}>
@@ -1531,6 +1544,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
+    color: '#856404',
+  },
+  debugStatsBlock: {
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+    padding: 8,
+    marginBottom: 12,
+    gap: 4,
+  },
+  debugStatRow: {
+    fontSize: 13,
+    fontWeight: '600',
     color: '#856404',
   },
   encounterChanceContainer: {
