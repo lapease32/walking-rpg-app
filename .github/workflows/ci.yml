@@ -60,3 +60,26 @@ jobs:
 
       - name: Prettier
         run: yarn format:check
+
+  bundle:
+    name: Bundle Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Bundle (Android)
+        run: |
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.ts \
+            --bundle-output /tmp/bundle.js \
+            --assets-dest /tmp/assets
