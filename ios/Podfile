@@ -73,23 +73,159 @@ target 'WalkingRPGTemp' do
     )
     __apply_Xcode_12_5_M1_post_install_workaround(installer)
 
-    # Fix gRPC-Core.modulemap not found — the build looks for it at
-    # Headers/Private/grpc/ but CocoaPods puts it in Target Support Files/
-    grpc_private_dir = "#{installer.sandbox.root}/Headers/Private/grpc"
-    FileUtils.mkdir_p(grpc_private_dir)
-    modulemap_src = "#{installer.sandbox.root}/Target Support Files/gRPC-Core/gRPC-Core.modulemap"
-    modulemap_dst = "#{grpc_private_dir}/gRPC-Core.modulemap"
-    FileUtils.ln_sf(modulemap_src, modulemap_dst) unless File.exist?(modulemap_dst)
+    # Fix gRPC-Core.modulemap not found — CocoaPods xcconfigs reference the module map at
+    # Headers/Private/grpc/ but that directory is wiped by CocoaPods integration.
+    # Fix the path in every xcconfig to point to the actual location in Target Support Files/.
+    Dir.glob("#{installer.sandbox.root}/Target Support Files/**/*.xcconfig").each do |path|
+      content = File.read(path)
+      next unless content.include?('Headers/Private/grpc/gRPC-Core.modulemap')
+      fixed = content.gsub(
+        '"${PODS_ROOT}/Headers/Private/grpc/gRPC-Core.modulemap"',
+        '"${PODS_ROOT}/Target Support Files/gRPC-Core/gRPC-Core.modulemap"'
+      )
+      File.write(path, fixed)
+    end
 
     # Fix FirebaseAuth-Swift.h not found — Firebase SDK 12 moved FIRAuthErrorCode from
     # FIRAuthErrors.h (ObjC) to a Swift enum. The real FirebaseAuth-Swift.h is generated
     # by the Swift compiler, but ObjC compiles first. This stub satisfies ObjC compilation;
     # must be in Public so the FirebaseAuth module map resolves it via use_modular_headers!.
     firebase_auth_swift_stub = <<~STUB
-      // Generated ObjC stub for FirebaseAuth Swift types (Firebase SDK 12+).
-      // The real FirebaseAuth-Swift.h is produced by Xcode's Swift compiler at build time.
+      // Fallback stub for FirebaseAuth Swift types (Firebase SDK 12+).
+      // Tries to include the real Swift-generated header from the build directory first.
+      // $(PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth is prepended to HEADER_SEARCH_PATHS
+      // by this post_install hook, so the quoted include below resolves to:
+      //   $(PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth/Swift Compatibility Header/FirebaseAuth-Swift.h
+      // CocoaPods target dependency ordering guarantees FirebaseAuth builds before any
+      // pod that imports it, so the real header is always present when dependents compile.
       #pragma once
       #import <Foundation/Foundation.h>
+
+      #if __has_include("Swift Compatibility Header/FirebaseAuth-Swift.h")
+      // Real Swift-generated header — all types fully declared.
+      #import "Swift Compatibility Header/FirebaseAuth-Swift.h"
+      #else
+      // Fallback declarations for edge cases where the real header is not yet available.
+
+      // Forward declarations for types referenced before full definition
+      @class FIRAuth;
+      @class FIRAuthDataResult;
+      @class FIRPhoneAuthCredential;
+      @class FIRMultiFactorSession;
+      @class FIRMultiFactorInfo;
+      @class FIRMultiFactorAssertion;
+      @class FIRPhoneMultiFactorAssertion;
+      @class FIRTOTPMultiFactorAssertion;
+      @class FIRTOTPSecret;
+
+      NS_ASSUME_NONNULL_BEGIN
+
+      // FIRUserInfo protocol (moved to Swift in Firebase SDK 12)
+      @protocol FIRUserInfo <NSObject>
+      @property (nonatomic, readonly, copy) NSString *providerID;
+      @property (nonatomic, readonly, copy) NSString *uid;
+      @property (nonatomic, readonly, copy, nullable) NSString *displayName;
+      @property (nonatomic, readonly, copy, nullable) NSURL *photoURL;
+      @property (nonatomic, readonly, copy, nullable) NSString *email;
+      @property (nonatomic, readonly, copy, nullable) NSString *phoneNumber;
+      @end
+
+      // ActionCodeOperation enum (moved to Swift in Firebase SDK 12)
+      typedef NS_ENUM(NSInteger, FIRActionCodeOperation) {
+        FIRActionCodeOperationUnknown = 0,
+        FIRActionCodeOperationPasswordReset = 1,
+        FIRActionCodeOperationVerifyEmail = 2,
+        FIRActionCodeOperationRecoverEmail = 3,
+        FIRActionCodeOperationEmailLink = 4,
+        FIRActionCodeOperationVerifyAndChangeEmail = 5,
+        FIRActionCodeOperationRevertSecondFactorAddition = 6,
+      };
+
+      // ActionCodeInfo class (moved to Swift in Firebase SDK 12)
+      @interface FIRActionCodeInfo : NSObject
+      @property (nonatomic, readonly) FIRActionCodeOperation operation;
+      @property (nonatomic, readonly, copy) NSString *email;
+      @property (nonatomic, readonly, copy, nullable) NSString *previousEmail;
+      @end
+
+      // ActionCodeSettings class (moved to Swift in Firebase SDK 12)
+      @interface FIRActionCodeSettings : NSObject
+      @property (nonatomic, copy, nullable) NSURL *URL;
+      @property (nonatomic) BOOL handleCodeInApp;
+      @property (nonatomic, copy, nullable) NSString *iOSBundleID;
+      @property (nonatomic, copy, nullable) NSString *androidPackageName;
+      @property (nonatomic, copy, nullable) NSString *androidMinimumVersion;
+      @property (nonatomic) BOOL androidInstallIfNotAvailable;
+      @property (nonatomic, copy, nullable) NSString *linkDomain;
+      - (instancetype)init;
+      - (void)setAndroidPackageName:(NSString *)androidPackageName
+              installIfNotAvailable:(BOOL)installIfNotAvailable
+                     minimumVersion:(nullable NSString *)minimumVersion;
+      @end
+
+      // MultiFactorSession class (moved to Swift in Firebase SDK 12)
+      @interface FIRMultiFactorSession : NSObject
+      @end
+
+      // MultiFactorInfo class (moved to Swift in Firebase SDK 12)
+      @interface FIRMultiFactorInfo : NSObject
+      @property (nonatomic, readonly, copy) NSString *UID;
+      @property (nonatomic, readonly, copy, nullable) NSString *displayName;
+      @property (nonatomic, readonly, copy) NSDate *enrollmentDate;
+      @property (nonatomic, readonly, copy) NSString *factorID;
+      @end
+
+      // MultiFactorAssertion class (moved to Swift in Firebase SDK 12)
+      @interface FIRMultiFactorAssertion : NSObject
+      @property (nonatomic, copy) NSString *factorID;
+      @end
+
+      // MultiFactorResolver class (moved to Swift in Firebase SDK 12)
+      @interface FIRMultiFactorResolver : NSObject
+      @property (nonatomic, readonly, strong) FIRMultiFactorSession *session;
+      @property (nonatomic, readonly, copy) NSArray<FIRMultiFactorInfo *> *hints;
+      @property (nonatomic, readonly, strong) FIRAuth *auth;
+      - (void)resolveSignInWithAssertion:(FIRMultiFactorAssertion *)assertion
+                              completion:(nullable void (^)(FIRAuthDataResult * _Nullable, NSError * _Nullable))completion;
+      @end
+
+      // PhoneMultiFactorInfo class (moved to Swift in Firebase SDK 12)
+      @interface FIRPhoneMultiFactorInfo : FIRMultiFactorInfo
+      @property (nonatomic, readonly, copy) NSString *phoneNumber;
+      @end
+
+      // PhoneMultiFactorAssertion class (moved to Swift in Firebase SDK 12)
+      @interface FIRPhoneMultiFactorAssertion : FIRMultiFactorAssertion
+      @end
+
+      // PhoneMultiFactorGenerator class (moved to Swift in Firebase SDK 12)
+      @interface FIRPhoneMultiFactorGenerator : NSObject
+      + (FIRPhoneMultiFactorAssertion *)assertionWithCredential:(FIRPhoneAuthCredential *)credential;
+      @end
+
+      // TOTPSecret class (moved to Swift in Firebase SDK 12)
+      @interface FIRTOTPSecret : NSObject
+      - (NSString *)sharedSecretKey;
+      - (NSString *)generateQRCodeURLWithAccountName:(NSString *)accountName issuer:(NSString *)issuer;
+      - (void)openInOTPAppWithQRCodeURL:(NSString *)qrCodeURL;
+      @end
+
+      // TOTPMultiFactorAssertion class (moved to Swift in Firebase SDK 12)
+      @interface FIRTOTPMultiFactorAssertion : FIRMultiFactorAssertion
+      @end
+
+      // TOTPMultiFactorGenerator class (moved to Swift in Firebase SDK 12)
+      @interface FIRTOTPMultiFactorGenerator : NSObject
+      + (void)generateSecretWithMultiFactorSession:(FIRMultiFactorSession *)session
+                                        completion:(void (^)(FIRTOTPSecret * _Nullable, NSError * _Nullable))completion;
+      + (FIRTOTPMultiFactorAssertion *)assertionForEnrollmentWithSecret:(FIRTOTPSecret *)secret
+                                                        oneTimePassword:(NSString *)oneTimePassword;
+      + (FIRTOTPMultiFactorAssertion *)assertionForSignInWithEnrollmentID:(NSString *)enrollmentID
+                                                          oneTimePassword:(NSString *)oneTimePassword;
+      @end
+
+      NS_ASSUME_NONNULL_END
+
       typedef NS_CLOSED_ENUM(NSInteger, FIRAuthErrorCode) {
         FIRAuthErrorCodeInvalidCustomToken = 17000,
         FIRAuthErrorCodeCustomTokenMismatch = 17002,
@@ -182,6 +318,7 @@ target 'WalkingRPGTemp' do
         FIRAuthErrorCodeInternalError = 17999,
         FIRAuthErrorCodeMalformedJWT = 18000,
       };
+      #endif
     STUB
     [
       "#{installer.sandbox.root}/Headers/Public/FirebaseAuth",
@@ -191,7 +328,16 @@ target 'WalkingRPGTemp' do
       File.write("#{dir}/FirebaseAuth-Swift.h", firebase_auth_swift_stub)
     end
 
-    # Fix FlipperKit compilation errors
+    # FirebaseFirestoreInternal is a static library (.a), not a framework.
+    # The FirebaseFirestore podspec incorrectly emits -weak_framework for it,
+    # which causes "Framework not found FirebaseFirestoreInternal" at link time.
+    # Strip the bad flag from every aggregate xcconfig that contains it.
+    Dir.glob("#{installer.sandbox.root}/Target Support Files/**/*.xcconfig").each do |path|
+      content = File.read(path)
+      next unless content.include?('-weak_framework "FirebaseFirestoreInternal"')
+      File.write(path, content.gsub(' -weak_framework "FirebaseFirestoreInternal"', ''))
+    end
+
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
@@ -205,6 +351,16 @@ target 'WalkingRPGTemp' do
           config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
           config.build_settings['WARNING_CFLAGS'] << '-Wno-shorten-64-to-32'
           config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'
+        end
+        # Firebase SDK 12 moved most public types to Swift. The real FirebaseAuth-Swift.h
+        # is generated by Xcode's Swift compiler into PODS_CONFIGURATION_BUILD_DIR/FirebaseAuth/.
+        # CocoaPods dependency ordering guarantees FirebaseAuth's Swift compiles before any
+        # pod that depends on it, so prepending this path finds the real header first.
+        # The stub in Headers/Public/FirebaseAuth/ acts as a fallback.
+        existing = config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)'
+        unless existing.include?('PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth')
+          config.build_settings['HEADER_SEARCH_PATHS'] =
+            '"$(PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth" ' + existing
         end
       end
     end
