@@ -357,10 +357,10 @@ target 'WalkingRPGTemp' do
         # CocoaPods dependency ordering guarantees FirebaseAuth's Swift compiles before any
         # pod that depends on it, so prepending this path finds the real header first.
         # The stub in Headers/Public/FirebaseAuth/ acts as a fallback.
-        existing = config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)'
-        unless existing.include?('PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth')
+        existing = Array(config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)')
+        unless existing.any? { |p| p.include?('PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth') }
           config.build_settings['HEADER_SEARCH_PATHS'] =
-            '"$(PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth" ' + existing
+            ['"$(PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth"'] + existing
         end
       end
     end
