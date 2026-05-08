@@ -1,0 +1,13 @@
+diff --git a/node_modules/metro/package.json b/node_modules/metro/package.json
+--- a/node_modules/metro/package.json
++++ b/node_modules/metro/package.json
+@@ -7,7 +7,8 @@
+   "exports": {
+     ".": "./src/index.js",
+     "./package.json": "./package.json",
+-    "./private/*": "./src/*.js"
++    "./private/*": "./src/*.js",
++    "./src/shared/output/bundle": "./src/shared/output/bundle.js"
+   },
+   "repository": {
+     "type": "git",

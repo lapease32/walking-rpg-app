@@ -1,11 +1,7 @@
-# Resolve react_native_pods.rb with node to allow for hoisting
-require Pod::Executable.execute_command('node', ['-p',
-  'require.resolve(
-    "react-native/scripts/react_native_pods.rb",
-    {paths: [process.argv[1]]},
-  )', __dir__]).strip
+require 'fileutils'
+require_relative '../node_modules/react-native/scripts/react_native_pods'
 
-platform :ios, min_ios_version_supported
+platform :ios, '15.0'
 prepare_react_native_project!
 
 # If you are using a `react-native-flipper` your iOS build will fail when `NO_FLIPPER=1` is set.
@@ -76,12 +72,133 @@ target 'WalkingRPGTemp' do
       :mac_catalyst_enabled => false
     )
     __apply_Xcode_12_5_M1_post_install_workaround(installer)
-    
+
+    # Fix gRPC-Core.modulemap not found — the build looks for it at
+    # Headers/Private/grpc/ but CocoaPods puts it in Target Support Files/
+    grpc_private_dir = "#{installer.sandbox.root}/Headers/Private/grpc"
+    FileUtils.mkdir_p(grpc_private_dir)
+    modulemap_src = "#{installer.sandbox.root}/Target Support Files/gRPC-Core/gRPC-Core.modulemap"
+    modulemap_dst = "#{grpc_private_dir}/gRPC-Core.modulemap"
+    FileUtils.ln_sf(modulemap_src, modulemap_dst) unless File.exist?(modulemap_dst)
+
+    # Fix FirebaseAuth-Swift.h not found — Firebase SDK 12 moved FIRAuthErrorCode from
+    # FIRAuthErrors.h (ObjC) to a Swift enum. The real FirebaseAuth-Swift.h is generated
+    # by the Swift compiler, but ObjC compiles first. This stub satisfies ObjC compilation;
+    # must be in Public so the FirebaseAuth module map resolves it via use_modular_headers!.
+    firebase_auth_swift_stub = <<~STUB
+      // Generated ObjC stub for FirebaseAuth Swift types (Firebase SDK 12+).
+      // The real FirebaseAuth-Swift.h is produced by Xcode's Swift compiler at build time.
+      #pragma once
+      #import <Foundation/Foundation.h>
+      typedef NS_CLOSED_ENUM(NSInteger, FIRAuthErrorCode) {
+        FIRAuthErrorCodeInvalidCustomToken = 17000,
+        FIRAuthErrorCodeCustomTokenMismatch = 17002,
+        FIRAuthErrorCodeInvalidCredential = 17004,
+        FIRAuthErrorCodeUserDisabled = 17005,
+        FIRAuthErrorCodeOperationNotAllowed = 17006,
+        FIRAuthErrorCodeEmailAlreadyInUse = 17007,
+        FIRAuthErrorCodeInvalidEmail = 17008,
+        FIRAuthErrorCodeWrongPassword = 17009,
+        FIRAuthErrorCodeTooManyRequests = 17010,
+        FIRAuthErrorCodeUserNotFound = 17011,
+        FIRAuthErrorCodeAccountExistsWithDifferentCredential = 17012,
+        FIRAuthErrorCodeRequiresRecentLogin = 17014,
+        FIRAuthErrorCodeProviderAlreadyLinked = 17015,
+        FIRAuthErrorCodeNoSuchProvider = 17016,
+        FIRAuthErrorCodeInvalidUserToken = 17017,
+        FIRAuthErrorCodeNetworkError = 17020,
+        FIRAuthErrorCodeUserTokenExpired = 17021,
+        FIRAuthErrorCodeInvalidAPIKey = 17023,
+        FIRAuthErrorCodeUserMismatch = 17024,
+        FIRAuthErrorCodeCredentialAlreadyInUse = 17025,
+        FIRAuthErrorCodeWeakPassword = 17026,
+        FIRAuthErrorCodeAppNotAuthorized = 17028,
+        FIRAuthErrorCodeExpiredActionCode = 17029,
+        FIRAuthErrorCodeInvalidActionCode = 17030,
+        FIRAuthErrorCodeInvalidMessagePayload = 17031,
+        FIRAuthErrorCodeInvalidSender = 17032,
+        FIRAuthErrorCodeInvalidRecipientEmail = 17033,
+        FIRAuthErrorCodeMissingEmail = 17034,
+        FIRAuthErrorCodeMissingIosBundleID = 17036,
+        FIRAuthErrorCodeMissingAndroidPackageName = 17037,
+        FIRAuthErrorCodeUnauthorizedDomain = 17038,
+        FIRAuthErrorCodeInvalidContinueURI = 17039,
+        FIRAuthErrorCodeMissingContinueURI = 17040,
+        FIRAuthErrorCodeMissingPhoneNumber = 17041,
+        FIRAuthErrorCodeInvalidPhoneNumber = 17042,
+        FIRAuthErrorCodeMissingVerificationCode = 17043,
+        FIRAuthErrorCodeInvalidVerificationCode = 17044,
+        FIRAuthErrorCodeMissingVerificationID = 17045,
+        FIRAuthErrorCodeInvalidVerificationID = 17046,
+        FIRAuthErrorCodeMissingAppCredential = 17047,
+        FIRAuthErrorCodeInvalidAppCredential = 17048,
+        FIRAuthErrorCodeSessionExpired = 17051,
+        FIRAuthErrorCodeQuotaExceeded = 17052,
+        FIRAuthErrorCodeMissingAppToken = 17053,
+        FIRAuthErrorCodeNotificationNotForwarded = 17054,
+        FIRAuthErrorCodeAppNotVerified = 17055,
+        FIRAuthErrorCodeCaptchaCheckFailed = 17056,
+        FIRAuthErrorCodeWebContextAlreadyPresented = 17057,
+        FIRAuthErrorCodeWebContextCancelled = 17058,
+        FIRAuthErrorCodeAppVerificationUserInteractionFailure = 17059,
+        FIRAuthErrorCodeInvalidClientID = 17060,
+        FIRAuthErrorCodeWebNetworkRequestFailed = 17061,
+        FIRAuthErrorCodeWebInternalError = 17062,
+        FIRAuthErrorCodeWebSignInUserInteractionFailure = 17063,
+        FIRAuthErrorCodeLocalPlayerNotAuthenticated = 17066,
+        FIRAuthErrorCodeNullUser = 17067,
+        FIRAuthErrorCodeInvalidProviderID = 17071,
+        FIRAuthErrorCodeTenantIDMismatch = 17072,
+        FIRAuthErrorCodeUnsupportedTenantOperation = 17073,
+        FIRAuthErrorCodeRejectedCredential = 17075,
+        FIRAuthErrorCodeGameKitNotLinked = 17076,
+        FIRAuthErrorCodeSecondFactorRequired = 17078,
+        FIRAuthErrorCodeMissingMultiFactorSession = 17081,
+        FIRAuthErrorCodeMissingMultiFactorInfo = 17082,
+        FIRAuthErrorCodeInvalidMultiFactorSession = 17083,
+        FIRAuthErrorCodeMultiFactorInfoNotFound = 17084,
+        FIRAuthErrorCodeAdminRestrictedOperation = 17085,
+        FIRAuthErrorCodeUnverifiedEmail = 17086,
+        FIRAuthErrorCodeSecondFactorAlreadyEnrolled = 17087,
+        FIRAuthErrorCodeMaximumSecondFactorCountExceeded = 17088,
+        FIRAuthErrorCodeUnsupportedFirstFactor = 17089,
+        FIRAuthErrorCodeEmailChangeNeedsVerification = 17090,
+        FIRAuthErrorCodeMissingClientIdentifier = 17093,
+        FIRAuthErrorCodeMissingOrInvalidNonce = 17094,
+        FIRAuthErrorCodeBlockingCloudFunctionError = 17105,
+        FIRAuthErrorCodeInvalidHostingLinkDomain = 17214,
+        FIRAuthErrorCodeRecaptchaNotEnabled = 17200,
+        FIRAuthErrorCodeMissingRecaptchaToken = 17201,
+        FIRAuthErrorCodeInvalidRecaptchaToken = 17202,
+        FIRAuthErrorCodeInvalidRecaptchaAction = 17203,
+        FIRAuthErrorCodeMissingClientType = 17204,
+        FIRAuthErrorCodeMissingRecaptchaVersion = 17205,
+        FIRAuthErrorCodeInvalidRecaptchaVersion = 17206,
+        FIRAuthErrorCodeInvalidReqType = 17207,
+        FIRAuthErrorCodeRecaptchaSDKNotLinked = 17208,
+        FIRAuthErrorCodeRecaptchaSiteKeyMissing = 17209,
+        FIRAuthErrorCodeRecaptchaActionCreationFailed = 17210,
+        FIRAuthErrorCodeKeychainError = 17995,
+        FIRAuthErrorCodeInternalError = 17999,
+        FIRAuthErrorCodeMalformedJWT = 18000,
+      };
+    STUB
+    [
+      "#{installer.sandbox.root}/Headers/Public/FirebaseAuth",
+      "#{installer.sandbox.root}/Headers/Private/FirebaseAuth",
+    ].each do |dir|
+      FileUtils.mkdir_p(dir)
+      File.write("#{dir}/FirebaseAuth-Swift.h", firebase_auth_swift_stub)
+    end
+
     # Fix FlipperKit compilation errors
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        # Suppress deprecated C++ literal operator whitespace warning from Yoga (RN 0.72 / Xcode 15+)
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] ||= ['$(inherited)']
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] << '-Wno-deprecated-literal-operator'
         # Suppress specific warnings that cause build failures in FlipperKit
         if target.name == 'FlipperKit'
           config.build_settings['GCC_WARN_64_TO_32_BIT_CONVERSION'] = 'NO'
