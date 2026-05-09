@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 
 #import <React/RCTBundleURLProvider.h>
+#import <ReactAppDependencyProvider/RCTAppDependencyProvider.h>
 #import <Firebase.h>
 #import <FirebaseCrashlytics/FirebaseCrashlytics.h>
 
@@ -23,6 +24,7 @@
     }
   }
 
+  self.dependencyProvider = [RCTAppDependencyProvider new];
   self.moduleName = @"WalkingRPGTemp";
   // You can add your custom initial props in the dictionary below.
   // They will be passed down to the ViewController used by React Native.
