@@ -20,7 +20,7 @@ updates:
       - dependency-name: 'react-native-*'
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: '@react-native-async-storage/async-storage'
-        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+        update-types: ['version-update:semver-major']
       # Prettier major upgrades require reformatting all files — defer until planned
       - dependency-name: 'prettier'
         update-types: ['version-update:semver-major']
