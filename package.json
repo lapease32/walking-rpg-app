@@ -46,7 +46,7 @@
     "jest": "^30.3.0",
     "metro": "^0.81.5",
     "metro-cache-key": "^0.81.5",
-    "metro-react-native-babel-preset": "0.77.0",
+    "@react-native/babel-preset": "0.77.3",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
     "prettier": "^3.0.0",
