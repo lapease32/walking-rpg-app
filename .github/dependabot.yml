@@ -7,15 +7,20 @@ updates:
       day: 'monday'
     open-pull-requests-limit: 10
     ignore:
-      # RN ecosystem major bumps must be done as a deliberate migration (RN 0.74+ upgrade)
+      # RN ecosystem minor/major bumps must be done as a deliberate migration.
+      # react-native uses 0.x.y so "minor" = breaking native changes — never auto-bump.
       - dependency-name: 'react-native'
-        update-types: ['version-update:semver-major']
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: '@react-native/*'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: '@react-native-community/*'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: 'react-native-*'
-        update-types: ['version-update:semver-major']
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: '@react-native-async-storage/async-storage'
-        update-types: ['version-update:semver-major']
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
       # Prettier major upgrades require reformatting all files — defer until planned
       - dependency-name: 'prettier'
         update-types: ['version-update:semver-major']
