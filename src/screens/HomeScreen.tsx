@@ -546,7 +546,12 @@ export default function HomeScreen() {
   };
 
   // Start tracking
-  const startTracking = (): void => {
+  const startTracking = async (): Promise<void> => {
+    const granted = await LocationService.requestPermission();
+    if (!granted) {
+      console.warn('Location permission denied — tracking not started');
+      return;
+    }
     LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
     setIsTracking(true);
     saveTrackingState(true);
