@@ -353,6 +353,20 @@ target 'WalkingRPGTemp' do
           config.build_settings['HEADER_SEARCH_PATHS'] =
             ['"$(PODS_CONFIGURATION_BUILD_DIR)/FirebaseAuth"'] + existing
         end
+
+        # Raise any pod deployment target below the app's 15.1 minimum to suppress warnings
+        current_target = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current_target && Gem::Version.new(current_target) < Gem::Version.new('15.1')
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        end
+
+        # Deduplicate -lc++ in OTHER_LDFLAGS
+        ldflags = config.build_settings['OTHER_LDFLAGS']
+        if ldflags.is_a?(Array) && ldflags.count('-lc++') > 1
+          ldflags.delete('-lc++')
+          ldflags << '-lc++'
+          config.build_settings['OTHER_LDFLAGS'] = ldflags
+        end
       end
     end
   end
