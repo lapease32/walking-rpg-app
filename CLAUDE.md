@@ -22,33 +22,52 @@ After every PR is created, immediately start a self-paced `/loop` that polls for
 1. **Review comment mode** — posts a review body ("found N potential issues") with inline comments per file
 2. **Check status mode** — reports directly as a `pass`/`fail` check with no review body
 
-The Monitor must watch all three signals to catch either mode:
+The Monitor must watch all three signals AND emit immediately if already mergeable at startup:
 
 ```bash
 PR=<number>
 REPO=lapease32/walking-rpg-app
-last_reviews=""
-last_inline_count=""
-last_bugbot_check=""
 
-while true; do
-  # Signal 1: bugbot review body
-  reviews=$(gh api repos/$REPO/pulls/$PR/reviews \
-    --jq '[.[] | select(.author.login == "cursor[bot]")] | last | "\(.commit_id[:8]):\(.body[:200])"' 2>/dev/null || true)
-
-  # Signal 2: bugbot inline comment count
+is_mergeable() {
+  local checks inline review_body bugbot
+  checks=$(gh pr checks $PR --repo $REPO --json name,bucket 2>/dev/null || true)
+  bugbot=$(echo "$checks" | jq -r '.[] | select(.name == "Cursor Bugbot") | .bucket' 2>/dev/null || true)
   inline=$(gh api repos/$REPO/pulls/$PR/comments \
-    --jq '[.[] | select(.author.login == "cursor[bot]")] | length | tostring' 2>/dev/null || true)
+    --jq '[.[] | select(.author.login == "cursor[bot]")] | length' 2>/dev/null || echo "99")
+  review_body=$(gh api repos/$REPO/pulls/$PR/reviews \
+    --jq '[.[] | select(.author.login == "cursor[bot]")] | last | .body // ""' 2>/dev/null || true)
 
-  # Signal 3: Cursor Bugbot check status
-  bugbot_check=$(gh pr checks $PR --repo $REPO --json name,bucket \
+  # All checks terminal, bugbot pass or skipping, no inline comments, no review issues
+  echo "$checks" | jq -e 'all(.bucket == "pass" or .bucket == "skipping")' >/dev/null 2>&1 || return 1
+  [ "$bugbot" != "fail" ] || return 1
+  [ "$inline" = "0" ] || return 1
+  echo "$review_body" | grep -qvE "found [1-9][0-9]* potential" || return 1
+  return 0
+}
+
+emit_status() {
+  local bugbot inline review_body
+  bugbot=$(gh pr checks $PR --repo $REPO --json name,bucket \
     --jq '.[] | select(.name == "Cursor Bugbot") | .bucket' 2>/dev/null || true)
+  inline=$(gh api repos/$REPO/pulls/$PR/comments \
+    --jq '[.[] | select(.author.login == "cursor[bot]")] | length' 2>/dev/null || true)
+  review_body=$(gh api repos/$REPO/pulls/$PR/reviews \
+    --jq '[.[] | select(.author.login == "cursor[bot]")] | last | .body[:150] // "none"' 2>/dev/null || true)
+  echo "STATUS: bugbot=$bugbot inline=$inline review=$review_body"
+}
 
-  [ "$reviews" != "$last_reviews" ] && [ -n "$reviews" ] && echo "REVIEW: $reviews" && last_reviews="$reviews"
-  [ "$inline" != "$last_inline_count" ] && echo "INLINE_COMMENTS: $inline" && last_inline_count="$inline"
-  [ "$bugbot_check" != "$last_bugbot_check" ] && [ -n "$bugbot_check" ] && echo "CHECK: Cursor Bugbot=$bugbot_check" && last_bugbot_check="$bugbot_check"
+# Emit immediately if already ready at startup
+if is_mergeable; then echo "READY_AT_STARTUP: $(emit_status)"; fi
 
+last_status=""
+while true; do
   sleep 270
+  cur=$(emit_status)
+  if [ "$cur" != "$last_status" ]; then
+    echo "CHANGED: $cur"
+    last_status="$cur"
+    is_mergeable && echo "MERGEABLE"
+  fi
 done
 ```
 
