@@ -1,4 +1,5 @@
 import Geolocation from 'react-native-geolocation-service';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { Location } from '../models/Encounter';
 
 export interface GeolocationPosition {
@@ -79,6 +80,23 @@ class LocationService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
+  }
+
+  async requestPermission(): Promise<boolean> {
+    if (Platform.OS === 'ios') {
+      const result = await Geolocation.requestAuthorization('always');
+      return result === 'granted';
+    }
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: 'Location Permission',
+        message: 'Walking RPG needs your location to track movement and trigger encounters.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Deny',
+      },
+    );
+    return result === PermissionsAndroid.RESULTS.GRANTED;
   }
 
   /**
