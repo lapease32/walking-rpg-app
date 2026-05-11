@@ -1,4 +1,4 @@
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { PlayerData } from '../models/Player';
 
@@ -8,28 +8,13 @@ export interface CloudPlayerRecord {
 }
 
 class CloudSyncService {
-  private user: FirebaseAuthTypes.User | null = null;
-
-  async initialize(): Promise<void> {
-    try {
-      if (auth().currentUser) {
-        this.user = auth().currentUser;
-      } else {
-        const credential = await auth().signInAnonymously();
-        this.user = credential.user;
-      }
-    } catch (error) {
-      console.error('CloudSyncService: anonymous auth failed:', error);
-      // Non-fatal — app works offline via AsyncStorage
-    }
-  }
-
   async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
-    if (!this.user) {
+    const user = auth().currentUser;
+    if (!user) {
       return;
     }
     try {
-      const docRef = firestore().collection('players').doc(this.user.uid);
+      const docRef = firestore().collection('players').doc(user.uid);
       await firestore().runTransaction(async transaction => {
         const doc = await transaction.get(docRef);
         const existing = doc.data() as { lastSavedAt?: number } | undefined;
@@ -46,11 +31,12 @@ class CloudSyncService {
   }
 
   async loadPlayerData(): Promise<CloudPlayerRecord | null> {
-    if (!this.user) {
+    const user = auth().currentUser;
+    if (!user) {
       return null;
     }
     try {
-      const doc = await firestore().collection('players').doc(this.user.uid).get();
+      const doc = await firestore().collection('players').doc(user.uid).get();
       if (!doc.exists) {
         return null;
       }

@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Pressable,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { AuthUser } from '../services/AuthService';
 
 export type AccuracyLevel = 'high' | 'balanced' | 'battery';
 
@@ -16,16 +19,23 @@ interface SettingsModalProps {
   onClose: () => void;
   accuracyLevel: AccuracyLevel;
   onAccuracyLevelChange: (level: AccuracyLevel) => void;
+  authUser: AuthUser | null;
+  authLoading: boolean;
+  onGoogleSignIn: () => void;
+  onAppleSignIn: () => void;
+  onSignOut: () => void;
 }
 
-/**
- * Modal component for app settings
- */
 export default function SettingsModal({
   visible,
   onClose,
   accuracyLevel,
   onAccuracyLevelChange,
+  authUser,
+  authLoading,
+  onGoogleSignIn,
+  onAppleSignIn,
+  onSignOut,
 }: SettingsModalProps) {
   const accuracyOptions = [
     {
@@ -45,6 +55,9 @@ export default function SettingsModal({
     },
   ];
 
+  const isSignedIn = authUser && !authUser.isAnonymous;
+  const displayName = authUser?.displayName ?? authUser?.email ?? 'Signed in';
+
   return (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -52,11 +65,44 @@ export default function SettingsModal({
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Settings</Text>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Text style={styles.closeButtonText}>x</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalBody}>
+            {/* Account section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Account</Text>
+
+              {authLoading ? (
+                <ActivityIndicator style={styles.loader} color="#2196F3" />
+              ) : isSignedIn ? (
+                <View>
+                  <Text style={styles.sectionDescription}>
+                    Signed in as {displayName}. Your progress is backed up automatically.
+                  </Text>
+                  <TouchableOpacity style={styles.signOutButton} onPress={onSignOut}>
+                    <Text style={styles.signOutButtonText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.sectionDescription}>
+                    Sign in to back up your progress and recover it if you reinstall.
+                  </Text>
+                  <TouchableOpacity style={styles.googleButton} onPress={onGoogleSignIn}>
+                    <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                  </TouchableOpacity>
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity style={styles.appleButton} onPress={onAppleSignIn}>
+                      <Text style={styles.appleButtonText}>Sign in with Apple</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Location accuracy section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location Accuracy</Text>
               <Text style={styles.sectionDescription}>
@@ -144,6 +190,8 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   sectionTitle: {
     fontSize: 20,
@@ -154,8 +202,49 @@ const styles = StyleSheet.create({
   sectionDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 20,
+    marginBottom: 16,
     lineHeight: 20,
+  },
+  loader: {
+    marginVertical: 16,
+  },
+  googleButton: {
+    backgroundColor: '#4285F4',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  googleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  signOutButton: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  signOutButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
   },
   optionButton: {
     flexDirection: 'row',
