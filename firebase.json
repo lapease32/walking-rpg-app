@@ -2,5 +2,9 @@
   "react-native": {
     "crashlytics_disable_auto_disabler": true,
     "crashlytics_debug_enabled": true
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }
