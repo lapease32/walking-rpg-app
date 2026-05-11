@@ -33,9 +33,9 @@ is_mergeable() {
   checks=$(gh pr checks $PR --repo $REPO --json name,bucket 2>/dev/null || true)
   bugbot=$(echo "$checks" | jq -r '.[] | select(.name == "Cursor Bugbot") | .bucket' 2>/dev/null || true)
   inline=$(gh api repos/$REPO/pulls/$PR/comments \
-    --jq '[.[] | select(.author.login == "cursor[bot]")] | length' 2>/dev/null || echo "99")
+    --jq '[.[] | select(.user.login == "cursor[bot]")] | length' 2>/dev/null || echo "99")
   review_body=$(gh api repos/$REPO/pulls/$PR/reviews \
-    --jq '[.[] | select(.author.login == "cursor[bot]")] | last | .body // ""' 2>/dev/null || true)
+    --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body // ""' 2>/dev/null || true)
 
   # All checks terminal, bugbot pass or skipping, no inline comments, no review issues
   echo "$checks" | jq -e 'all(.bucket == "pass" or .bucket == "skipping")' >/dev/null 2>&1 || return 1
@@ -50,9 +50,9 @@ emit_status() {
   bugbot=$(gh pr checks $PR --repo $REPO --json name,bucket \
     --jq '.[] | select(.name == "Cursor Bugbot") | .bucket' 2>/dev/null || true)
   inline=$(gh api repos/$REPO/pulls/$PR/comments \
-    --jq '[.[] | select(.author.login == "cursor[bot]")] | length' 2>/dev/null || true)
+    --jq '[.[] | select(.user.login == "cursor[bot]")] | length' 2>/dev/null || true)
   review_body=$(gh api repos/$REPO/pulls/$PR/reviews \
-    --jq '[.[] | select(.author.login == "cursor[bot]")] | last | .body[:150] // "none"' 2>/dev/null || true)
+    --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body[:150] // "none"' 2>/dev/null || true)
   echo "STATUS: bugbot=$bugbot inline=$inline review=$review_body"
 }
 
@@ -84,11 +84,11 @@ gh pr checks $PR --repo $REPO --json name,bucket \
 
 # 3. No inline comments from cursor[bot]
 gh api repos/$REPO/pulls/$PR/comments \
-  --jq '[.[] | select(.author.login == "cursor[bot]")] | length' | grep -q "^0$"
+  --jq '[.[] | select(.user.login == "cursor[bot]")] | length' | grep -q "^0$"
 
 # 4. If a review body exists, it says "found 0 potential"
 gh api repos/$REPO/pulls/$PR/reviews \
-  --jq '[.[] | select(.author.login == "cursor[bot]")] | last | .body // ""' \
+  --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body // ""' \
   | grep -qE "found 0 potential|^$"
 ```
 

@@ -29,6 +29,7 @@ import {
   savePendingEncounter,
   saveTrackingState,
   loadTrackingState,
+  clearLocalPlayerData,
   EncounterData,
 } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
@@ -97,6 +98,9 @@ export default function HomeScreen() {
   const isMinimizedRef = useRef<boolean>(false);
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
+  const prevUidRef = useRef<string | null>(null);
+  // Ref so the auth state listener always calls the latest version of initializePlayer
+  const initializePlayerRef = useRef<() => Promise<void>>(async () => {});
 
   // Handle app state changes (foreground/background)
   const handleAppStateChange = useCallback((nextAppState: AppStateStatus): void => {
@@ -137,9 +141,22 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep authUser state in sync with Firebase auth changes (e.g. after sign-in/sign-out)
+  // Keep authUser state in sync with Firebase auth changes (e.g. after sign-in/sign-out).
+  // When the UID changes (i.e. the user switched to a different account rather than just
+  // linking their anonymous session), clear local player data and reload from the new
+  // account's cloud save so it is never overwritten by the previous session's data.
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(user => setAuthUser(user));
+    const unsubscribe = AuthService.onAuthStateChanged(user => {
+      setAuthUser(user);
+      const prevUid = prevUidRef.current;
+      const newUid = user?.uid ?? null;
+      prevUidRef.current = newUid;
+      if (prevUid !== null && newUid !== null && prevUid !== newUid) {
+        clearLocalPlayerData()
+          .then(() => initializePlayerRef.current())
+          .catch(error => console.error('Failed to reload player after account switch:', error));
+      }
+    });
     return unsubscribe;
   }, []);
 
@@ -316,6 +333,8 @@ export default function HomeScreen() {
       setPlayer(new Player());
     }
   };
+  // Keep the ref current so the auth state listener always calls the latest closure
+  initializePlayerRef.current = initializePlayer;
 
   // Initialize notification service (channel creation and permissions)
   const initializeNotifications = async (): Promise<void> => {
