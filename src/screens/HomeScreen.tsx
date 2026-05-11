@@ -152,6 +152,12 @@ export default function HomeScreen() {
       const newUid = user?.uid ?? null;
       prevUidRef.current = newUid;
       if (prevUid !== null && newUid !== null && prevUid !== newUid) {
+        // Null both the ref and state immediately so GPS callbacks bail early during the reload
+        // window and cannot write the previous account's data to the new account's Firestore doc.
+        // setPlayer(null) ensures the useEffect that syncs playerRef from state also produces null,
+        // preventing the ref from being reset to the old value by a pending render.
+        playerRef.current = null;
+        setPlayer(null);
         clearLocalPlayerData()
           .then(() => initializePlayerRef.current())
           .catch(error => console.error('Failed to reload player after account switch:', error));
