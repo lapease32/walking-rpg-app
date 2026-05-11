@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Deny every path not explicitly matched below
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /players/{uid} {
+      allow read:   if isOwner(uid);
+      allow create: if isOwner(uid) && isValidPlayerDoc(request.resource.data);
+      allow update: if isOwner(uid) && isValidPlayerDoc(request.resource.data);
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Top-level document must contain exactly these two keys
+    function isValidPlayerDoc(data) {
+      return data.keys().hasOnly(['playerData', 'lastSavedAt'])
+          && data.lastSavedAt is number
+          && data.playerData is map
+          && isValidPlayerData(data.playerData);
+    }
+
+    // Validate required PlayerData fields — optional fields (hp, maxHp, inventory)
+    // are not checked here so new fields can be added without a rules update.
+    function isValidPlayerData(pd) {
+      return pd.keys().hasAll([
+               'id', 'name', 'level', 'experience', 'attack', 'defense',
+               'totalDistance', 'totalEncounters', 'creaturesDefeated', 'equipment'
+             ])
+          && pd.id is string
+          && pd.name is string
+          && pd.name.size() >= 1
+          && pd.name.size() <= 50
+          && pd.level is number
+          && pd.level >= 1
+          && pd.level <= 1000
+          && pd.experience is number
+          && pd.experience >= 0
+          && pd.attack is number
+          && pd.attack >= 0
+          && pd.defense is number
+          && pd.defense >= 0
+          && pd.totalDistance is number
+          && pd.totalDistance >= 0
+          && pd.totalEncounters is number
+          && pd.totalEncounters >= 0
+          && pd.creaturesDefeated is number
+          && pd.creaturesDefeated >= 0
+          && pd.equipment is map;
+    }
+  }
+}
