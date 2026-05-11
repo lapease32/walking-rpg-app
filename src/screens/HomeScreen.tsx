@@ -14,7 +14,7 @@ import {
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
-import CloudSyncService from '../services/CloudSyncService';
+import AuthService, { AuthUser } from '../services/AuthService';
 import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
@@ -68,6 +68,8 @@ export default function HomeScreen() {
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
 
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
@@ -119,7 +121,8 @@ export default function HomeScreen() {
     checkPendingEncounter();
     // Auth must be ready before loadPlayerData so cloud data is available on first load
     (async () => {
-      await CloudSyncService.initialize();
+      await AuthService.initialize();
+      setAuthUser(AuthService.getCurrentUser());
       await initializePlayer();
     })();
     // initializeTracking must await initializeNotifications so the tracking
@@ -133,6 +136,45 @@ export default function HomeScreen() {
     // on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep authUser state in sync with Firebase auth changes (e.g. after sign-in/sign-out)
+  useEffect(() => {
+    const unsubscribe = AuthService.onAuthStateChanged(user => setAuthUser(user));
+    return unsubscribe;
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setAuthLoading(true);
+    try {
+      await AuthService.signInWithGoogle();
+    } catch (error: any) {
+      Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setAuthLoading(true);
+    try {
+      await AuthService.signInWithApple();
+    } catch (error: any) {
+      Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setAuthLoading(true);
+    try {
+      await AuthService.signOut();
+    } catch (error: any) {
+      Alert.alert('Sign-out failed', error?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   // Set up foreground notification event handler with proper cleanup
   useEffect(() => {
@@ -1417,6 +1459,11 @@ export default function HomeScreen() {
           setAccuracyLevel(level);
           // TODO: Implement functionality to change distance interval
         }}
+        authUser={authUser}
+        authLoading={authLoading}
+        onGoogleSignIn={handleGoogleSignIn}
+        onAppleSignIn={handleAppleSignIn}
+        onSignOut={handleSignOut}
       />
     </SafeAreaView>
   );
