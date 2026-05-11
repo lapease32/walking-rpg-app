@@ -91,9 +91,9 @@ gh pr checks $PR --repo $REPO --json name,bucket \
   | jq -e 'length > 0 and all(.bucket == "pass" or .bucket == "skipping")'
 
 # 2. Bugbot check is not fail (pass or skipping both allowed)
-gh pr checks $PR --repo $REPO --json name,bucket \
-  --jq '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // ""' \
-  | grep -qvE "^fail$"
+bugbot_bucket=$(gh pr checks $PR --repo $REPO --json name,bucket \
+  --jq '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // ""')
+[ "$bugbot_bucket" != "fail" ]
 
 # 3. No inline comments from cursor[bot]
 gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
