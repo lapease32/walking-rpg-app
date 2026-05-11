@@ -99,6 +99,9 @@ export default function HomeScreen() {
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
   const prevUidRef = useRef<string | null>(null);
+  // Tracks the last known non-anonymous UID to distinguish a same-account re-sign-in
+  // (anonymous → same Google UID after sign-out) from a genuine account switch.
+  const lastNonAnonUidRef = useRef<string | null>(null);
   // Ref so the auth state listener always calls the latest version of initializePlayer
   const initializePlayerRef = useRef<() => Promise<void>>(async () => {});
 
@@ -152,6 +155,10 @@ export default function HomeScreen() {
       const newUid = user?.uid ?? null;
       prevUidRef.current = newUid;
       if (prevUid !== null && newUid !== null && prevUid !== newUid) {
+        // Distinguish a same-account re-sign-in (anonymous → same Google UID after sign-out)
+        // from a genuine switch to a different account. Check BEFORE updating lastNonAnonUidRef.
+        const isReSignIn = newUid === lastNonAnonUidRef.current;
+
         // Null refs and state immediately so GPS callbacks and encounter logic bail early during
         // the reload window and cannot write previous account data to the new account's Firestore
         // doc, or show the old account's encounter to the new user.
@@ -163,10 +170,19 @@ export default function HomeScreen() {
         setShowEncounterModal(false);
         setShowCombatModal(false);
         setIsEncounterModalMinimized(false);
-        // clearLocalPlayerData never throws (non-fatal), so initializePlayer always runs
-        clearLocalPlayerData()
-          .then(() => initializePlayerRef.current())
-          .catch(error => console.error('Failed to reload player after account switch:', error));
+
+        // For a genuine account switch: clear local data so the new account's cloud save always
+        // wins the timestamp comparison, preventing cross-account data leakage.
+        // For a re-sign-in: skip the clear — the anonymous session's local save is more recent
+        // than the pre-sign-out cloud save, so the timestamp comparison preserves that progress.
+        const reload = isReSignIn
+          ? initializePlayerRef.current()
+          : clearLocalPlayerData().then(() => initializePlayerRef.current());
+        reload.catch(error => console.error('Failed to reload player after account switch:', error));
+      }
+      // Update after the isReSignIn check so the check sees the previous value
+      if (user && !user.isAnonymous) {
+        lastNonAnonUidRef.current = user.uid;
       }
     });
     return unsubscribe;
