@@ -178,7 +178,9 @@ export default function HomeScreen() {
         const reload = isReSignIn
           ? initializePlayerRef.current()
           : clearLocalPlayerData().then(() => initializePlayerRef.current());
-        reload.catch(error => console.error('Failed to reload player after account switch:', error));
+        reload.catch(error =>
+          console.error('Failed to reload player after account switch:', error),
+        );
       }
       // Update after the isReSignIn check so the check sees the previous value
       if (user && !user.isAnonymous) {
