@@ -234,6 +234,21 @@ export async function loadTrackingState(): Promise<boolean> {
 }
 
 /**
+ * Clear only the local player data and its timestamp.
+ * Used when switching accounts so the new account's cloud record always wins
+ * the timestamp comparison in loadPlayerData.
+ * Non-fatal: if the clear fails, initializePlayer still runs and the cloud record
+ * wins via timestamp comparison anyway.
+ */
+export async function clearLocalPlayerData(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
+  } catch (error) {
+    console.error('clearLocalPlayerData: storage error, proceeding with reload:', error);
+  }
+}
+
+/**
  * Clear all app data
  */
 export async function clearAllData(): Promise<boolean> {

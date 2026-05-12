@@ -33,10 +33,6 @@ class AuthService {
     return user ? this.toAuthUser(user) : null;
   }
 
-  isAnonymous(): boolean {
-    return auth().currentUser?.isAnonymous ?? true;
-  }
-
   onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
     return auth().onAuthStateChanged(user => {
       callback(user ? this.toAuthUser(user) : null);
@@ -84,8 +80,13 @@ class AuthService {
       }
     }
     await auth().signOut();
-    // Re-authenticate anonymously so cloud sync continues to work after sign-out
-    await auth().signInAnonymously();
+    try {
+      // Re-authenticate anonymously so cloud sync continues to work after sign-out.
+      // Non-fatal if this fails — sign-out succeeded; cloud sync resumes on next app launch.
+      await auth().signInAnonymously();
+    } catch (error) {
+      console.error('AuthService: anonymous re-auth failed after sign-out:', error);
+    }
   }
 
   private async linkOrSignIn(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
