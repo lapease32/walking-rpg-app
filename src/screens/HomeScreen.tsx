@@ -15,6 +15,7 @@ import LocationService, { LocationData, DistanceData } from '../services/Locatio
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AuthService, { AuthUser } from '../services/AuthService';
+import AnalyticsService from '../services/AnalyticsService';
 import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
@@ -194,6 +195,7 @@ export default function HomeScreen() {
     setAuthLoading(true);
     try {
       await AuthService.signInWithGoogle();
+      AnalyticsService.signIn('google');
     } catch (error: any) {
       Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
     } finally {
@@ -205,6 +207,7 @@ export default function HomeScreen() {
     setAuthLoading(true);
     try {
       await AuthService.signInWithApple();
+      AnalyticsService.signIn('apple');
     } catch (error: any) {
       Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
     } finally {
@@ -216,6 +219,7 @@ export default function HomeScreen() {
     setAuthLoading(true);
     try {
       await AuthService.signOut();
+      AnalyticsService.signOut();
     } catch (error: any) {
       Alert.alert('Sign-out failed', error?.message ?? 'Something went wrong. Please try again.');
     } finally {
@@ -537,6 +541,11 @@ export default function HomeScreen() {
       );
 
       if (encounter) {
+        AnalyticsService.encounterTriggered(
+          encounter.creature.name,
+          encounter.creature.level,
+          encounter.playerLevel,
+        );
         // Check if app is in background (use ref to avoid stale closure)
         const isInBackground = appStateRef.current !== 'active';
 
@@ -646,6 +655,7 @@ export default function HomeScreen() {
     LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
     setIsTracking(true);
     saveTrackingState(true);
+    AnalyticsService.trackingStarted();
     NotificationService.startForegroundService().catch(console.error);
   };
 
@@ -654,6 +664,7 @@ export default function HomeScreen() {
     LocationService.stopTracking();
     setIsTracking(false);
     saveTrackingState(false);
+    AnalyticsService.trackingStopped();
     NotificationService.stopForegroundService().catch(console.error);
   };
 
@@ -686,6 +697,7 @@ export default function HomeScreen() {
 
     // Open combat modal
     setShowCombatModal(true);
+    AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
 
   // Handle attack execution with specific attack type
@@ -902,7 +914,15 @@ export default function HomeScreen() {
     setShowEncounterModal(false);
     setCurrentEncounter(null);
 
+    AnalyticsService.combatVictory(
+      currentEncounterState.creature.name,
+      updatedPlayer.level,
+      expGain,
+      !!droppedItem,
+      levelsGained > 0,
+    );
     if (levelsGained > 0) {
+      AnalyticsService.levelUp(updatedPlayer.level);
       Alert.alert(
         'Victory & Level Up!',
         `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`,
@@ -953,6 +973,7 @@ export default function HomeScreen() {
     showCombatModalRef.current = false;
 
     if (currentEncounterState && currentPlayer) {
+      AnalyticsService.combatFled(currentEncounterState.creature.name, currentPlayer.level);
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.incrementEncounters();
       // Reset HP to 100% after encounter (casual-friendly feature)
