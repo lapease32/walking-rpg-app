@@ -1,0 +1,47 @@
+name: Android Build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
+
+      - name: Set Android SDK path
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: Assemble debug APK
+        run: cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon

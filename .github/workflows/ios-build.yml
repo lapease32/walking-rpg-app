@@ -1,0 +1,48 @@
+name: iOS Build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Write GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICES_INFO_PLIST: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST }}
+        run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 --decode > ios/WalkingRPGTemp/GoogleService-Info.plist
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: pods-
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace ios/WalkingRPGTemp.xcworkspace \
+            -scheme WalkingRPGTemp \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
