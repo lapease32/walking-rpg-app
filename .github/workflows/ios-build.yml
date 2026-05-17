@@ -45,4 +45,6 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
+            C_COMPILER_LAUNCHER="" \
+            CXX_COMPILER_LAUNCHER="" \
             -quiet
