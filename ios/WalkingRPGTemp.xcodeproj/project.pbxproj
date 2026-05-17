@@ -542,6 +542,7 @@
 					"-ObjC",
 					"-lc++",
 				);
+				CODE_SIGN_ENTITLEMENTS = WalkingRPGTemp/WalkingRPGTemp.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.walkingrpgtemp;
 				PRODUCT_NAME = WalkingRPGTemp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -572,6 +573,7 @@
 					"-ObjC",
 					"-lc++",
 				);
+				CODE_SIGN_ENTITLEMENTS = WalkingRPGTemp/WalkingRPGTemp.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.walkingrpgtemp;
 				PRODUCT_NAME = WalkingRPGTemp;
 				PROVISIONING_PROFILE_SPECIFIER = "";

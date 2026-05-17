@@ -2,10 +2,8 @@ import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 
-// Obtain this from Firebase Console after enabling Google Sign-In:
-// Authentication → Sign-in method → Google → Web SDK configuration → Web client ID
-// Then replace this value and re-download GoogleService-Info.plist / google-services.json.
-const GOOGLE_WEB_CLIENT_ID = '';
+const GOOGLE_WEB_CLIENT_ID =
+  '127260614524-4kb18foii77g0rtjjl446r5v3nvj3usc.apps.googleusercontent.com';
 
 export interface AuthUser {
   uid: string;
@@ -54,9 +52,11 @@ class AuthService {
   }
 
   async signInWithApple(): Promise<void> {
-    if (Platform.OS !== 'ios') return;
+    if (Platform.OS !== 'ios') {
+      return;
+    }
     // Dynamic require keeps Android bundle free of iOS-only native module
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const appleAuth = require('@invertase/react-native-apple-authentication').default;
     const appleResponse = await appleAuth.performRequest({
       requestedOperation: appleAuth.Operation.LOGIN,
@@ -100,7 +100,9 @@ class AuthService {
         const accountAlreadyExists =
           error.code === 'auth/credential-already-in-use' ||
           error.code === 'auth/email-already-in-use';
-        if (!accountAlreadyExists) throw error;
+        if (!accountAlreadyExists) {
+          throw error;
+        }
         // The account already has a Firebase record — sign in to it instead.
         // The anonymous session's data is abandoned in favour of the existing account's cloud save.
       }
