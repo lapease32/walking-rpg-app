@@ -104,8 +104,6 @@ bugbot_bucket=$(gh pr checks $PR --repo $REPO --json name,bucket \
 [ "$bugbot_bucket" != "fail" ]
 
 # 3 & 4: only check in review mode (bugbot=skipping). When bugbot=pass these are stale.
-bugbot_bucket=$(gh pr checks $PR --repo $REPO --json name,bucket \
-  --jq '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // ""')
 if [ "$bugbot_bucket" = "skipping" ]; then
   gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
     --jq '[.[] | select(.user.login == "cursor[bot]")] | length' | grep -q "^0$"
