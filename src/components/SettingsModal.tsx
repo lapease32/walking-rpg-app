@@ -9,8 +9,11 @@ import {
   Pressable,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { AuthUser } from '../services/AuthService';
+
+const PRIVACY_POLICY_URL = 'https://lapease32.github.io/walking-rpg-app/privacy-policy.html';
 
 export type AccuracyLevel = 'high' | 'balanced' | 'battery';
 
@@ -138,6 +141,13 @@ export default function SettingsModal({
                   )}
                 </TouchableOpacity>
               ))}
+            </View>
+            {/* Legal section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Legal</Text>
+              <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}>
+                <Text style={styles.linkText}>Privacy Policy</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
@@ -286,5 +296,9 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     marginLeft: 12,
     fontWeight: 'bold',
+  },
+  linkText: {
+    fontSize: 16,
+    color: '#2196F3',
   },
 });
