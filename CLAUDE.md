@@ -59,7 +59,7 @@ is_mergeable() {
 }
 
 emit_status() {
-  local checks bugbot_bucket inline review_snippet failed_checks
+  local checks bugbot_bucket inline review_snippet failed_checks pending_checks
   checks=$(gh pr checks $PR --repo $REPO --json name,bucket 2>/dev/null || true)
 
   bugbot_bucket=$(echo "$checks" \
@@ -72,8 +72,11 @@ emit_status() {
   # Include failed check names so build failures trigger CHANGED notifications immediately
   failed_checks=$(echo "$checks" \
     | jq -r '[.[] | select(.bucket == "fail") | .name] | join(",")' 2>/dev/null || echo "err")
+  # Include pending check names so checks completing triggers CHANGED notifications
+  pending_checks=$(echo "$checks" \
+    | jq -r '[.[] | select(.bucket == "pending") | .name] | join(",")' 2>/dev/null || echo "err")
   # Collapse newlines in snippet so the status line stays single-line for string comparison
-  echo "STATUS bugbot=$bugbot_bucket inline=$inline failed=$failed_checks review=${review_snippet//$'\n'/ }"
+  echo "STATUS bugbot=$bugbot_bucket inline=$inline failed=$failed_checks pending=$pending_checks review=${review_snippet//$'\n'/ }"
 }
 
 # Emit immediately if already ready at startup
@@ -121,6 +124,6 @@ Merge only when all four pass. If bugbot check is `fail` OR inline comments exis
 > - Review bodies are multi-line. Use a positive `grep -qE "found [1-9]..."` to detect issues — do NOT use `grep -qE "found 0|^$"` (blank lines match `^$`) or `grep -qvE` (behavior differs between macOS ugrep and GNU grep).
 > - Use `?per_page=100` on inline comments and reviews endpoints; the default page size is 30.
 > - Extract single bugbot bucket with `[...] | first // ""` to handle duplicate check entries safely.
-> - Include `failed_checks` (names of failing checks) in `emit_status` so build failures trigger `CHANGED` notifications immediately — without it, a build failure that doesn't change bugbot/inline state is invisible until the next poll.
+> - Include `failed_checks` and `pending_checks` (names of failing/pending checks) in `emit_status` so build transitions trigger `CHANGED` notifications immediately — without `pending_checks`, a check going from `pending` → `pass` produces no status change and the monitor stays silent.
 > - Use a 60s poll interval in the monitor loop (not 270s) so build check transitions are caught quickly. The 270s recommendation is for the ScheduleWakeup fallback only.
 > - Gates 3 & 4 (inline comments, review body) only apply when `bugbot_bucket == "skipping"` (review mode). When bugbot=pass it uses check mode and any lingering inline comments or review bodies are stale artifacts from a prior review cycle — checking them will always falsely block the merge.
