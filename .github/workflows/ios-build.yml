@@ -29,6 +29,13 @@ jobs:
       - name: Install ccache
         run: brew install ccache
 
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-ios-${{ hashFiles('ios/Podfile.lock', 'yarn.lock') }}
+          restore-keys: ccache-ios-
+
       - name: Cache CocoaPods
         uses: actions/cache@v4
         with:
