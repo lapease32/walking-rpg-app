@@ -45,10 +45,6 @@ const AnalyticsService = {
     log('level_up', { new_level: newLevel });
   },
 
-  itemEquipped(slot: string, itemName: string) {
-    log('item_equipped', { slot, item_name: itemName });
-  },
-
   trackingStarted() {
     log('tracking_started');
   },

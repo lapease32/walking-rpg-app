@@ -916,7 +916,7 @@ export default function HomeScreen() {
 
     AnalyticsService.combatVictory(
       currentEncounterState.creature.name,
-      updatedPlayer.level,
+      basePlayer.level,
       expGain,
       !!droppedItem,
       levelsGained > 0,
