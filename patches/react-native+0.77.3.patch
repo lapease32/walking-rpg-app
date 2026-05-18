@@ -1,0 +1,32 @@
+diff --git a/node_modules/react-native/scripts/xcode/ccache-clang++.sh b/node_modules/react-native/scripts/xcode/ccache-clang++.sh
+index f699d9a..d5d34e8 100755
+--- a/node_modules/react-native/scripts/xcode/ccache-clang++.sh
++++ b/node_modules/react-native/scripts/xcode/ccache-clang++.sh
+@@ -11,4 +11,10 @@ REACT_NATIVE_CCACHE_CONFIGPATH=$SCRIPT_DIR/ccache.conf
+ # Provide our config file if none is already provided
+ export CCACHE_CONFIGPATH="${CCACHE_CONFIGPATH:-$REACT_NATIVE_CCACHE_CONFIGPATH}"
+ 
+-exec ccache clang++ "$@"
++# Locate ccache using absolute paths — do not rely on PATH, which Xcode GUI does not inherit fully
++for CCACHE_BIN in /usr/local/bin/ccache /opt/homebrew/bin/ccache; do
++    if [ -x "$CCACHE_BIN" ]; then
++        exec "$CCACHE_BIN" clang++ "$@"
++    fi
++done
++exec clang++ "$@"
+diff --git a/node_modules/react-native/scripts/xcode/ccache-clang.sh b/node_modules/react-native/scripts/xcode/ccache-clang.sh
+index 5ed8664..a97996b 100755
+--- a/node_modules/react-native/scripts/xcode/ccache-clang.sh
++++ b/node_modules/react-native/scripts/xcode/ccache-clang.sh
+@@ -11,4 +11,10 @@ REACT_NATIVE_CCACHE_CONFIGPATH=$SCRIPT_DIR/ccache.conf
+ # Provide our config file if none is already provided
+ export CCACHE_CONFIGPATH="${CCACHE_CONFIGPATH:-$REACT_NATIVE_CCACHE_CONFIGPATH}"
+ 
+-exec ccache clang "$@"
++# Locate ccache using absolute paths — do not rely on PATH, which Xcode GUI does not inherit fully
++for CCACHE_BIN in /usr/local/bin/ccache /opt/homebrew/bin/ccache; do
++    if [ -x "$CCACHE_BIN" ]; then
++        exec "$CCACHE_BIN" clang "$@"
++    fi
++done
++exec clang "$@"
