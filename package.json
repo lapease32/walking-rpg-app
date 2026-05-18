@@ -52,7 +52,7 @@
     "husky": "^9.1.7",
     "jest": "^30.3.0",
     "lint-staged": "^17.0.4",
-    "metro": "^0.81.5",
+    "metro": "^0.84.4",
     "metro-cache-key": "^0.81.5",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
@@ -64,7 +64,7 @@
     "node": ">=20"
   },
   "resolutions": {
-    "metro": "^0.81.5",
+    "metro": "^0.84.4",
     "metro-cache-key": "^0.81.5",
     "ip": "^1.1.9",
     "protobufjs": "^7.5.5",
