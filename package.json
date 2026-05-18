@@ -48,7 +48,7 @@
     "babel-jest": "^30.3.0",
     "eslint": "^8.19.0",
     "eslint-plugin-prettier": "^5.0.0",
-    "firebase-tools": "^15.16.0",
+    "firebase-tools": "^15.18.0",
     "husky": "^9.1.7",
     "jest": "^30.3.0",
     "lint-staged": "^17.0.4",
