@@ -60,8 +60,6 @@
 		<string>location</string>
 		<string>fetch</string>
 	</array>
-	<!-- Google Sign-In: replace REVERSED_CLIENT_ID with the value from GoogleService-Info.plist
-	     after enabling Google Sign-In in Firebase Console and re-downloading the plist. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -69,7 +67,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.127260614524-at3otasb6clti29oma7gumq3fnebbbip</string>
 			</array>
 		</dict>
 	</array>
