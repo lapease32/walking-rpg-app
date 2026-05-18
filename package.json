@@ -13,7 +13,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "postinstall": "patch-package",
     "firebase": "firebase",
-    "prepare": "husky"
+    "prepare": "husky",
+    "clean:ios": "pkill -x XCBBuildService 2>/dev/null; rm -rf ~/Library/Developer/Xcode/DerivedData/WalkingRPGTemp-*"
   },
   "dependencies": {
     "@invertase/react-native-apple-authentication": "^2.5.1",
