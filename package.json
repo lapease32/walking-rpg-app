@@ -53,7 +53,7 @@
     "jest": "^30.3.0",
     "lint-staged": "^17.0.4",
     "metro": "^0.81.5",
-    "metro-cache-key": "^0.81.5",
+    "metro-cache-key": "^0.84.4",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
     "prettier": "^3.0.0",
@@ -65,7 +65,7 @@
   },
   "resolutions": {
     "metro": "^0.81.5",
-    "metro-cache-key": "^0.81.5",
+    "metro-cache-key": "^0.84.4",
     "ip": "^1.1.9",
     "protobufjs": "^7.5.5",
     "yaml": "^2.8.3",
