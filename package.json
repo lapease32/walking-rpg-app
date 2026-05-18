@@ -50,7 +50,7 @@
     "eslint-plugin-prettier": "^5.0.0",
     "firebase-tools": "^15.16.0",
     "husky": "^9.1.7",
-    "jest": "^30.3.0",
+    "jest": "^30.4.2",
     "lint-staged": "^17.0.4",
     "metro": "^0.81.5",
     "metro-cache-key": "^0.81.5",
