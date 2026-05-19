@@ -56,6 +56,25 @@ target 'WalkingRPGTemp' do
     # consteval in format-inl.h because FMT_STRING wraps string literals in a local lambda
     # struct — a pattern Apple Clang refuses to evaluate as a constant expression at call sites.
     # Widen the guard to cover all Apple builds so consteval is never used on Apple platforms.
+    # ReactNativeDependencies (RN 0.85 prebuilt) ships folly headers without the coro/ directory.
+    # Building with -std=c++20 sets FOLLY_HAS_COROUTINES=1 in folly/Portability.h, causing
+    # folly/Expected.h to #include the non-existent folly/coro/Coroutine.h — fatal build error.
+    # Guard with __has_include so the coroutine block is only compiled when the file exists.
+    expected_h_link = "#{installer.sandbox.root}/Headers/Public/ReactNativeDependencies/folly/Expected.h"
+    if File.exist?(expected_h_link)
+      # The header is a symlink into ReactNativeDependencies/Headers/ — resolve before writing.
+      expected_h = File.realpath(expected_h_link)
+      content = File.read(expected_h)
+      patched = content.gsub(
+        '#if FOLLY_HAS_COROUTINES',
+        '#if FOLLY_HAS_COROUTINES && __has_include(<folly/coro/Coroutine.h>)'
+      )
+      if patched != content
+        FileUtils.chmod('u+w', expected_h)
+        File.write(expected_h, patched)
+      end
+    end
+
     fmt_base_h = "#{installer.sandbox.root}/fmt/include/fmt/base.h"
     if File.exist?(fmt_base_h)
       content = File.read(fmt_base_h)
