@@ -87,6 +87,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders = [usesCleartextTraffic: "false"]
     }
     buildFeatures {
         buildConfig = true
@@ -102,6 +103,7 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            manifestPlaceholders = [usesCleartextTraffic: "true"]
             // No applicationIdSuffix: google-services.json only has "com.walkingrpgtemp".
             // A .debug suffix would use com.walkingrpgtemp.debug, which has no Firebase config,
             // so Firebase would fail to init and FirebaseService would throw in development.
