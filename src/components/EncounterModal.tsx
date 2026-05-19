@@ -189,7 +189,8 @@ export default function EncounterModal({
                 (isDefeated || playerDefeated) && styles.debugDefeatButtonDisabled,
               ]}
               onPress={onDebugDefeat}
-              disabled={isDefeated || playerDefeated}>
+              disabled={isDefeated || playerDefeated}
+              testID="debug-instant-defeat">
               <Text style={styles.debugDefeatButtonText}>⚡ Instant Defeat (Debug)</Text>
             </TouchableOpacity>
           )}

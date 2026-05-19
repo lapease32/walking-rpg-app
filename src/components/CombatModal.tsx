@@ -151,7 +151,10 @@ export default function CombatModal({
           testID="combat-modal">
           <View style={styles.header}>
             <Text style={styles.title}>Combat</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              testID="combat-close-button">
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
