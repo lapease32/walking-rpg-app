@@ -37,8 +37,26 @@ const AnalyticsService = {
     });
   },
 
+  combatDefeated(creatureName: string, playerLevel: number) {
+    log('combat_defeat', { creature_name: creatureName, player_level: playerLevel });
+  },
+
   combatFled(creatureName: string, playerLevel: number) {
     log('combat_fled', { creature_name: creatureName, player_level: playerLevel });
+  },
+
+  distanceMilestone(milestoneMeter: number, totalDistanceMeter: number) {
+    log('distance_milestone', {
+      milestone_m: milestoneMeter,
+      total_distance_m: Math.round(totalDistanceMeter),
+    });
+  },
+
+  sessionStart(playerLevel: number, totalDistanceMeter: number) {
+    log('session_start', {
+      player_level: playerLevel,
+      total_distance_m: Math.round(totalDistanceMeter),
+    });
   },
 
   levelUp(newLevel: number) {

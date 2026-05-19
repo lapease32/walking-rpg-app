@@ -355,12 +355,15 @@ export default function HomeScreen() {
     try {
       const savedData = await loadPlayerData();
       if (savedData) {
-        setPlayer(Player.fromJSON(savedData));
+        const p = Player.fromJSON(savedData);
+        setPlayer(p);
+        AnalyticsService.sessionStart(p.level, p.totalDistance);
       } else {
         // Create new player
         const newPlayer = new Player();
         setPlayer(newPlayer);
         await savePlayerData(newPlayer);
+        AnalyticsService.sessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
       console.error('Error initializing player:', error);
@@ -476,11 +479,22 @@ export default function HomeScreen() {
 
     // Update player distance
     if (currentPlayer) {
+      const prevTotal = currentPlayer.totalDistance;
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.addDistance(incremental);
+      const newTotal = updatedPlayer.totalDistance;
       playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss if handleFlee is called
       setPlayer(updatedPlayer);
       savePlayerData(updatedPlayer); // Save periodically
+
+      // Check if a distance milestone was just crossed
+      const MILESTONES = [1000, 5000, 10000, 25000, 50000, 100000];
+      for (const milestone of MILESTONES) {
+        if (prevTotal < milestone && newTotal >= milestone) {
+          AnalyticsService.distanceMilestone(milestone, newTotal);
+          break;
+        }
+      }
     }
 
     // Check if encounter is minimized and user has traveled too far
@@ -799,6 +813,7 @@ export default function HomeScreen() {
       setShowCombatModal(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
+      AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
 
       // Show alert for user feedback (healing already done)
       Alert.alert(
