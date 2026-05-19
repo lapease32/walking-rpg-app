@@ -51,11 +51,6 @@ target 'WalkingRPGTemp' do
       File.write(path, fixed)
     end
 
-    # fmt 11.0.2's FMT_USE_CONSTEVAL guard only disables consteval for Apple Clang < 14
-    # (__apple_build_version__ < 14000029L). Apple Clang on Xcode 16+/26+ still rejects
-    # consteval in format-inl.h because FMT_STRING wraps string literals in a local lambda
-    # struct — a pattern Apple Clang refuses to evaluate as a constant expression at call sites.
-    # Widen the guard to cover all Apple builds so consteval is never used on Apple platforms.
     # ReactNativeDependencies (RN 0.85 prebuilt) ships folly without the coro/ header directory.
     # Building with -std=c++20 sets FOLLY_HAS_COROUTINES=1 in folly/Portability.h, causing any
     # folly header that includes folly/coro/Coroutine.h to fail with a fatal missing-file error.
@@ -75,19 +70,6 @@ target 'WalkingRPGTemp' do
           FileUtils.chmod('u+w', header)
           File.write(header, patched)
         end
-      end
-    end
-
-    fmt_base_h = "#{installer.sandbox.root}/fmt/include/fmt/base.h"
-    if File.exist?(fmt_base_h)
-      content = File.read(fmt_base_h)
-      patched = content.gsub(
-        'defined(__apple_build_version__) && __apple_build_version__ < 14000029L',
-        'defined(__apple_build_version__)'
-      )
-      if patched != content
-        FileUtils.chmod('u+w', fmt_base_h)
-        File.write(fmt_base_h, patched)
       end
     end
 
