@@ -52,8 +52,8 @@ const AnalyticsService = {
     });
   },
 
-  sessionStart(playerLevel: number, totalDistanceMeter: number) {
-    log('session_start', {
+  playerSessionStart(playerLevel: number, totalDistanceMeter: number) {
+    log('player_session_start', {
       player_level: playerLevel,
       total_distance_m: Math.round(totalDistanceMeter),
     });

@@ -357,13 +357,13 @@ export default function HomeScreen() {
       if (savedData) {
         const p = Player.fromJSON(savedData);
         setPlayer(p);
-        AnalyticsService.sessionStart(p.level, p.totalDistance);
+        AnalyticsService.playerSessionStart(p.level, p.totalDistance);
       } else {
         // Create new player
         const newPlayer = new Player();
         setPlayer(newPlayer);
         await savePlayerData(newPlayer);
-        AnalyticsService.sessionStart(newPlayer.level, newPlayer.totalDistance);
+        AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
       console.error('Error initializing player:', error);
@@ -492,7 +492,6 @@ export default function HomeScreen() {
       for (const milestone of MILESTONES) {
         if (prevTotal < milestone && newTotal >= milestone) {
           AnalyticsService.distanceMilestone(milestone, newTotal);
-          break;
         }
       }
     }
