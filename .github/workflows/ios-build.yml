@@ -58,5 +58,4 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            CCACHE_BINARY=$(which ccache) \
             -quiet
