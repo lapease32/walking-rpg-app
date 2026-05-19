@@ -32,7 +32,7 @@ target 'WalkingRPGTemp' do
       installer,
       config[:reactNativePath],
       :mac_catalyst_enabled => false,
-      :ccache_enabled => false
+      :ccache_enabled => true
     )
 
     # React-RuntimeApple (new in RN 0.77) defines 'module ReactCommon' in its modulemap,
