@@ -40,22 +40,30 @@ describe('Golden path: encounter → fight → victory', () => {
       .toBeVisible()
       .withTimeout(5000);
 
-    // Tap Basic Attack until creature is defeated.
-    // A level-1 player (20 ATK, 5 DEF) vs a level-1 creature typically
-    // takes 5-10 BASIC hits. 20 attempts with 1.2s gaps (just above the 1s
-    // BASIC cooldown) guarantees completion with headroom to spare.
+    // Tap Basic Attack until the combat modal closes (creature defeated).
+    // When the creature dies, HomeScreen calls setShowCombatModal(false) immediately
+    // and shows a native Alert — the modal itself never renders an outcome view.
+    // A level-1 player (20 ATK, 5 DEF) vs a level-1 creature typically takes
+    // 5–10 BASIC hits. 20 attempts with 1.2 s gaps (just above the 1 s cooldown)
+    // guarantees completion with headroom to spare.
     for (let i = 0; i < 20; i++) {
       try {
         await element(by.id('attack-button-BASIC')).tap();
       } catch {
-        // Button becomes disabled once combat ends — stop tapping
+        // Element gone → modal already closed → creature defeated
         break;
       }
       await new Promise(r => setTimeout(r, 1200));
     }
 
-    // Victory (or defeat) message should be visible
-    await waitFor(element(by.id('combat-outcome-message')))
+    // Combat modal disappears when creature is defeated; victory Alert follows
+    await waitFor(element(by.id('combat-modal')))
+      .not.toBeVisible()
+      .withTimeout(10000);
+    await device.dismissAlert();
+
+    // Confirm we landed back on the home screen
+    await waitFor(element(by.id('home-screen')))
       .toBeVisible()
       .withTimeout(5000);
   });
