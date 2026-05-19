@@ -73,7 +73,10 @@ export default function EncounterModal({
       animationType="slide"
       onRequestClose={onMinimize || onFlee}>
       <Pressable style={styles.modalOverlay} onPress={onMinimize ?? onFlee}>
-        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+        <View
+          style={styles.modalContent}
+          onStartShouldSetResponder={() => true}
+          testID="encounter-modal">
           <View style={styles.header}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
             {onMinimize && (
@@ -199,7 +202,8 @@ export default function EncounterModal({
                 (isDefeated || playerDefeated) && styles.buttonDisabled,
               ]}
               onPress={onFight}
-              disabled={isDefeated || playerDefeated}>
+              disabled={isDefeated || playerDefeated}
+              testID="encounter-fight-button">
               <Text style={styles.buttonText}>
                 {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
               </Text>

@@ -22,7 +22,7 @@ target 'WalkingRPGTemp' do
 
   target 'WalkingRPGTempTests' do
     inherit! :complete
-    # Pods for testing
+    pod 'Detox', :path => '../node_modules/detox'
   end
 
   post_install do |installer|
