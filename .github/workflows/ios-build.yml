@@ -44,6 +44,9 @@ jobs:
           key: pods-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: pods-
 
+      - name: Clear stale CocoaPods local podspecs cache
+        run: rm -rf ios/Pods/Local\ Podspecs ios/Pods/Manifest.lock
+
       - name: Install CocoaPods
         run: cd ios && pod install --repo-update
 
