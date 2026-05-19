@@ -28,7 +28,7 @@ jobs:
         run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 -d > ios/WalkingRPGTemp/GoogleService-Info.plist
 
       - name: Install ccache
-        run: brew install ccache
+        run: command -v ccache || brew install ccache
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -38,16 +38,14 @@ jobs:
           restore-keys: ccache-ios-
 
       - name: Cache CocoaPods
+        id: pods-cache
         uses: actions/cache@v4
         with:
           path: ios/Pods
           key: pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: pods-
-
-      - name: Clear stale CocoaPods local podspecs cache
-        run: rm -rf ios/Pods/Local\ Podspecs ios/Pods/Manifest.lock
 
       - name: Install CocoaPods
+        if: steps.pods-cache.outputs.cache-hit != 'true'
         run: cd ios && pod install --repo-update
 
       - name: Build for simulator
@@ -59,4 +57,6 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CCACHE_BINARY=$(which ccache) \
             -quiet
