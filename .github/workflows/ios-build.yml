@@ -45,8 +45,7 @@ jobs:
           key: pods-${{ hashFiles('ios/Podfile.lock') }}
 
       - name: Install CocoaPods
-        if: steps.pods-cache.outputs.cache-hit != 'true'
-        run: cd ios && pod install --repo-update
+        run: cd ios && pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && '--no-repo-update' || '--repo-update' }}
 
       - name: Build for simulator
         run: |
