@@ -60,6 +60,10 @@ describe('Golden path: encounter → fight → victory', () => {
     await waitFor(element(by.id('combat-modal')))
       .not.toBeVisible()
       .withTimeout(10000);
+
+    // Verify this is a victory alert ("Victory!" or "Victory & Level Up!"),
+    // not a defeat alert — both outcomes close the modal and show a native Alert
+    await expect(element(by.text('Defeated!'))).not.toExist();
     await device.dismissAlert();
 
     // Confirm we landed back on the home screen
