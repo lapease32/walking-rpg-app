@@ -1,0 +1,70 @@
+name: E2E iOS
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Write GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICES_INFO_PLIST: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST }}
+        run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 -d > ios/WalkingRPGTemp/GoogleService-Info.plist
+
+      - name: Install ccache
+        run: command -v ccache || brew install ccache
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-e2e-ios-${{ hashFiles('ios/Podfile.lock', 'yarn.lock') }}
+          restore-keys: ccache-e2e-ios-
+
+      - name: Cache CocoaPods
+        id: pods-cache
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ hashFiles('ios/Podfile.lock') }}
+
+      - name: Install CocoaPods
+        run: cd ios && pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && '--no-repo-update' || '--repo-update' }}
+
+      - name: Cache Detox framework
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Detox
+          key: detox-framework-${{ hashFiles('yarn.lock') }}
+
+      - name: Install applesimutils
+        run: brew tap wix/brew && brew install applesimutils
+
+      - name: Build app for Detox
+        run: yarn e2e:build:ios
+
+      - name: Run E2E tests
+        run: yarn e2e:ios
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts-${{ github.run_id }}
+          path: artifacts/
