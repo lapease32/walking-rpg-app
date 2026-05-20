@@ -145,10 +145,16 @@ export default function CombatModal({
       onRequestClose={onClose}
       presentationStyle="overFullScreen">
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+        <View
+          style={styles.modalContent}
+          onStartShouldSetResponder={() => true}
+          testID="combat-modal">
           <View style={styles.header}>
             <Text style={styles.title}>Combat</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              testID="combat-close-button">
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -248,7 +254,8 @@ export default function CombatModal({
                     key={attackType}
                     style={[styles.attackButton, isDisabled && styles.attackButtonDisabled]}
                     onPress={() => handleAttack(attackType)}
-                    disabled={isDisabled}>
+                    disabled={isDisabled}
+                    testID={`attack-button-${attackType}`}>
                     <View style={styles.attackButtonContent}>
                       <Text style={styles.attackIcon}>{attack.icon}</Text>
                       <View style={styles.attackInfo}>
@@ -272,7 +279,7 @@ export default function CombatModal({
             </View>
 
             {(isDefeated || playerDefeated) && (
-              <View style={styles.statusMessage}>
+              <View style={styles.statusMessage} testID="combat-outcome-message">
                 <Text style={styles.statusText}>
                   {isDefeated ? 'Creature Defeated!' : 'You are Defeated!'}
                 </Text>

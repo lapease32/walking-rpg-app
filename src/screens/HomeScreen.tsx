@@ -1263,7 +1263,7 @@ export default function HomeScreen() {
         : undefined;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="home-screen">
       {bannerVisible && (
         <BetaIndicator {...betaIndicatorProps} position={environmentBanner.position} />
       )}
@@ -1423,7 +1423,8 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.debugButton, styles.forceEncounterButton]}
-                onPress={forceEncounter}>
+                onPress={forceEncounter}
+                testID="debug-force-encounter">
                 <Text style={styles.debugButtonText}>Force Encounter</Text>
               </TouchableOpacity>
               <TouchableOpacity
