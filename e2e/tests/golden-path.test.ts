@@ -3,9 +3,14 @@ import { device, element, by, waitFor } from 'detox';
 describe('Golden path: encounter → fight → victory', () => {
   beforeAll(async () => {
     await device.launchApp({ newInstance: true });
+    // Firebase listeners and location updates keep the main queue perpetually
+    // busy, so Detox's idle-based synchronization never resolves. Disable it
+    // and rely on explicit waitFor timeouts throughout the test instead.
+    await device.disableSynchronization();
   });
 
   afterAll(async () => {
+    await device.enableSynchronization();
     await device.terminateApp();
   });
 
