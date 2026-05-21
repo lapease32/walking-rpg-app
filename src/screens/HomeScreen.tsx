@@ -155,10 +155,18 @@ export default function HomeScreen() {
       const prevUid = prevUidRef.current;
       const newUid = user?.uid ?? null;
       prevUidRef.current = newUid;
-      if (prevUid !== null && newUid !== null && prevUid !== newUid) {
+      // Reload player data when:
+      // 1. Account switch: UID changed from one non-null value to another.
+      // 2. Late auth: signInAnonymously() resolved after the auth-init timeout, so
+      //    player was already loaded without a UID. Re-fetch to pick up any cloud save.
+      const isAccountSwitch = prevUid !== null && newUid !== null && prevUid !== newUid;
+      const isLateAuth = prevUid === null && newUid !== null && playerRef.current !== null;
+      if (isAccountSwitch || isLateAuth) {
         // Distinguish a same-account re-sign-in (anonymous → same Google UID after sign-out)
         // from a genuine switch to a different account. Check BEFORE updating lastNonAnonUidRef.
-        const isReSignIn = newUid === lastNonAnonUidRef.current;
+        // Late-auth arrivals are treated as re-sign-ins: local data is at least as fresh, so
+        // skip the clear and let the timestamp comparison in loadPlayerData decide.
+        const isReSignIn = isLateAuth || newUid === lastNonAnonUidRef.current;
 
         // Null refs and state immediately so GPS callbacks and encounter logic bail early during
         // the reload window and cannot write previous account data to the new account's Firestore
@@ -174,8 +182,7 @@ export default function HomeScreen() {
 
         // For a genuine account switch: clear local data so the new account's cloud save always
         // wins the timestamp comparison, preventing cross-account data leakage.
-        // For a re-sign-in: skip the clear — the anonymous session's local save is more recent
-        // than the pre-sign-out cloud save, so the timestamp comparison preserves that progress.
+        // For a re-sign-in or late auth: skip the clear — the local save is more recent.
         const reload = isReSignIn
           ? initializePlayerRef.current()
           : clearLocalPlayerData().then(() => initializePlayerRef.current());
