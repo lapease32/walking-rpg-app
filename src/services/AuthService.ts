@@ -19,7 +19,14 @@ class AuthService {
 
     if (!auth().currentUser) {
       try {
-        await auth().signInAnonymously();
+        // Race against a 15s deadline so a slow or unreachable Firebase never
+        // blocks the loading screen indefinitely (e.g. on cold CI or bad network).
+        await Promise.race([
+          auth().signInAnonymously(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('auth/init-timeout')), 15000),
+          ),
+        ]);
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
       }

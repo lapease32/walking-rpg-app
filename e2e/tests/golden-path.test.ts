@@ -20,20 +20,23 @@ describe('Golden path: encounter → fight → victory', () => {
   });
 
   it('loads the main screen', async () => {
+    // 60s: Firebase anonymous sign-in + Firestore read on cold CI can take up to ~15s
+    // combined; this gives 4× that headroom before declaring the screen broken.
     await waitFor(element(by.id('home-screen')))
       .toBeVisible()
-      .withTimeout(30000);
+      .withTimeout(60000);
   });
 
   it('completes encounter → combat → victory flow', async () => {
-    // Wait for main screen and debug controls to be ready.
-    // 30s timeout: CI cold-start (Firebase auth init) takes longer than local.
+    // If the first test passed, home-screen is already visible and this resolves
+    // immediately. The 60s matches the first test in case the test suite is
+    // configured to continue after failures.
     await waitFor(element(by.id('home-screen')))
       .toBeVisible()
-      .withTimeout(30000);
+      .withTimeout(60000);
     await waitFor(element(by.id('debug-force-encounter')))
       .toBeVisible()
-      .withTimeout(30000);
+      .withTimeout(60000);
 
     // Trigger an encounter via the debug shortcut
     await element(by.id('debug-force-encounter')).tap();
