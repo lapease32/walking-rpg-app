@@ -36,7 +36,14 @@ class CloudSyncService {
       return null;
     }
     try {
-      const doc = await firestore().collection('players').doc(user.uid).get();
+      // Race against a 10s deadline so a slow Firestore connection on cold CI
+      // or a bad network never blocks the loading screen indefinitely.
+      const doc = await Promise.race([
+        firestore().collection('players').doc(user.uid).get(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('firestore/load-timeout')), 10000),
+        ),
+      ]);
       if (!doc.exists) {
         return null;
       }
