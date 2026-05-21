@@ -100,6 +100,10 @@ export default function HomeScreen() {
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
   const prevUidRef = useRef<string | null>(null);
+  // True once any non-null UID has been observed in this session. Used to distinguish
+  // the auth-init-timeout scenario (never had a UID) from sign-out → re-sign-in (had
+  // a UID, then it went null, then a new one arrived).
+  const hadUserRef = useRef<boolean>(false);
   // Tracks the last known non-anonymous UID to distinguish a same-account re-sign-in
   // (anonymous → same Google UID after sign-out) from a genuine account switch.
   const lastNonAnonUidRef = useRef<string | null>(null);
@@ -159,8 +163,16 @@ export default function HomeScreen() {
       // 1. Account switch: UID changed from one non-null value to another.
       // 2. Late auth: signInAnonymously() resolved after the auth-init timeout, so
       //    player was already loaded without a UID. Re-fetch to pick up any cloud save.
+      //    Requires !hadUserRef to exclude sign-out → re-sign-in (which goes null → new UID
+      //    but did have a user earlier in the session).
       const isAccountSwitch = prevUid !== null && newUid !== null && prevUid !== newUid;
-      const isLateAuth = prevUid === null && newUid !== null && playerRef.current !== null;
+      const isLateAuth =
+        prevUid === null && newUid !== null && playerRef.current !== null && !hadUserRef.current;
+      // Mark that this session has seen a user AFTER computing isLateAuth so the check
+      // reflects the previous state (not the current call's UID arrival).
+      if (newUid !== null) {
+        hadUserRef.current = true;
+      }
       if (isAccountSwitch || isLateAuth) {
         // Distinguish a same-account re-sign-in (anonymous → same Google UID after sign-out)
         // from a genuine switch to a different account. Check BEFORE updating lastNonAnonUidRef.
