@@ -2,7 +2,12 @@ import { device, element, by, waitFor } from 'detox';
 
 describe('Golden path: encounter → fight → victory', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    // Pre-grant location + notification permissions so iOS doesn't show native
+    // permission dialogs on first launch that would cover the home screen.
+    await device.launchApp({
+      newInstance: true,
+      permissions: { location: 'inuse', notifications: 'YES' },
+    });
     // Firebase listeners and location updates keep the main queue perpetually
     // busy, so Detox's idle-based synchronization never resolves. Disable it
     // and rely on explicit waitFor timeouts throughout the test instead.
