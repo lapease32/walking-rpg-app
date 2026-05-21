@@ -375,18 +375,22 @@ export default function HomeScreen() {
       const savedData = await loadPlayerData();
       if (savedData) {
         const p = Player.fromJSON(savedData);
+        playerRef.current = p;
         setPlayer(p);
         AnalyticsService.playerSessionStart(p.level, p.totalDistance);
       } else {
         // Create new player
         const newPlayer = new Player();
+        playerRef.current = newPlayer;
         setPlayer(newPlayer);
         await savePlayerData(newPlayer);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
       console.error('Error initializing player:', error);
-      setPlayer(new Player());
+      const fallback = new Player();
+      playerRef.current = fallback;
+      setPlayer(fallback);
     }
   };
   // Keep the ref current so the auth state listener always calls the latest closure
