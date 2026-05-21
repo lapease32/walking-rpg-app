@@ -65,7 +65,10 @@ describe('Golden path: encounter → fight → victory', () => {
     // Instantly defeat the creature via debug shortcut
     await element(by.id('debug-instant-defeat')).tap();
 
-    // Verify this is a victory alert, not a defeat alert, then dismiss
+    // With sync disabled we must explicitly wait for the alert to render
+    // before asserting on it. Victory title is 'Victory!' or
+    // 'Victory & Level Up!' — wait for the dismiss button common to both.
+    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(5000);
     await expect(element(by.text('Defeated!'))).not.toExist();
     await device.dismissAlert();
 
