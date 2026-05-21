@@ -23,6 +23,11 @@ module.exports = {
         '-derivedDataPath ios/build',
         'CODE_SIGNING_ALLOWED=NO',
         'COMPILER_INDEX_STORE_ENABLE=NO',
+        // Force JS bundle embedding in Debug+Simulator builds.
+        // react-native-xcode.sh skips bundling when FORCE_BUNDLING is unset
+        // and the target is a simulator, which causes a Red Box on CI where
+        // Metro is not running.
+        'FORCE_BUNDLING=1',
       ].join(' '),
     },
   },
