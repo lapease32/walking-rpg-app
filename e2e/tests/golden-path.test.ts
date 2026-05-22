@@ -34,9 +34,13 @@ describe('Golden path: encounter → fight → victory', () => {
     await waitFor(element(by.id('home-screen')))
       .toBeVisible()
       .withTimeout(60000);
+
+    // The debug controls sit below the fold in a long ScrollView. Scroll down
+    // until the button is visible (Detox scrolls in 200px steps until it appears).
     await waitFor(element(by.id('debug-force-encounter')))
       .toBeVisible()
-      .withTimeout(60000);
+      .whileElement(by.id('home-screen-scroll'))
+      .scroll(200, 'down');
 
     // Trigger an encounter via the debug shortcut
     await element(by.id('debug-force-encounter')).tap();

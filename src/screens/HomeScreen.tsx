@@ -1294,7 +1294,10 @@ export default function HomeScreen() {
       {bannerVisible && (
         <BetaIndicator {...betaIndicatorProps} position={environmentBanner.position} />
       )}
-      <ScrollView style={styles.scrollView} contentContainerStyle={scrollViewContentStyle}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={scrollViewContentStyle}
+        testID="home-screen-scroll">
         <View style={styles.content}>
           <View style={styles.titleContainer}>
             <TouchableOpacity
