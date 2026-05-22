@@ -108,6 +108,10 @@ export default function HomeScreen() {
   // player→playerRef useEffect so stale React state cannot repopulate the ref
   // before initializePlayer has written the freshly-loaded player.
   const isReloadingRef = useRef<boolean>(false);
+  // Distance (metres) accumulated via GPS while a late-auth reload is in flight.
+  // Saves are blocked during reload to prevent stale writes; this ref preserves the
+  // distance so it can be merged into the freshly-loaded player when reload completes.
+  const pendingReloadDistanceRef = useRef<number>(0);
   // Tracks the last known non-anonymous UID to distinguish a same-account re-sign-in
   // (anonymous → same Google UID after sign-out) from a genuine account switch.
   const lastNonAnonUidRef = useRef<string | null>(null);
@@ -391,27 +395,37 @@ export default function HomeScreen() {
   const initializePlayer = async (): Promise<void> => {
     try {
       const savedData = await loadPlayerData();
+      // Drain any distance accumulated while saves were blocked during a late-auth
+      // reload so it is merged into the freshly-loaded (or newly-created) player.
+      const pendingDist = pendingReloadDistanceRef.current;
+      pendingReloadDistanceRef.current = 0;
       if (savedData) {
         const p = Player.fromJSON(savedData);
+        if (pendingDist > 0) {
+          p.addDistance(pendingDist);
+        }
         isReloadingRef.current = false;
         playerRef.current = p;
         setPlayer(p);
         AnalyticsService.playerSessionStart(p.level, p.totalDistance);
       } else {
-        // Create new player
+        // Create new player. Do NOT save here: saving a blank placeholder with
+        // any timestamp races with a concurrent late-auth reload that may already
+        // have written real cloud data to AsyncStorage. The first GPS event
+        // (or other game action) will persist the player with a real timestamp.
         const newPlayer = new Player();
+        if (pendingDist > 0) {
+          newPlayer.addDistance(pendingDist);
+        }
         isReloadingRef.current = false;
         playerRef.current = newPlayer;
         setPlayer(newPlayer);
-        // Use savedAt=0 so any existing cloud save wins the timestamp comparison
-        // on a subsequent late-auth reload, preventing a no-auth placeholder from
-        // masking real cloud progress.
-        await savePlayerData(newPlayer, 0);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
       console.error('Error initializing player:', error);
       const fallback = new Player();
+      pendingReloadDistanceRef.current = 0;
       isReloadingRef.current = false;
       playerRef.current = fallback;
       setPlayer(fallback);
@@ -532,7 +546,11 @@ export default function HomeScreen() {
       const newTotal = updatedPlayer.totalDistance;
       playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss if handleFlee is called
       setPlayer(updatedPlayer);
-      if (!isReloadingRef.current) {
+      if (isReloadingRef.current) {
+        // Saves are blocked during a late-auth reload. Accumulate distance so
+        // initializePlayer can merge it into the freshly-loaded player.
+        pendingReloadDistanceRef.current += incremental;
+      } else {
         savePlayerData(updatedPlayer); // Save periodically
       }
 
@@ -1167,7 +1185,9 @@ export default function HomeScreen() {
     playerRef.current = updatedPlayer;
 
     setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    if (!isReloadingRef.current) {
+      savePlayerData(updatedPlayer);
+    }
     Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
   };
 
@@ -1186,7 +1206,9 @@ export default function HomeScreen() {
     playerRef.current = updatedPlayer;
 
     setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    if (!isReloadingRef.current) {
+      savePlayerData(updatedPlayer);
+    }
 
     if (levelsGained > 0) {
       Alert.alert(
@@ -1235,7 +1257,9 @@ export default function HomeScreen() {
             playerRef.current = updatedPlayer;
 
             setPlayer(updatedPlayer);
-            savePlayerData(updatedPlayer);
+            if (!isReloadingRef.current) {
+              savePlayerData(updatedPlayer);
+            }
             Alert.alert('Level Reset', 'You have been reset to level 1.');
           },
         },
@@ -1579,7 +1603,9 @@ export default function HomeScreen() {
             });
             playerRef.current = updatedPlayer;
             setPlayer(updatedPlayer);
-            savePlayerData(updatedPlayer);
+            if (!isReloadingRef.current) {
+              savePlayerData(updatedPlayer);
+            }
           }
         }}
         onItemDeleted={() => {
@@ -1592,7 +1618,9 @@ export default function HomeScreen() {
             });
             playerRef.current = updatedPlayer;
             setPlayer(updatedPlayer);
-            savePlayerData(updatedPlayer);
+            if (!isReloadingRef.current) {
+              savePlayerData(updatedPlayer);
+            }
           }
         }}
       />
