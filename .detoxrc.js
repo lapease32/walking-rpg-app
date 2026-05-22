@@ -14,6 +14,9 @@ module.exports = {
       type: 'ios.app',
       binaryPath:
         'ios/build/Build/Products/Debug-iphonesimulator/WalkingRPGTemp.app',
+      // DetoxE2E is read by index.ts via Settings.get('DetoxE2E') to suppress
+      // the LogBox warning bar that otherwise blocks scroll interactions.
+      launchArgs: { DetoxE2E: 'YES' },
       build: [
         'xcodebuild',
         '-workspace ios/WalkingRPGTemp.xcworkspace',

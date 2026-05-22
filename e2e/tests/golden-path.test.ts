@@ -36,14 +36,11 @@ describe('Golden path: encounter → fight → victory', () => {
       .withTimeout(60000);
 
     // The debug controls sit below the fold at ~y=2200 in the ScrollView.
-    // whileElement().scroll() requires 100% scroll-view visibility, which fails
-    // when the React Native LogBox warning bar covers the bottom of the viewport.
-    // A plain scroll() uses a 75% threshold and lets us start from the top
-    // of the scroll view (startPositionY=0.1) to avoid the warning bar area.
-    await element(by.id('home-screen-scroll')).scroll(2500, 'down', NaN, 0.1);
+    // Scroll down until the button enters the viewport.
     await waitFor(element(by.id('debug-force-encounter')))
       .toBeVisible()
-      .withTimeout(5000);
+      .whileElement(by.id('home-screen-scroll'))
+      .scroll(200, 'down');
 
     // Trigger an encounter via the debug shortcut
     await element(by.id('debug-force-encounter')).tap();

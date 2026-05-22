@@ -1,13 +1,23 @@
-import { AppRegistry, LogBox } from 'react-native';
+import { AppRegistry, LogBox, Platform, Settings } from 'react-native';
 
 // Firebase anonymous sign-in fails with auth/keychain-error on unsigned
 // simulator builds (CODE_SIGNING_ALLOWED=NO removes keychain entitlements).
-// This is non-fatal — the app continues with local storage only — but the
-// resulting console.error would open a LogBox overlay that covers UI elements
-// and breaks E2E tests. Ignoring this specific message keeps all other
-// warnings visible in local development.
+// Non-fatal — the app continues with local storage — but the console.error
+// would open a LogBox overlay in local development. Suppress the specific
+// message to keep other warnings visible.
 if (__DEV__) {
   LogBox.ignoreLogs(['AuthService: anonymous sign-in failed']);
+}
+
+// When running Detox E2E tests the LogBox warning bar covers the bottom of the
+// scroll view, causing scroll interactions to fail Detox's 100% visibility
+// threshold. Suppress all LogBox overlays for the test session only.
+//
+// Detection: .detoxrc.js passes launchArgs: { DetoxE2E: 'YES' }. iOS
+// registers launch arguments in NSUserDefaults (NSArgumentDomain), which
+// React Native's Settings module reads. This has no effect outside Detox runs.
+if (Platform.OS === 'ios' && Settings.get('DetoxE2E') === 'YES') {
+  LogBox.ignoreAllLogs();
 }
 import notifee, { EventType } from '@notifee/react-native';
 import App from './App';
