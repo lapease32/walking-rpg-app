@@ -104,6 +104,10 @@ export default function HomeScreen() {
   // the auth-init-timeout scenario (never had a UID) from sign-out → re-sign-in (had
   // a UID, then it went null, then a new one arrived).
   const hadUserRef = useRef<boolean>(false);
+  // True while a late-auth or account-switch reload is in flight. Blocks the
+  // player→playerRef useEffect so stale React state cannot repopulate the ref
+  // before initializePlayer has written the freshly-loaded player.
+  const isReloadingRef = useRef<boolean>(false);
   // Tracks the last known non-anonymous UID to distinguish a same-account re-sign-in
   // (anonymous → same Google UID after sign-out) from a genuine account switch.
   const lastNonAnonUidRef = useRef<string | null>(null);
@@ -180,8 +184,9 @@ export default function HomeScreen() {
         // skip the clear and let the timestamp comparison in loadPlayerData decide.
         const isReSignIn = isLateAuth || newUid === lastNonAnonUidRef.current;
 
-        // Null playerRef immediately so GPS callbacks bail early during the reload
-        // window and cannot write stale data to Firestore.
+        // Block the player→playerRef useEffect and null the ref so GPS callbacks
+        // bail early during the reload window and cannot write stale data to Firestore.
+        isReloadingRef.current = true;
         playerRef.current = null;
 
         if (isAccountSwitch) {
@@ -311,7 +316,9 @@ export default function HomeScreen() {
 
   // Keep refs in sync with state
   useEffect(() => {
-    playerRef.current = player;
+    if (!isReloadingRef.current) {
+      playerRef.current = player;
+    }
   }, [player]);
 
   useEffect(() => {
@@ -384,12 +391,14 @@ export default function HomeScreen() {
       const savedData = await loadPlayerData();
       if (savedData) {
         const p = Player.fromJSON(savedData);
+        isReloadingRef.current = false;
         playerRef.current = p;
         setPlayer(p);
         AnalyticsService.playerSessionStart(p.level, p.totalDistance);
       } else {
         // Create new player
         const newPlayer = new Player();
+        isReloadingRef.current = false;
         playerRef.current = newPlayer;
         setPlayer(newPlayer);
         await savePlayerData(newPlayer);
@@ -398,6 +407,7 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error initializing player:', error);
       const fallback = new Player();
+      isReloadingRef.current = false;
       playerRef.current = fallback;
       setPlayer(fallback);
     }
