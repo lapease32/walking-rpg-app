@@ -61,7 +61,7 @@ jobs:
         run: yarn e2e:build:ios
 
       - name: Run E2E tests
-        run: yarn detox test -c ios.sim.debug --loglevel verbose
+        run: yarn detox test -c ios.sim.debug --loglevel verbose --take-screenshots failing --record-logs failing
 
       - name: Upload test artifacts on failure
         if: failure()
