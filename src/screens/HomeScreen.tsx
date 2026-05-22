@@ -10,7 +10,11 @@ import {
   AppState,
   AppStateStatus,
   Platform,
+  Settings,
 } from 'react-native';
+
+// Detox E2E mode: disable animations that keep the Detox idle queue busy on slow CI simulators
+const isE2E = Platform.OS === 'ios' && Settings.get('DetoxE2E') === 'YES';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
@@ -1595,6 +1599,7 @@ export default function HomeScreen() {
         visible={showCombatModal}
         onAttack={handleAttack}
         onClose={handleCloseCombatModal}
+        animationType={isE2E ? 'none' : 'fade'}
       />
       <InventoryModal
         inventory={player?.inventory || []}

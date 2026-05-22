@@ -18,6 +18,7 @@ interface CombatModalProps {
   visible: boolean;
   onAttack: (attackType: AttackType) => void;
   onClose: () => void;
+  animationType?: 'none' | 'slide' | 'fade';
 }
 
 /**
@@ -29,6 +30,7 @@ export default function CombatModal({
   visible,
   onAttack,
   onClose,
+  animationType = 'fade',
 }: CombatModalProps) {
   const [cooldowns, setCooldowns] = useState<Record<AttackType, number>>({
     BASIC: 0,
@@ -141,7 +143,7 @@ export default function CombatModal({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType={animationType}
       onRequestClose={onClose}
       presentationStyle="overFullScreen">
       <Pressable style={styles.modalOverlay} onPress={onClose}>
