@@ -86,12 +86,18 @@ describe('Golden path: encounter → fight → victory', () => {
     // Instantly defeat the creature via debug shortcut
     await element(by.id('debug-instant-defeat')).tap();
 
-    // With sync disabled we must explicitly wait for the alert to render
-    // before asserting on it. Victory title is 'Victory!' or
-    // 'Victory & Level Up!' — wait for the dismiss button common to both.
-    // 15s: Firebase keeps the main queue busy after instant-defeat, delaying
-    // UIAlertController presentation. Matches the combat-modal wait above.
-    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(15000);
+    // Wait for the encounter to end before expecting the victory alert.
+    // With sync disabled, the defeat tap can sit in the event queue for 10-20s
+    // while Firebase callbacks monopolize the main thread. Waiting for the
+    // encounter-modal to disappear confirms the tap was processed. Once it's
+    // gone the victory Alert.alert() fires in the same synchronous call, so
+    // the OK button should appear within a short window after this.
+    await waitFor(element(by.id('encounter-modal')))
+      .not.toBeVisible()
+      .withTimeout(30000);
+
+    // Victory alert should appear promptly once the encounter ends.
+    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(10000);
     await expect(element(by.text('Defeated!'))).not.toExist();
     await device.dismissAlert();
 
