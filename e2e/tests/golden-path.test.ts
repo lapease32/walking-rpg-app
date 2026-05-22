@@ -89,7 +89,9 @@ describe('Golden path: encounter → fight → victory', () => {
     // With sync disabled we must explicitly wait for the alert to render
     // before asserting on it. Victory title is 'Victory!' or
     // 'Victory & Level Up!' — wait for the dismiss button common to both.
-    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(5000);
+    // 15s: Firebase keeps the main queue busy after instant-defeat, delaying
+    // UIAlertController presentation. Matches the combat-modal wait above.
+    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(15000);
     await expect(element(by.text('Defeated!'))).not.toExist();
     await device.dismissAlert();
 
