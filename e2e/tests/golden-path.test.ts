@@ -87,17 +87,17 @@ describe('Golden path: encounter → fight → victory', () => {
     await element(by.id('debug-instant-defeat')).tap();
 
     // Wait for the encounter to end before expecting the victory alert.
-    // With sync disabled, the defeat tap can sit in the event queue for 10-20s
-    // while Firebase callbacks monopolize the main thread. Waiting for the
-    // encounter-modal to disappear confirms the tap was processed. Once it's
-    // gone the victory Alert.alert() fires in the same synchronous call, so
-    // the OK button should appear within a short window after this.
+    // With sync disabled, the defeat tap can sit in the event queue for up to
+    // ~40s while Firebase callbacks monopolize the main thread. Waiting for the
+    // encounter-modal to disappear confirms the tap was processed.
     await waitFor(element(by.id('encounter-modal')))
       .not.toBeVisible()
-      .withTimeout(30000);
+      .withTimeout(60000);
 
-    // Victory alert should appear promptly once the encounter ends.
-    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(10000);
+    // UIAlertController.present() is a separate native operation queued behind
+    // the React re-render. Firebase can still delay it 10-30s after the
+    // encounter ends. 30s gives headroom from encounter end to alert appearance.
+    await waitFor(element(by.label('OK'))).toBeVisible().withTimeout(30000);
     await expect(element(by.text('Defeated!'))).not.toExist();
     await device.dismissAlert();
 
