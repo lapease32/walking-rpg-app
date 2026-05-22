@@ -18,17 +18,22 @@ class AuthService {
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
 
     if (!auth().currentUser) {
+      // Race against a 15s deadline so a slow or unreachable Firebase never
+      // blocks the loading screen indefinitely (e.g. on cold CI or bad network).
+      // clearTimeout in finally prevents the losing timer promise from emitting
+      // an unhandled rejection after the race has already settled.
+      let authTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        // Race against a 15s deadline so a slow or unreachable Firebase never
-        // blocks the loading screen indefinitely (e.g. on cold CI or bad network).
         await Promise.race([
           auth().signInAnonymously(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('auth/init-timeout')), 15000),
-          ),
+          new Promise<never>((_, reject) => {
+            authTimeout = setTimeout(() => reject(new Error('auth/init-timeout')), 15000);
+          }),
         ]);
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
+      } finally {
+        clearTimeout(authTimeout);
       }
     }
   }

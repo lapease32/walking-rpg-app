@@ -91,7 +91,25 @@ export async function loadPlayerData(): Promise<PlayerData | null> {
     }
   }
 
-  // Local data is at least as fresh — use it
+  // Local data is at least as fresh — use it.
+  // If cloud timed out, the original Firestore request is still in flight.
+  // When it eventually completes, persist the result to local storage if it
+  // turns out to be newer, so the next session (or any subsequent reload)
+  // picks up the correct cloud save without waiting indefinitely at startup.
+  const pendingCloud = CloudSyncService.consumePendingLoad();
+  if (pendingCloud) {
+    pendingCloud
+      .then(record => {
+        if (record && isValidPlayerData(record.playerData) && record.lastSavedAt > localSavedAt) {
+          AsyncStorage.multiSet([
+            [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(record.playerData)],
+            [STORAGE_KEYS.PLAYER_SAVED_AT, String(record.lastSavedAt)],
+          ]).catch(console.error);
+        }
+      })
+      .catch(() => {});
+  }
+
   if (localJson) {
     try {
       const parsed: unknown = JSON.parse(localJson);
