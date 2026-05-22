@@ -1582,7 +1582,7 @@ export default function HomeScreen() {
 
       <EncounterModal
         encounter={currentEncounter}
-        visible={showEncounterModal}
+        visible={showEncounterModal && !showCombatModal}
         playerAttack={player?.attack}
         playerDefense={player?.defense}
         playerHp={player?.hp}
@@ -1592,6 +1592,7 @@ export default function HomeScreen() {
         onMinimize={handleMinimize}
         debugMode={debugMode}
         onDebugDefeat={handleDebugDefeat}
+        animationType={isE2E ? 'none' : 'slide'}
       />
       <CombatModal
         encounter={currentEncounter}

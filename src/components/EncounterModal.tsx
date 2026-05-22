@@ -23,6 +23,7 @@ interface EncounterModalProps {
   onMinimize?: () => void;
   debugMode?: boolean;
   onDebugDefeat?: () => void;
+  animationType?: 'none' | 'slide' | 'fade';
 }
 
 /**
@@ -40,6 +41,7 @@ export default function EncounterModal({
   onMinimize,
   debugMode = false,
   onDebugDefeat,
+  animationType = 'slide',
 }: EncounterModalProps) {
   if (!encounter || !encounter.creature) {
     return null;
@@ -70,7 +72,7 @@ export default function EncounterModal({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType={animationType}
       onRequestClose={onMinimize || onFlee}>
       <Pressable style={styles.modalOverlay} onPress={onMinimize ?? onFlee}>
         <View
