@@ -180,17 +180,21 @@ export default function HomeScreen() {
         // skip the clear and let the timestamp comparison in loadPlayerData decide.
         const isReSignIn = isLateAuth || newUid === lastNonAnonUidRef.current;
 
-        // Null refs and state immediately so GPS callbacks and encounter logic bail early during
-        // the reload window and cannot write previous account data to the new account's Firestore
-        // doc, or show the old account's encounter to the new user.
+        // Null player refs/state immediately so GPS callbacks bail early during the reload
+        // window and cannot write stale data to Firestore.
         playerRef.current = null;
-        encounterRef.current = null;
-        showCombatModalRef.current = false;
         setPlayer(null);
-        setCurrentEncounter(null);
-        setShowEncounterModal(false);
-        setShowCombatModal(false);
-        setIsEncounterModalMinimized(false);
+
+        if (isAccountSwitch) {
+          // On a genuine account switch also wipe encounter/combat state — the old account's
+          // active encounter must not be shown to the new user (cross-account data leakage).
+          encounterRef.current = null;
+          showCombatModalRef.current = false;
+          setCurrentEncounter(null);
+          setShowEncounterModal(false);
+          setShowCombatModal(false);
+          setIsEncounterModalMinimized(false);
+        }
 
         // For a genuine account switch: clear local data so the new account's cloud save always
         // wins the timestamp comparison, preventing cross-account data leakage.
