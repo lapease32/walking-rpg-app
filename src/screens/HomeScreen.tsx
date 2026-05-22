@@ -184,16 +184,18 @@ export default function HomeScreen() {
         // skip the clear and let the timestamp comparison in loadPlayerData decide.
         const isReSignIn = isLateAuth || newUid === lastNonAnonUidRef.current;
 
-        // Block the player→playerRef useEffect and null the ref so GPS callbacks
-        // bail early during the reload window and cannot write stale data to Firestore.
+        // Block the player→playerRef sync effect during reload.
+        // For isLateAuth: keep playerRef non-null so handlers stay active (no silent
+        // gameplay stoppage); each savePlayerData call-site guards on isReloadingRef
+        // to prevent stale writes to AsyncStorage / Firestore.
+        // For isAccountSwitch: null the ref too (see below).
         isReloadingRef.current = true;
-        playerRef.current = null;
 
         if (isAccountSwitch) {
-          // On a genuine account switch: wipe React state too so the UI shows
-          // the loading screen rather than the previous account's data.
-          // Also wipe encounter/combat state — the old account's active encounter
-          // must not be shown to the new user (cross-account data leakage).
+          // On a genuine account switch: null the ref so GPS callbacks bail during
+          // reload, wipe React state so the UI shows the loading screen, and clear
+          // encounter/combat state to prevent cross-account data leakage.
+          playerRef.current = null;
           setPlayer(null);
           encounterRef.current = null;
           showCombatModalRef.current = false;
@@ -401,7 +403,10 @@ export default function HomeScreen() {
         isReloadingRef.current = false;
         playerRef.current = newPlayer;
         setPlayer(newPlayer);
-        await savePlayerData(newPlayer);
+        // Use savedAt=0 so any existing cloud save wins the timestamp comparison
+        // on a subsequent late-auth reload, preventing a no-auth placeholder from
+        // masking real cloud progress.
+        await savePlayerData(newPlayer, 0);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
@@ -527,7 +532,9 @@ export default function HomeScreen() {
       const newTotal = updatedPlayer.totalDistance;
       playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss if handleFlee is called
       setPlayer(updatedPlayer);
-      savePlayerData(updatedPlayer); // Save periodically
+      if (!isReloadingRef.current) {
+        savePlayerData(updatedPlayer); // Save periodically
+      }
 
       // Check if a distance milestone was just crossed
       const MILESTONES = [1000, 5000, 10000, 25000, 50000, 100000];
@@ -813,7 +820,9 @@ export default function HomeScreen() {
 
     // Update player state
     setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    if (!isReloadingRef.current) {
+      savePlayerData(updatedPlayer);
+    }
 
     // Update encounter with damaged creature
     const updatedEncounter = new Encounter({
@@ -849,7 +858,9 @@ export default function HomeScreen() {
       showCombatModalRef.current = false;
 
       setPlayer(healedPlayer);
-      savePlayerData(healedPlayer);
+      if (!isReloadingRef.current) {
+        savePlayerData(healedPlayer);
+      }
       setIsEncounterModalMinimized(false);
       setShowCombatModal(false);
       setShowEncounterModal(false);
@@ -964,7 +975,9 @@ export default function HomeScreen() {
     fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
 
     setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    if (!isReloadingRef.current) {
+      savePlayerData(updatedPlayer);
+    }
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
@@ -1036,7 +1049,9 @@ export default function HomeScreen() {
       updatedPlayer.fullHeal();
       playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
       setPlayer(updatedPlayer);
-      savePlayerData(updatedPlayer);
+      if (!isReloadingRef.current) {
+        savePlayerData(updatedPlayer);
+      }
     }
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);

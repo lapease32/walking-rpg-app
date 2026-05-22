@@ -30,10 +30,12 @@ export interface EncounterData {
   status: EncounterStatus;
 }
 
-export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<boolean> {
+export async function savePlayerData(
+  player: { toJSON(): PlayerData },
+  savedAt = Date.now(),
+): Promise<boolean> {
   try {
     const playerData = player.toJSON();
-    const savedAt = Date.now();
     await AsyncStorage.multiSet([
       [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(playerData)],
       [STORAGE_KEYS.PLAYER_SAVED_AT, String(savedAt)],
