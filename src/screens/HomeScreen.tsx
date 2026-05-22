@@ -108,6 +108,11 @@ export default function HomeScreen() {
   // player→playerRef useEffect so stale React state cannot repopulate the ref
   // before initializePlayer has written the freshly-loaded player.
   const isReloadingRef = useRef<boolean>(false);
+  // Monotonic counter incremented every time a new reload is triggered. Each
+  // initializePlayer call captures it at entry and only clears isReloadingRef
+  // when the counter hasn't changed — preventing an earlier reload from
+  // prematurely re-enabling saves if a newer reload started before it finished.
+  const activeReloadIdRef = useRef<number>(0);
   // Distance (metres) accumulated via GPS while a late-auth reload is in flight.
   // Saves are blocked during reload to prevent stale writes; this ref preserves the
   // distance so it can be merged into the freshly-loaded player when reload completes.
@@ -193,6 +198,7 @@ export default function HomeScreen() {
         // gameplay stoppage); each savePlayerData call-site guards on isReloadingRef
         // to prevent stale writes to AsyncStorage / Firestore.
         // For isAccountSwitch: null the ref too (see below).
+        activeReloadIdRef.current += 1;
         isReloadingRef.current = true;
 
         if (isAccountSwitch) {
@@ -393,18 +399,26 @@ export default function HomeScreen() {
   }, [isTimeBlocking]);
 
   const initializePlayer = async (): Promise<void> => {
+    // Capture reload ID at entry. isReloadingRef is only cleared if this ID
+    // still matches activeReloadIdRef when the load finishes — prevents an
+    // earlier reload from prematurely re-enabling saves when a newer reload
+    // has already started (e.g. late auth fires then account switch fires).
+    const myReloadId = activeReloadIdRef.current;
     try {
       const savedData = await loadPlayerData();
       // Drain any distance accumulated while saves were blocked during a late-auth
       // reload so it is merged into the freshly-loaded (or newly-created) player.
       const pendingDist = pendingReloadDistanceRef.current;
       pendingReloadDistanceRef.current = 0;
+      const isActiveReload = activeReloadIdRef.current === myReloadId;
       if (savedData) {
         const p = Player.fromJSON(savedData);
         if (pendingDist > 0) {
           p.addDistance(pendingDist);
         }
-        isReloadingRef.current = false;
+        if (isActiveReload) {
+          isReloadingRef.current = false;
+        }
         playerRef.current = p;
         setPlayer(p);
         AnalyticsService.playerSessionStart(p.level, p.totalDistance);
@@ -417,7 +431,9 @@ export default function HomeScreen() {
         if (pendingDist > 0) {
           newPlayer.addDistance(pendingDist);
         }
-        isReloadingRef.current = false;
+        if (isActiveReload) {
+          isReloadingRef.current = false;
+        }
         playerRef.current = newPlayer;
         setPlayer(newPlayer);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
@@ -426,7 +442,9 @@ export default function HomeScreen() {
       console.error('Error initializing player:', error);
       const fallback = new Player();
       pendingReloadDistanceRef.current = 0;
-      isReloadingRef.current = false;
+      if (activeReloadIdRef.current === myReloadId) {
+        isReloadingRef.current = false;
+      }
       playerRef.current = fallback;
       setPlayer(fallback);
     }
@@ -1560,7 +1578,7 @@ export default function HomeScreen() {
 
       <EncounterModal
         encounter={currentEncounter}
-        visible={showEncounterModal && !showCombatModal}
+        visible={showEncounterModal}
         playerAttack={player?.attack}
         playerDefense={player?.defense}
         playerHp={player?.hp}
