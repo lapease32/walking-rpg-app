@@ -1,10 +1,13 @@
 import { AppRegistry, LogBox } from 'react-native';
 
-// Suppress the LogBox overlay in debug builds so non-fatal errors (e.g. Firebase
-// auth/keychain-error on unsigned simulator builds) don't cover UI elements and
-// break E2E tests. Errors still appear in Metro / Xcode console output.
+// Firebase anonymous sign-in fails with auth/keychain-error on unsigned
+// simulator builds (CODE_SIGNING_ALLOWED=NO removes keychain entitlements).
+// This is non-fatal — the app continues with local storage only — but the
+// resulting console.error would open a LogBox overlay that covers UI elements
+// and breaks E2E tests. Ignoring this specific message keeps all other
+// warnings visible in local development.
 if (__DEV__) {
-  LogBox.ignoreAllLogs();
+  LogBox.ignoreLogs(['AuthService: anonymous sign-in failed']);
 }
 import notifee, { EventType } from '@notifee/react-native';
 import App from './App';
