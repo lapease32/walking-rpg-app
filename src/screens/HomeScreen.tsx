@@ -403,25 +403,24 @@ export default function HomeScreen() {
   }, [isTimeBlocking]);
 
   const initializePlayer = async (): Promise<void> => {
-    // Capture reload ID at entry. isReloadingRef is only cleared if this ID
-    // still matches activeReloadIdRef when the load finishes — prevents an
-    // earlier reload from prematurely re-enabling saves when a newer reload
-    // has already started (e.g. late auth fires then account switch fires).
+    // Capture reload ID at entry. If a newer reload starts before this one
+    // finishes, we return early and touch no shared state — preventing a stale
+    // load from draining pendingReloadDistanceRef, clearing isReloadingRef, or
+    // overwriting playerRef/setPlayer with outdated data.
     const myReloadId = activeReloadIdRef.current;
     try {
       const savedData = await loadPlayerData();
-      // Drain any distance accumulated while saves were blocked during a late-auth
-      // reload so it is merged into the freshly-loaded (or newly-created) player.
+      if (activeReloadIdRef.current !== myReloadId) {
+        return; // superseded — the active reload will handle all shared state
+      }
+      // Drain distance accumulated while saves were blocked; merge into player.
       const pendingDist = pendingReloadDistanceRef.current;
       pendingReloadDistanceRef.current = 0;
-      const isActiveReload = activeReloadIdRef.current === myReloadId;
+      isReloadingRef.current = false;
       if (savedData) {
         const p = Player.fromJSON(savedData);
         if (pendingDist > 0) {
           p.addDistance(pendingDist);
-        }
-        if (isActiveReload) {
-          isReloadingRef.current = false;
         }
         playerRef.current = p;
         setPlayer(p);
@@ -435,20 +434,16 @@ export default function HomeScreen() {
         if (pendingDist > 0) {
           newPlayer.addDistance(pendingDist);
         }
-        if (isActiveReload) {
-          isReloadingRef.current = false;
-        }
         playerRef.current = newPlayer;
         setPlayer(newPlayer);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
+      if (activeReloadIdRef.current !== myReloadId) return;
       console.error('Error initializing player:', error);
       const fallback = new Player();
       pendingReloadDistanceRef.current = 0;
-      if (activeReloadIdRef.current === myReloadId) {
-        isReloadingRef.current = false;
-      }
+      isReloadingRef.current = false;
       playerRef.current = fallback;
       setPlayer(fallback);
     }
