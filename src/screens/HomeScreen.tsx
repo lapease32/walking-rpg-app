@@ -73,6 +73,13 @@ export default function HomeScreen() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
+  // E2E-only: replaces native Alert.alert() for victory so Detox can query it
+  // (UIAlertController lives in a separate UIWindow that waitFor can't poll
+  // reliably when disableSynchronization() is active).
+  const [e2eVictoryMessage, setE2eVictoryMessage] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(false);
@@ -1027,15 +1034,21 @@ export default function HomeScreen() {
     );
     if (levelsGained > 0) {
       AnalyticsService.levelUp(updatedPlayer.level);
-      Alert.alert(
-        'Victory & Level Up!',
-        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`,
-      );
+      const title = 'Victory & Level Up!';
+      const body = `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`;
+      if (isE2E) {
+        setE2eVictoryMessage({ title, body });
+      } else {
+        Alert.alert(title, body);
+      }
     } else {
-      Alert.alert(
-        'Victory!',
-        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`,
-      );
+      const title = 'Victory!';
+      const body = `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`;
+      if (isE2E) {
+        setE2eVictoryMessage({ title, body });
+      } else {
+        Alert.alert(title, body);
+      }
     }
   };
 
@@ -1657,6 +1670,18 @@ export default function HomeScreen() {
         onAppleSignIn={handleAppleSignIn}
         onSignOut={handleSignOut}
       />
+      {isE2E && e2eVictoryMessage && (
+        <View style={styles.e2eVictoryOverlay} testID="victory-alert">
+          <Text style={styles.e2eVictoryTitle}>{e2eVictoryMessage.title}</Text>
+          <Text style={styles.e2eVictoryBody}>{e2eVictoryMessage.body}</Text>
+          <TouchableOpacity
+            testID="victory-dismiss"
+            style={styles.e2eVictoryButton}
+            onPress={() => setE2eVictoryMessage(null)}>
+            <Text style={styles.e2eVictoryButtonText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1665,6 +1690,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  e2eVictoryOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  e2eVictoryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  e2eVictoryBody: {
+    fontSize: 14,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 24,
+  },
+  e2eVictoryButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  e2eVictoryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   scrollViewWithBetaTop: {
     paddingTop: 60, // Add padding when beta indicator is at top (Android)
