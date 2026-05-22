@@ -1,4 +1,11 @@
-import { AppRegistry } from 'react-native';
+import { AppRegistry, LogBox } from 'react-native';
+
+// Suppress the LogBox overlay in debug builds so non-fatal errors (e.g. Firebase
+// auth/keychain-error on unsigned simulator builds) don't cover UI elements and
+// break E2E tests. Errors still appear in Metro / Xcode console output.
+if (__DEV__) {
+  LogBox.ignoreAllLogs();
+}
 import notifee, { EventType } from '@notifee/react-native';
 import App from './App';
 // @ts-ignore - app.json is a JSON file imported as module
