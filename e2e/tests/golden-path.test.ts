@@ -50,11 +50,20 @@ describe('Golden path: encounter → fight → victory', () => {
       .toBeVisible()
       .withTimeout(5000);
 
-    // Choose to fight — verifies the CombatModal opens correctly
-    await element(by.id('encounter-fight-button')).tap();
-    await waitFor(element(by.id('combat-modal')))
+    // Wait for the fight button explicitly before tapping — on slow CI the encounter
+    // modal opening triggers many animations (43+ pending at once in observed runs) and
+    // the tap can land before layout settles, silently missing the button.
+    await waitFor(element(by.id('encounter-fight-button')))
       .toBeVisible()
       .withTimeout(5000);
+
+    // Choose to fight — verifies the CombatModal opens correctly
+    await element(by.id('encounter-fight-button')).tap();
+    // 15s: slow CI simulator can take several seconds to re-render after a tap
+    // during a layout-heavy animation phase.
+    await waitFor(element(by.id('combat-modal')))
+      .toBeVisible()
+      .withTimeout(15000);
 
     // Verify the BASIC attack button is present and tappable
     await expect(element(by.id('attack-button-BASIC'))).toBeVisible();
