@@ -1,0 +1,89 @@
+name: E2E iOS
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  e2e-ios:
+    name: E2E iOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Write GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICES_INFO_PLIST: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST }}
+        run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 -d > ios/WalkingRPGTemp/GoogleService-Info.plist
+
+      - name: Install Maestro
+        run: curl -Ls "https://get.maestro.mobile.dev" | bash
+
+      - name: Install ccache
+        run: command -v ccache || brew install ccache
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-e2e-ios-${{ hashFiles('ios/Podfile.lock', 'yarn.lock') }}
+          restore-keys: ccache-e2e-ios-
+
+      - name: Cache CocoaPods
+        id: pods-cache
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ hashFiles('ios/Podfile.lock') }}
+
+      - name: Install CocoaPods
+        run: cd ios && pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && '--no-repo-update' || '--repo-update' }}
+
+      - name: Build for simulator
+        run: |
+          xcodebuild \
+            -workspace ios/WalkingRPGTemp.xcworkspace \
+            -scheme WalkingRPGTemp \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Boot simulator
+        run: |
+          SIM_ID=$(xcrun simctl list devices available | grep "iPhone 16" | grep -v "Plus\|Pro" | head -1 | grep -oE '[A-F0-9-]{36}')
+          if [ -z "$SIM_ID" ]; then
+            echo "ERROR: No iPhone 16 simulator found" && exit 1
+          fi
+          echo "SIM_ID=$SIM_ID" >> $GITHUB_ENV
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+
+      - name: Install app on simulator
+        run: xcrun simctl install "$SIM_ID" ios/build/Build/Products/Release-iphonesimulator/WalkingRPGTemp.app
+
+      - name: Run E2E tests
+        run: ~/.maestro/bin/maestro test --device "$SIM_ID" e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-results
+          path: e2e/maestro/results.xml

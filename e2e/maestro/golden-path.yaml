@@ -1,0 +1,77 @@
+appId: com.walkingrpgtemp
+---
+# Golden path: encounter → fight → victory
+# Maestro retries all assertions automatically — no explicit wait commands needed.
+
+# Pre-grant notification permission so the system dialog doesn't block the test.
+# (HomeScreen calls notifee.requestPermission() at startup via initializeNotifications.)
+- launchApp:
+    permissions:
+      notifications: allow
+
+# Wait for home screen — 60s for Firebase anonymous auth in CI
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 60000
+
+# Debug controls are at the bottom of a ScrollView — scroll to make them tappable
+- scrollUntilVisible:
+    element:
+      id: "debug-force-encounter"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "debug-force-encounter"
+
+# Encounter modal should appear
+- extendedWaitUntil:
+    visible:
+      id: "encounter-modal"
+    timeout: 10000
+
+# Choose to fight
+- tapOn:
+    id: "encounter-fight-button"
+- extendedWaitUntil:
+    visible:
+      id: "combat-modal"
+    timeout: 10000
+
+# Verify BASIC attack button is present
+- assertVisible:
+    id: "attack-button-BASIC"
+
+# Close CombatModal
+- tapOn:
+    id: "combat-close-button"
+- extendedWaitUntil:
+    notVisible:
+      id: "combat-modal"
+    timeout: 10000
+
+# Encounter modal should still be visible
+- extendedWaitUntil:
+    visible:
+      id: "encounter-modal"
+    timeout: 10000
+
+# Instantly defeat the creature
+- tapOn:
+    id: "debug-instant-defeat"
+
+# Victory alert: wait for it to appear, verify not a defeat, dismiss
+- extendedWaitUntil:
+    visible:
+      text: "OK"
+    timeout: 10000
+- assertNotVisible:
+    text: "Defeated!"
+- tapOn:
+    text: "OK"
+
+# Back on home screen
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 10000
