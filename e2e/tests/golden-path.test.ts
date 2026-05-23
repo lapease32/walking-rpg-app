@@ -6,11 +6,6 @@ describe('Golden path: encounter → fight → victory', () => {
       newInstance: true,
       permissions: { location: 'always', notifications: 'YES' },
     });
-    // The RN New Architecture's Fabric renderer keeps GCD's main queue
-    // perpetually active, so Detox's sync tracker never sees "idle".
-    // Disable sync and use explicit timeouts instead. device.dismissAlert()
-    // is a native action and works correctly in this mode.
-    await device.disableSynchronization();
   });
 
   afterAll(async () => {

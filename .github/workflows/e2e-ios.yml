@@ -35,18 +35,15 @@ jobs:
           key: firebase-emulators-${{ hashFiles('package.json') }}
           restore-keys: firebase-emulators-
 
-      - name: Start Firebase emulators
-        run: npx firebase emulators:start --only auth,firestore --project demo-e2e &
+      - name: Start Firebase Auth emulator
+        run: npx firebase emulators:start --only auth --project demo-e2e &
 
-      - name: Wait for Firebase emulators
+      - name: Wait for Firebase Auth emulator
         run: |
           echo "Waiting for Auth emulator on :9099..."
           for i in $(seq 60); do nc -z localhost 9099 2>/dev/null && break || sleep 1; done
           nc -z localhost 9099 2>/dev/null || (echo "Auth emulator did not start" && exit 1)
-          echo "Waiting for Firestore emulator on :8080..."
-          for i in $(seq 60); do nc -z localhost 8080 2>/dev/null && break || sleep 1; done
-          nc -z localhost 8080 2>/dev/null || (echo "Firestore emulator did not start" && exit 1)
-          echo "Emulators ready"
+          echo "Auth emulator ready"
 
       - name: Install applesimutils
         run: brew tap wix/brew && brew install applesimutils
