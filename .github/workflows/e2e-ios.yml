@@ -48,6 +48,9 @@ jobs:
           nc -z localhost 8080 2>/dev/null || (echo "Firestore emulator did not start" && exit 1)
           echo "Emulators ready"
 
+      - name: Install applesimutils
+        run: brew tap wix/brew && brew install applesimutils
+
       - name: Install ccache
         run: command -v ccache || brew install ccache
 
