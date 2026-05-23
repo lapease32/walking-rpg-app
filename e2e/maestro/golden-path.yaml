@@ -1,0 +1,62 @@
+appId: com.walkingrpgtemp
+---
+# Golden path: encounter → fight → victory
+# Maestro drives the app via the accessibility tree with automatic retry —
+# no sync mechanism means no GCD main queue saturation issues.
+
+# Wait for the home screen (Firebase anonymous auth can take 20-30s in CI)
+- waitForAnimationsToEnd
+- assertVisible:
+    id: "home-screen"
+    timeout: 60000
+
+# Trigger an encounter via the debug shortcut
+- waitForAnimationsToEnd
+- assertVisible:
+    id: "debug-force-encounter"
+    timeout: 15000
+- tapOn:
+    id: "debug-force-encounter"
+
+# Encounter modal should appear
+- assertVisible:
+    id: "encounter-modal"
+    timeout: 10000
+
+# Choose to fight — verifies CombatModal opens correctly
+- tapOn:
+    id: "encounter-fight-button"
+- assertVisible:
+    id: "combat-modal"
+    timeout: 10000
+
+# Verify the BASIC attack button is present
+- assertVisible:
+    id: "attack-button-BASIC"
+
+# Close CombatModal — encounter modal stays visible underneath
+- tapOn:
+    id: "combat-close-button"
+- assertNotVisible:
+    id: "combat-modal"
+    timeout: 10000
+
+# Encounter modal should be visible again
+- assertVisible:
+    id: "encounter-modal"
+    timeout: 10000
+
+# Instantly defeat the creature via debug shortcut
+- tapOn:
+    id: "debug-instant-defeat"
+
+# Victory alert appears — verify it is NOT a defeat alert, then dismiss
+- assertNotVisible:
+    text: "Defeated!"
+- tapOn:
+    text: "OK"
+
+# Confirm we landed back on the home screen
+- assertVisible:
+    id: "home-screen"
+    timeout: 10000
