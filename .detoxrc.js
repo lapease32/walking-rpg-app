@@ -38,6 +38,14 @@ module.exports = {
     'ios.sim.debug': {
       device: 'simulator',
       app: 'ios.debug',
+      launchArgs: {
+        DetoxE2E: 'YES',
+        detoxURLBlacklistRegex: 'http://localhost:9099.*|http://localhost:8080.*',
+      },
+      permissions: {
+        location: 'always',
+        notifications: 'YES',
+      },
     },
   },
 };
