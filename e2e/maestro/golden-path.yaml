@@ -4,6 +4,9 @@ appId: com.walkingrpgtemp
 # Maestro drives the app via the accessibility tree with automatic retry —
 # no sync mechanism means no GCD main queue saturation issues.
 
+# Launch the app fresh
+- launchApp
+
 # Wait for the home screen (Firebase anonymous auth can take 20-30s in CI)
 - waitForAnimationsToEnd
 - assertVisible:
@@ -50,7 +53,10 @@ appId: com.walkingrpgtemp
 - tapOn:
     id: "debug-instant-defeat"
 
-# Victory alert appears — verify it is NOT a defeat alert, then dismiss
+# Wait for the victory alert to appear, verify it is NOT a defeat alert, then dismiss
+- assertVisible:
+    text: "OK"
+    timeout: 10000
 - assertNotVisible:
     text: "Defeated!"
 - tapOn:
