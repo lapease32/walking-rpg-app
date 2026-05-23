@@ -55,4 +55,4 @@ jobs:
         run: yarn e2e:build:ios
 
       - name: Run E2E tests
-        run: yarn e2e:ios --debug-synchronization 3000
+        run: yarn e2e:ios
