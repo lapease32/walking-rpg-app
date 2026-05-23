@@ -28,15 +28,24 @@ jobs:
           GOOGLE_SERVICES_INFO_PLIST: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST }}
         run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 -d > ios/WalkingRPGTemp/GoogleService-Info.plist
 
+      - name: Cache Firebase emulator JARs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package.json') }}
+          restore-keys: firebase-emulators-
+
       - name: Start Firebase emulators
         run: npx firebase emulators:start --only auth,firestore --project demo-e2e &
 
       - name: Wait for Firebase emulators
         run: |
           echo "Waiting for Auth emulator on :9099..."
-          timeout 30 bash -c 'until curl -sf http://localhost:9099; do sleep 1; done'
+          for i in $(seq 60); do nc -z localhost 9099 2>/dev/null && break || sleep 1; done
+          nc -z localhost 9099 2>/dev/null || (echo "Auth emulator did not start" && exit 1)
           echo "Waiting for Firestore emulator on :8080..."
-          timeout 30 bash -c 'until curl -sf http://localhost:8080; do sleep 1; done'
+          for i in $(seq 60); do nc -z localhost 8080 2>/dev/null && break || sleep 1; done
+          nc -z localhost 8080 2>/dev/null || (echo "Firestore emulator did not start" && exit 1)
           echo "Emulators ready"
 
       - name: Install ccache
