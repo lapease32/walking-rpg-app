@@ -42,10 +42,6 @@ module.exports = {
         DetoxE2E: 'YES',
         detoxURLBlacklistRegex: 'http://localhost:9099.*|http://localhost:8080.*',
       },
-      permissions: {
-        location: 'always',
-        notifications: 'YES',
-      },
     },
   },
 };
