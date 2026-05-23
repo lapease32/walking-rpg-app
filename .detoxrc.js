@@ -40,7 +40,16 @@ module.exports = {
       app: 'ios.debug',
       launchArgs: {
         DetoxE2E: 'YES',
-        detoxURLBlacklistRegex: 'http://localhost:9099.*|http://localhost:8080.*',
+        // Emulator ports + all Firebase/Google external endpoints so Detox sync
+        // is never blocked by background analytics, Crashlytics, or Installations calls.
+        detoxURLBlacklistRegex:
+          'http://localhost:9099.*' +
+          '|http://localhost:8080.*' +
+          '|.*\\.googleapis\\.com.*' +
+          '|.*\\.crashlytics\\.com.*' +
+          '|.*\\.app-measurement\\.com.*' +
+          '|.*\\.firebase\\.com.*' +
+          '|.*\\.firebaseio\\.com.*',
       },
     },
   },

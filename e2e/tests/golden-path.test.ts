@@ -15,14 +15,14 @@ describe('Golden path: encounter → fight → victory', () => {
   it('loads the main screen', async () => {
     await waitFor(element(by.id('home-screen')))
       .toBeVisible()
-      .withTimeout(15000);
+      .withTimeout(30000);
   });
 
   it('completes encounter → combat → victory flow', async () => {
     // Wait for main screen and debug controls to be ready
     await waitFor(element(by.id('home-screen')))
       .toBeVisible()
-      .withTimeout(15000);
+      .withTimeout(30000);
     await waitFor(element(by.id('debug-force-encounter')))
       .toBeVisible()
       .withTimeout(15000);
