@@ -3,16 +3,22 @@ appId: com.walkingrpgtemp
 # Golden path: encounter → fight → victory
 # Maestro retries all assertions automatically — no explicit wait commands needed.
 
-- launchApp
+# Pre-grant notification permission so the system dialog doesn't block the test.
+# (HomeScreen calls notifee.requestPermission() at startup via initializeNotifications.)
+- launchApp:
+    permissions:
+      notifications: allow
 
 # Wait for home screen — 60s for Firebase anonymous auth in CI
 - assertVisible:
     id: "home-screen"
     timeout: 60000
 
-# Trigger encounter via debug shortcut
-- assertVisible:
-    id: "debug-force-encounter"
+# Debug controls are at the bottom of a ScrollView — scroll to make them tappable
+- scrollUntilVisible:
+    element:
+      id: "debug-force-encounter"
+    direction: DOWN
     timeout: 15000
 - tapOn:
     id: "debug-force-encounter"
