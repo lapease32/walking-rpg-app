@@ -12,6 +12,9 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
 
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000
+
     steps:
       - uses: actions/checkout@v4
 
