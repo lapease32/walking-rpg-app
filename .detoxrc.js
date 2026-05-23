@@ -38,9 +38,6 @@ module.exports = {
     'ios.sim.debug': {
       device: 'simulator',
       app: 'ios.debug',
-      launchArgs: {
-        DetoxE2E: 'YES',
-      },
     },
   },
 };

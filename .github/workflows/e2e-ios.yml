@@ -28,23 +28,6 @@ jobs:
           GOOGLE_SERVICES_INFO_PLIST: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST }}
         run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 -d > ios/WalkingRPGTemp/GoogleService-Info.plist
 
-      - name: Cache Firebase emulator JARs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/firebase/emulators
-          key: firebase-emulators-${{ hashFiles('package.json') }}
-          restore-keys: firebase-emulators-
-
-      - name: Start Firebase Auth emulator
-        run: npx firebase emulators:start --only auth --project demo-e2e &
-
-      - name: Wait for Firebase Auth emulator
-        run: |
-          echo "Waiting for Auth emulator on :9099..."
-          for i in $(seq 60); do nc -z localhost 9099 2>/dev/null && break || sleep 1; done
-          nc -z localhost 9099 2>/dev/null || (echo "Auth emulator did not start" && exit 1)
-          echo "Auth emulator ready"
-
       - name: Install applesimutils
         run: brew tap wix/brew && brew install applesimutils
 
