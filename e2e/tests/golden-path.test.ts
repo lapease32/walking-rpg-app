@@ -2,10 +2,7 @@ import { device, element, by, waitFor } from 'detox';
 
 describe('Golden path: encounter → fight → victory', () => {
   beforeAll(async () => {
-    await device.launchApp({
-      newInstance: true,
-      permissions: { location: 'always', notifications: 'YES' },
-    });
+    await device.launchApp({ newInstance: true });
   });
 
   afterAll(async () => {
