@@ -10,8 +10,9 @@ appId: com.walkingrpgtemp
       notifications: allow
 
 # Wait for home screen — 60s for Firebase anonymous auth in CI
-- assertVisible:
-    id: "home-screen"
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
     timeout: 60000
 
 # Debug controls are at the bottom of a ScrollView — scroll to make them tappable
@@ -24,15 +25,17 @@ appId: com.walkingrpgtemp
     id: "debug-force-encounter"
 
 # Encounter modal should appear
-- assertVisible:
-    id: "encounter-modal"
+- extendedWaitUntil:
+    visible:
+      id: "encounter-modal"
     timeout: 10000
 
 # Choose to fight
 - tapOn:
     id: "encounter-fight-button"
-- assertVisible:
-    id: "combat-modal"
+- extendedWaitUntil:
+    visible:
+      id: "combat-modal"
     timeout: 10000
 
 # Verify BASIC attack button is present
@@ -42,13 +45,15 @@ appId: com.walkingrpgtemp
 # Close CombatModal
 - tapOn:
     id: "combat-close-button"
-- assertNotVisible:
-    id: "combat-modal"
+- extendedWaitUntil:
+    notVisible:
+      id: "combat-modal"
     timeout: 10000
 
 # Encounter modal should still be visible
-- assertVisible:
-    id: "encounter-modal"
+- extendedWaitUntil:
+    visible:
+      id: "encounter-modal"
     timeout: 10000
 
 # Instantly defeat the creature
@@ -56,8 +61,9 @@ appId: com.walkingrpgtemp
     id: "debug-instant-defeat"
 
 # Victory alert: wait for it to appear, verify not a defeat, dismiss
-- assertVisible:
-    text: "OK"
+- extendedWaitUntil:
+    visible:
+      text: "OK"
     timeout: 10000
 - assertNotVisible:
     text: "Defeated!"
@@ -65,6 +71,7 @@ appId: com.walkingrpgtemp
     text: "OK"
 
 # Back on home screen
-- assertVisible:
-    id: "home-screen"
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
     timeout: 10000
