@@ -12,7 +12,7 @@ import { name as appName } from './app.json';
 // keeping the main GCD queue permanently saturated and blocking Detox sync.
 // Real Firestore has enough network latency that Detox can see idle windows.
 if (Platform.OS === 'ios' && Settings.get('DetoxE2E') === 'YES') {
-  auth().useEmulator('http://localhost:9099');
+  auth().useEmulator('http://127.0.0.1:9099');
 }
 
 // Register background notification handler
