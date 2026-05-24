@@ -20,7 +20,7 @@ appId: com.walkingrpgtemp
     element:
       id: "debug-force-encounter"
     direction: DOWN
-    timeout: 15000
+    timeout: 30000
 - tapOn:
     id: "debug-force-encounter"
 
