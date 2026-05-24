@@ -48,8 +48,24 @@ jobs:
           key: gradle-e2e-android-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle*') }}
           restore-keys: gradle-e2e-android-
 
+      - name: Cache Firebase emulator binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package.json') }}
+          restore-keys: firebase-emulators-
+
       - name: Build APK
         run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Start Firebase emulators
+        run: |
+          npx firebase emulators:start --only auth,firestore --project demo-e2e &
+          echo "EMULATOR_PID=$!" >> $GITHUB_ENV
+          # Wait up to 60s for both emulator ports to be open
+          for i in $(seq 1 30); do
+            nc -z localhost 9099 2>/dev/null && nc -z localhost 8080 2>/dev/null && echo "Emulators ready" && break || sleep 2
+          done
 
       - name: Enable KVM
         run: |
@@ -73,19 +89,18 @@ jobs:
             adb shell settings put system screen_off_timeout 2147483647
             adb shell input keyevent 224
             adb shell input keyevent 82
-            adb logcat -c
-            adb logcat -v time > /tmp/logcat.txt &
-            LOGCAT_PID=$!
+            adb shell settings put global firebase_emulator_host 10.0.2.2
             adb install android/app/build/outputs/apk/release/app-release.apk
             ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml || true
-            kill $LOGCAT_PID 2>/dev/null || true
             exit $([ -f e2e/maestro/results.xml ] && grep -q 'failures="0"' e2e/maestro/results.xml && echo 0 || echo 1)
+
+      - name: Stop Firebase emulators
+        if: always()
+        run: kill $EMULATOR_PID 2>/dev/null || true
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-android-results
-          path: |
-            e2e/maestro/results.xml
-            /tmp/logcat.txt
+          path: e2e/maestro/results.xml

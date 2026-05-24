@@ -1,5 +1,8 @@
 import firebase from '@react-native-firebase/app';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
+import { getEmulatorHost } from '../native/FirebaseEmulator';
 import CrashlyticsService from './CrashlyticsService';
 
 /**
@@ -73,6 +76,15 @@ class FirebaseService {
       // Verify that we have a valid project ID
       if (!options.projectId) {
         throw new Error('Firebase project ID is missing. Check your configuration files.');
+      }
+
+      // Connect to Firebase emulators when running E2E tests in Android CI.
+      // The host is set via: adb shell settings put global firebase_emulator_host 10.0.2.2
+      // Returns null on iOS and non-CI environments — no emulators configured.
+      const emulatorHost = await getEmulatorHost();
+      if (emulatorHost) {
+        auth().useEmulator(`http://${emulatorHost}:9099`);
+        firestore().useEmulator(emulatorHost, 8080);
       }
 
       // Initialize Crashlytics after Firebase is ready
