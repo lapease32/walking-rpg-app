@@ -62,9 +62,16 @@ jobs:
         run: |
           npx firebase emulators:start --only auth,firestore --project demo-e2e &
           echo "EMULATOR_PID=$!" >> $GITHUB_ENV
-          # Wait up to 60s for both emulator ports to be open
+          # Wait up to 60s for both emulator ports; fail fast if they never open
           for i in $(seq 1 30); do
-            nc -z localhost 9099 2>/dev/null && nc -z localhost 8080 2>/dev/null && echo "Emulators ready" && break || sleep 2
+            if nc -z localhost 9099 2>/dev/null && nc -z localhost 8080 2>/dev/null; then
+              echo "Emulators ready after ${i}x2s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "ERROR: Firebase emulators failed to start within 60s" && exit 1
+            fi
+            sleep 2
           done
 
       - name: Enable KVM
