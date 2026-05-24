@@ -73,12 +73,19 @@ jobs:
             adb shell settings put system screen_off_timeout 2147483647
             adb shell input keyevent 224
             adb shell input keyevent 82
+            adb logcat -c
+            adb logcat -v time > /tmp/logcat.txt &
+            LOGCAT_PID=$!
             adb install android/app/build/outputs/apk/release/app-release.apk
-            ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml
+            ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml || true
+            kill $LOGCAT_PID 2>/dev/null || true
+            exit $([ -f e2e/maestro/results.xml ] && grep -q 'failures="0"' e2e/maestro/results.xml && echo 0 || echo 1)
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-android-results
-          path: e2e/maestro/results.xml
+          path: |
+            e2e/maestro/results.xml
+            /tmp/logcat.txt
