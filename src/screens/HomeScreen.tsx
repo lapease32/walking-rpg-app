@@ -14,8 +14,8 @@ import {
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
-import AuthService, { AuthUser } from '../services/AuthService';
 import AnalyticsService from '../services/AnalyticsService';
+import { useAuth } from '../hooks/useAuth';
 import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
@@ -30,7 +30,6 @@ import {
   savePendingEncounter,
   saveTrackingState,
   loadTrackingState,
-  clearLocalPlayerData,
   EncounterData,
 } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
@@ -70,8 +69,6 @@ export default function HomeScreen() {
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(false);
 
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
@@ -99,12 +96,29 @@ export default function HomeScreen() {
   const isMinimizedRef = useRef<boolean>(false);
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
-  const prevUidRef = useRef<string | null>(null);
-  // Tracks the last known non-anonymous UID to distinguish a same-account re-sign-in
-  // (anonymous → same Google UID after sign-out) from a genuine account switch.
-  const lastNonAnonUidRef = useRef<string | null>(null);
-  // Ref so the auth state listener always calls the latest version of initializePlayer
+  // Ref so useAuth always calls the latest version of initializePlayer
   const initializePlayerRef = useRef<() => Promise<void>>(async () => {});
+
+  const {
+    authUser,
+    authLoading,
+    initialize: initializeAuth,
+    handleGoogleSignIn,
+    handleAppleSignIn,
+    handleSignOut,
+  } = useAuth({
+    onAccountChange: () => initializePlayerRef.current(),
+    onAccountSwitch: () => {
+      playerRef.current = null;
+      encounterRef.current = null;
+      showCombatModalRef.current = false;
+      setPlayer(null);
+      setCurrentEncounter(null);
+      setShowEncounterModal(false);
+      setShowCombatModal(false);
+      setIsEncounterModalMinimized(false);
+    },
+  });
 
   // Handle app state changes (foreground/background)
   const handleAppStateChange = useCallback((nextAppState: AppStateStatus): void => {
@@ -128,11 +142,7 @@ export default function HomeScreen() {
   useEffect(() => {
     checkPendingEncounter();
     // Auth must be ready before loadPlayerData so cloud data is available on first load
-    (async () => {
-      await AuthService.initialize();
-      setAuthUser(AuthService.getCurrentUser());
-      await initializePlayer();
-    })();
+    initializeAuth();
     // initializeTracking must await initializeNotifications so the tracking
     // channel exists before startForegroundService can be called on cold-start resume
     (async () => {
@@ -144,88 +154,6 @@ export default function HomeScreen() {
     // on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Keep authUser state in sync with Firebase auth changes (e.g. after sign-in/sign-out).
-  // When the UID changes (i.e. the user switched to a different account rather than just
-  // linking their anonymous session), clear local player data and reload from the new
-  // account's cloud save so it is never overwritten by the previous session's data.
-  useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(user => {
-      setAuthUser(user);
-      const prevUid = prevUidRef.current;
-      const newUid = user?.uid ?? null;
-      prevUidRef.current = newUid;
-      if (prevUid !== null && newUid !== null && prevUid !== newUid) {
-        // Distinguish a same-account re-sign-in (anonymous → same Google UID after sign-out)
-        // from a genuine switch to a different account. Check BEFORE updating lastNonAnonUidRef.
-        const isReSignIn = newUid === lastNonAnonUidRef.current;
-
-        // Null refs and state immediately so GPS callbacks and encounter logic bail early during
-        // the reload window and cannot write previous account data to the new account's Firestore
-        // doc, or show the old account's encounter to the new user.
-        playerRef.current = null;
-        encounterRef.current = null;
-        showCombatModalRef.current = false;
-        setPlayer(null);
-        setCurrentEncounter(null);
-        setShowEncounterModal(false);
-        setShowCombatModal(false);
-        setIsEncounterModalMinimized(false);
-
-        // For a genuine account switch: clear local data so the new account's cloud save always
-        // wins the timestamp comparison, preventing cross-account data leakage.
-        // For a re-sign-in: skip the clear — the anonymous session's local save is more recent
-        // than the pre-sign-out cloud save, so the timestamp comparison preserves that progress.
-        const reload = isReSignIn
-          ? initializePlayerRef.current()
-          : clearLocalPlayerData().then(() => initializePlayerRef.current());
-        reload.catch(error =>
-          console.error('Failed to reload player after account switch:', error),
-        );
-      }
-      // Update after the isReSignIn check so the check sees the previous value
-      if (user && !user.isAnonymous) {
-        lastNonAnonUidRef.current = user.uid;
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  const handleGoogleSignIn = async () => {
-    setAuthLoading(true);
-    try {
-      await AuthService.signInWithGoogle();
-      AnalyticsService.signIn('google');
-    } catch (error: any) {
-      Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    setAuthLoading(true);
-    try {
-      await AuthService.signInWithApple();
-      AnalyticsService.signIn('apple');
-    } catch (error: any) {
-      Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    setAuthLoading(true);
-    try {
-      await AuthService.signOut();
-      AnalyticsService.signOut();
-    } catch (error: any) {
-      Alert.alert('Sign-out failed', error?.message ?? 'Something went wrong. Please try again.');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
   // Set up foreground notification event handler with proper cleanup
   useEffect(() => {
