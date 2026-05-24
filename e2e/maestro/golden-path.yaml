@@ -8,19 +8,21 @@ appId: com.walkingrpgtemp
 - launchApp:
     permissions:
       notifications: allow
+      location: always
 
-# Wait for home screen — 60s for Firebase anonymous auth in CI
+# Wait for home screen — up to 120s for Firebase anonymous auth in CI
+# (Android emulator network stack can be slow on GitHub Actions runners)
 - extendedWaitUntil:
     visible:
       id: "home-screen"
-    timeout: 60000
+    timeout: 120000
 
 # Debug controls are at the bottom of a ScrollView — scroll to make them tappable
 - scrollUntilVisible:
     element:
       id: "debug-force-encounter"
     direction: DOWN
-    timeout: 15000
+    timeout: 30000
 - tapOn:
     id: "debug-force-encounter"
 

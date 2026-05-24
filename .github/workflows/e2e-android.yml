@@ -1,0 +1,113 @@
+name: E2E Android
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  e2e-android:
+    name: E2E Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+
+      - name: Install Maestro
+        run: curl -Ls "https://get.maestro.mobile.dev" | bash
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-e2e-android-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle*') }}
+          restore-keys: gradle-e2e-android-
+
+      - name: Cache Firebase emulator binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package.json') }}
+          restore-keys: firebase-emulators-
+
+      - name: Build APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Start Firebase emulators
+        run: |
+          npx firebase emulators:start --only auth,firestore --project demo-e2e &
+          echo "EMULATOR_PID=$!" >> $GITHUB_ENV
+          # Wait up to 60s for both emulator ports; fail fast if they never open
+          for i in $(seq 1 30); do
+            if nc -z localhost 9099 2>/dev/null && nc -z localhost 8080 2>/dev/null; then
+              echo "Emulators ready after ${i}x2s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "ERROR: Firebase emulators failed to start within 60s" && exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run E2E tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disk-size: 6144M
+          heap-size: 512M
+          avd-name: e2e-avd
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb shell settings put system screen_off_timeout 2147483647
+            adb shell input keyevent 224
+            adb shell input keyevent 82
+            adb shell settings put global firebase_emulator_host 10.0.2.2
+            adb install android/app/build/outputs/apk/release/app-release.apk
+            ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml || true
+            exit $([ -f e2e/maestro/results.xml ] && grep -q 'failures="0"' e2e/maestro/results.xml && echo 0 || echo 1)
+
+      - name: Stop Firebase emulators
+        if: always()
+        run: kill $EMULATOR_PID 2>/dev/null || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-android-results
+          path: e2e/maestro/results.xml

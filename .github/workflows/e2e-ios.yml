@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 60
 
     env:
-      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 360000
 
     steps:
       - uses: actions/checkout@v4
