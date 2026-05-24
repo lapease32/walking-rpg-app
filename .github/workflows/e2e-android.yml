@@ -62,7 +62,7 @@ jobs:
         with:
           api-level: 34
           arch: x86_64
-          target: default
+          target: google_apis
           profile: pixel_6
           disk-size: 6144M
           heap-size: 512M
@@ -70,6 +70,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
+            sleep 20
             adb install android/app/build/outputs/apk/release/app-release.apk
             ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml
 
