@@ -7,8 +7,15 @@ import { getEmulatorHost } from '../native/FirebaseEmulator';
 const GOOGLE_WEB_CLIENT_ID =
   '127260614524-4kb18foii77g0rtjjl446r5v3nvj3usc.apps.googleusercontent.com';
 
-// Guard against double-configuration if initialize() is ever called more than once.
-let emulatorsConfigured = false;
+// Configure emulators synchronously at module-load time so they are in place
+// before any component mounts or auth().onAuthStateChanged() is registered.
+// getEmulatorHost() is a blocking synchronous native call — returns null on
+// iOS, real devices, and non-CI Android emulators.
+const _emulatorHost = getEmulatorHost();
+if (_emulatorHost) {
+  auth().useEmulator(`http://${_emulatorHost}:9099`);
+  firestore().useEmulator(_emulatorHost, 8080);
+}
 
 export interface AuthUser {
   uid: string;
@@ -20,18 +27,6 @@ export interface AuthUser {
 
 class AuthService {
   async initialize(): Promise<void> {
-    // Configure Firebase emulators before any SDK calls (Android CI only).
-    // The ADB setting firebase_emulator_host is set in CI before the app launches.
-    // Returns null on iOS and real devices — emulators are never configured there.
-    if (!emulatorsConfigured) {
-      emulatorsConfigured = true;
-      const host = await getEmulatorHost();
-      if (host) {
-        auth().useEmulator(`http://${host}:9099`);
-        firestore().useEmulator(host, 8080);
-      }
-    }
-
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
 
     if (!auth().currentUser) {

@@ -21,20 +21,22 @@ public class FirebaseEmulatorModule extends ReactContextBaseJavaModule {
   }
 
   /**
-   * Reads firebase_emulator_host from Android Settings.Global.
+   * Synchronously reads firebase_emulator_host from Android Settings.Global.
    * Set via ADB in CI: adb shell settings put global firebase_emulator_host 10.0.2.2
-   * Returns null (never set) on real devices and non-CI emulators.
+   * Returns null on real devices and non-CI emulators (key never set).
+   *
+   * Synchronous so JS can call this at module-load time, before any React
+   * component mounts or auth().onAuthStateChanged() is registered.
    */
-  @ReactMethod
-  public void getEmulatorHost(Promise promise) {
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  public String getEmulatorHost() {
     try {
-      String host = Settings.Global.getString(
+      return Settings.Global.getString(
         reactContext.getContentResolver(),
         "firebase_emulator_host"
       );
-      promise.resolve(host);
     } catch (Exception e) {
-      promise.resolve(null);
+      return null;
     }
   }
 }
