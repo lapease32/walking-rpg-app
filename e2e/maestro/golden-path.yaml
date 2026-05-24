@@ -8,7 +8,7 @@ appId: com.walkingrpgtemp
 - launchApp:
     permissions:
       notifications: allow
-      location: allow
+      location: always
 
 # Wait for home screen — up to 120s for Firebase anonymous auth in CI
 # (Android emulator network stack can be slow on GitHub Actions runners)
