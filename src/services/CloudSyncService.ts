@@ -8,16 +8,27 @@ export interface CloudPlayerRecord {
 }
 
 class CloudSyncService {
+  // Ensures strictly-increasing Firestore timestamps across rapid successive saves.
+  // At walking pace saves are seconds apart so this is normally a no-op, but the
+  // Firestore update rule requires strict-greater and this makes that invariant
+  // impossible to violate regardless of clock resolution.
+  private lastSyncTimestamp: number = 0;
+
   async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
     const user = auth().currentUser;
     if (!user) {
       return;
     }
     try {
+      const syncTimestamp = Math.max(lastSavedAt, this.lastSyncTimestamp + 1);
+      this.lastSyncTimestamp = syncTimestamp;
       // set() instead of runTransaction so Firestore's offline persistence can queue
       // the write locally and flush when connectivity returns. Out-of-order write
       // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
-      await firestore().collection('players').doc(user.uid).set({ playerData, lastSavedAt });
+      await firestore()
+        .collection('players')
+        .doc(user.uid)
+        .set({ playerData, lastSavedAt: syncTimestamp });
     } catch (error) {
       console.error('CloudSyncService: failed to save player data:', error);
       // Non-fatal — local save already succeeded; offline persistence will retry
