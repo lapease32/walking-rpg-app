@@ -280,25 +280,21 @@ export default function HomeScreen() {
   }, [isTimeBlocking]);
 
   const initializePlayer = async (): Promise<void> => {
-    console.log('[HomeScreen] initializePlayer: called');
     try {
       const savedData = await loadPlayerData();
       if (savedData) {
         const p = Player.fromJSON(savedData);
-        console.log('[HomeScreen] setPlayer: existing player level=' + p.level);
         setPlayer(p);
         AnalyticsService.playerSessionStart(p.level, p.totalDistance);
       } else {
         // Create new player
         const newPlayer = new Player();
-        console.log('[HomeScreen] setPlayer: new player');
         setPlayer(newPlayer);
         await savePlayerData(newPlayer);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
     } catch (error) {
       console.error('Error initializing player:', error);
-      console.log('[HomeScreen] setPlayer: fallback new player (error path)');
       setPlayer(new Player());
     }
   };

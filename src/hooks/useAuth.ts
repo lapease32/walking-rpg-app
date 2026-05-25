@@ -29,9 +29,6 @@ export function useAuth({
       const prevUid = prevUidRef.current;
       const newUid = user?.uid ?? null;
       prevUidRef.current = newUid;
-      console.log(
-        `[useAuth] onAuthStateChanged: prevUid=${prevUid} newUid=${newUid} accountSwitch=${prevUid !== null && newUid !== null && prevUid !== newUid}`,
-      );
       if (prevUid !== null && newUid !== null && prevUid !== newUid) {
         // Distinguish a same-account re-sign-in (anonymous → same Google UID after sign-out)
         // from a genuine switch to a different account. Check BEFORE updating lastNonAnonUidRef.
@@ -60,12 +57,9 @@ export function useAuth({
   }, []);
 
   const initialize = useCallback(async (): Promise<void> => {
-    console.log('[useAuth] initialize: start');
     await AuthService.initialize();
     setAuthUser(AuthService.getCurrentUser());
-    console.log('[useAuth] initialize: calling onAccountChangeRef.current()');
     await onAccountChangeRef.current();
-    console.log('[useAuth] initialize: onAccountChangeRef.current() completed');
   }, []);
 
   const handleGoogleSignIn = async () => {
