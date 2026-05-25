@@ -68,12 +68,13 @@ export default function DebugPanel({
   const simulateLocationUpdate = (): void => {
     const baseLat = currentLocationRef.current?.latitude || 37.7749;
     const baseLon = currentLocationRef.current?.longitude || -122.4194;
+    // Fixed offsets (~7m NE) — direction doesn't matter for debug purposes
     const newLocation: LocationData = {
-      latitude: baseLat + (Math.random() - 0.5) * 0.0001, // lgtm[js/insecure-randomness]
-      longitude: baseLon + (Math.random() - 0.5) * 0.0001, // lgtm[js/insecure-randomness]
+      latitude: baseLat + 0.00005,
+      longitude: baseLon + 0.00005,
       accuracy: 10,
       altitude: 0,
-      heading: Math.random() * 360,
+      heading: 45,
       speed: 1.5,
       timestamp: Date.now(),
     };
