@@ -1,0 +1,55 @@
+import { useState, useRef, useEffect } from 'react';
+import LocationService, { LocationData, DistanceData } from '../services/LocationService';
+import NotificationService from '../services/NotificationService';
+import AnalyticsService from '../services/AnalyticsService';
+import { saveTrackingState } from '../utils/storage';
+
+export function useLocation() {
+  const [isTracking, setIsTracking] = useState<boolean>(false);
+  const [currentDistance, setCurrentDistance] = useState<number>(0);
+  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
+  const currentLocationRef = useRef<LocationData | null>(null);
+
+  useEffect(() => {
+    currentLocationRef.current = currentLocation;
+  }, [currentLocation]);
+
+  const handleLocationUpdate = (location: LocationData): void => {
+    currentLocationRef.current = location;
+    setCurrentLocation(location);
+  };
+
+  const startTracking = async (
+    onDistanceUpdate: (data: DistanceData) => Promise<void>,
+  ): Promise<void> => {
+    const granted = await LocationService.requestPermission();
+    if (!granted) {
+      console.warn('Location permission denied — tracking not started');
+      return;
+    }
+    LocationService.startTracking(handleLocationUpdate, onDistanceUpdate);
+    setIsTracking(true);
+    saveTrackingState(true);
+    AnalyticsService.trackingStarted();
+    NotificationService.startForegroundService().catch(console.error);
+  };
+
+  const stopTracking = (): void => {
+    LocationService.stopTracking();
+    setIsTracking(false);
+    saveTrackingState(false);
+    AnalyticsService.trackingStopped();
+    NotificationService.stopForegroundService().catch(console.error);
+  };
+
+  return {
+    isTracking,
+    currentDistance,
+    setCurrentDistance,
+    currentLocation,
+    setCurrentLocation,
+    currentLocationRef,
+    startTracking,
+    stopTracking,
+  };
+}

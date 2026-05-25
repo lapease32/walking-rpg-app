@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,9 +16,10 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppLifecycle } from '../hooks/useAppLifecycle';
 import { usePlayer } from '../hooks/usePlayer';
 import { useEncounter } from '../hooks/useEncounter';
+import { useLocation } from '../hooks/useLocation';
 import notifee, { EventType } from '@notifee/react-native';
 import { Player } from '../models/Player';
-import { saveTrackingState, loadTrackingState } from '../utils/storage';
+import { loadTrackingState } from '../utils/storage';
 import DistanceDisplay from '../components/DistanceDisplay';
 import PlayerStats from '../components/PlayerStats';
 import EquipmentDisplay from '../components/Equipment';
@@ -37,16 +38,22 @@ import CrashlyticsService from '../services/CrashlyticsService';
  */
 export default function HomeScreen() {
   const { player, playerRef, setPlayerAndSave, clearPlayer, initializePlayer } = usePlayer();
-  const [isTracking, setIsTracking] = useState<boolean>(false);
-  const [currentDistance, setCurrentDistance] = useState<number>(0);
-  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [accuracyLevel, setAccuracyLevel] = useState<'high' | 'balanced' | 'battery'>('balanced');
   const [selectedEquipmentSlot, setSelectedEquipmentSlot] = useState<EquipmentSlot | null>(null);
   const [debugMode, setDebugMode] = useState<boolean>(ENV_CONFIG.enableDebugMode);
 
-  const currentLocationRef = useRef<LocationData | null>(null);
+  const {
+    isTracking,
+    currentDistance,
+    setCurrentDistance,
+    currentLocation,
+    setCurrentLocation,
+    currentLocationRef,
+    startTracking,
+    stopTracking,
+  } = useLocation();
 
   const { appState, appStateRef, prevAppStateRef } = useAppLifecycle();
 
@@ -97,7 +104,7 @@ export default function HomeScreen() {
     try {
       const wasTracking = await loadTrackingState();
       if (wasTracking) {
-        startTracking();
+        await startTracking(handleDistanceUpdate);
       }
     } catch (error) {
       console.error('Error resuming tracking state:', error);
@@ -171,10 +178,6 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState]);
 
-  useEffect(() => {
-    currentLocationRef.current = currentLocation;
-  }, [currentLocation]);
-
   // Initialize notification service (channel creation and permissions)
   const initializeNotifications = async (): Promise<void> => {
     try {
@@ -186,12 +189,6 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error initializing notifications:', error);
     }
-  };
-
-  // Handle location updates
-  const handleLocationUpdate = (location: LocationData): void => {
-    currentLocationRef.current = location; // Update ref synchronously to avoid stale closures
-    setCurrentLocation(location);
   };
 
   // Handle distance updates — player distance/milestones here, encounter logic delegated to useEncounter
@@ -220,29 +217,6 @@ export default function HomeScreen() {
     }
 
     await onDistanceEncounterUpdate(distanceData, currentPlayer);
-  };
-
-  // Start tracking
-  const startTracking = async (): Promise<void> => {
-    const granted = await LocationService.requestPermission();
-    if (!granted) {
-      console.warn('Location permission denied — tracking not started');
-      return;
-    }
-    LocationService.startTracking(handleLocationUpdate, handleDistanceUpdate);
-    setIsTracking(true);
-    saveTrackingState(true);
-    AnalyticsService.trackingStarted();
-    NotificationService.startForegroundService().catch(console.error);
-  };
-
-  // Stop tracking
-  const stopTracking = (): void => {
-    LocationService.stopTracking();
-    setIsTracking(false);
-    saveTrackingState(false);
-    AnalyticsService.trackingStopped();
-    NotificationService.stopForegroundService().catch(console.error);
   };
 
   // Debug: Simulate movement (add fake distance)
@@ -533,7 +507,11 @@ export default function HomeScreen() {
                 ? styles.stopButton
                 : styles.startButton,
             ]}
-            onPress={isTracking || LocationService.getIsTracking() ? stopTracking : startTracking}>
+            onPress={
+              isTracking || LocationService.getIsTracking()
+                ? stopTracking
+                : () => startTracking(handleDistanceUpdate)
+            }>
             <Text style={styles.trackButtonText}>
               {isTracking || LocationService.getIsTracking() ? 'Stop Tracking' : 'Start Walking'}
             </Text>
