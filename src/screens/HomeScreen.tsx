@@ -16,6 +16,7 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { useAuth } from '../hooks/useAuth';
+import { usePlayer } from '../hooks/usePlayer';
 import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
 import { Player } from '../models/Player';
@@ -23,8 +24,6 @@ import { Encounter } from '../models/Encounter';
 import { Location } from '../models/Encounter';
 import { Creature } from '../models/Creature';
 import {
-  savePlayerData,
-  loadPlayerData,
   loadPendingEncounter,
   clearPendingEncounter,
   savePendingEncounter,
@@ -49,7 +48,7 @@ import CrashlyticsService from '../services/CrashlyticsService';
  * Main home screen with location tracking and encounter handling
  */
 export default function HomeScreen() {
-  const [player, setPlayer] = useState<Player | null>(null);
+  const { player, playerRef, setPlayerAndSave, clearPlayer, initializePlayer } = usePlayer();
   const [isTracking, setIsTracking] = useState<boolean>(false);
   const [currentDistance, setCurrentDistance] = useState<number>(0);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
@@ -88,16 +87,11 @@ export default function HomeScreen() {
   // Ref to track if a notification tap is being processed (to skip appState transition check)
   const isProcessingNotificationTapRef = useRef<boolean>(false);
 
-  // Ref to track current player state for async callbacks
-  const playerRef = useRef<Player | null>(null);
-
   // Ref to track encounter state for async callbacks (to avoid stale closures)
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const currentLocationRef = useRef<LocationData | null>(null);
   const showCombatModalRef = useRef<boolean>(false);
-  // Ref so useAuth always calls the latest version of initializePlayer
-  const initializePlayerRef = useRef<() => Promise<void>>(async () => {});
 
   const {
     authUser,
@@ -107,12 +101,11 @@ export default function HomeScreen() {
     handleAppleSignIn,
     handleSignOut,
   } = useAuth({
-    onAccountChange: () => initializePlayerRef.current(),
+    onAccountChange: initializePlayer,
     onAccountSwitch: () => {
-      playerRef.current = null;
+      clearPlayer();
       encounterRef.current = null;
       showCombatModalRef.current = false;
-      setPlayer(null);
       setCurrentEncounter(null);
       setShowEncounterModal(false);
       setShowCombatModal(false);
@@ -211,10 +204,6 @@ export default function HomeScreen() {
 
   // Keep refs in sync with state
   useEffect(() => {
-    playerRef.current = player;
-  }, [player]);
-
-  useEffect(() => {
     encounterRef.current = currentEncounter;
   }, [currentEncounter]);
 
@@ -278,28 +267,6 @@ export default function HomeScreen() {
     // Cleanup interval on unmount or when blocking stops
     return () => clearInterval(interval);
   }, [isTimeBlocking]);
-
-  const initializePlayer = async (): Promise<void> => {
-    try {
-      const savedData = await loadPlayerData();
-      if (savedData) {
-        const p = Player.fromJSON(savedData);
-        setPlayer(p);
-        AnalyticsService.playerSessionStart(p.level, p.totalDistance);
-      } else {
-        // Create new player
-        const newPlayer = new Player();
-        setPlayer(newPlayer);
-        await savePlayerData(newPlayer);
-        AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
-      }
-    } catch (error) {
-      console.error('Error initializing player:', error);
-      setPlayer(new Player());
-    }
-  };
-  // Keep the ref current so the auth state listener always calls the latest closure
-  initializePlayerRef.current = initializePlayer;
 
   // Initialize notification service (channel creation and permissions)
   const initializeNotifications = async (): Promise<void> => {
@@ -411,9 +378,7 @@ export default function HomeScreen() {
       const updatedPlayer = new Player(currentPlayer.toJSON());
       updatedPlayer.addDistance(incremental);
       const newTotal = updatedPlayer.totalDistance;
-      playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss if handleFlee is called
-      setPlayer(updatedPlayer);
-      savePlayerData(updatedPlayer); // Save periodically
+      setPlayerAndSave(updatedPlayer);
 
       // Check if a distance milestone was just crossed
       const MILESTONES = [1000, 5000, 10000, 25000, 50000, 100000];
@@ -693,13 +658,7 @@ export default function HomeScreen() {
       updatedPlayer.takeDamage(creatureDamage);
     }
 
-    // Update ref immediately to prevent race condition with GPS callbacks
-    // This prevents handleDistanceUpdate from seeing stale ref value before useEffect sync
-    playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
-
-    // Update player state
-    setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    setPlayerAndSave(updatedPlayer);
 
     // Update encounter with damaged creature
     const updatedEncounter = new Encounter({
@@ -729,13 +688,10 @@ export default function HomeScreen() {
       healedPlayer.incrementEncounters(); // Count the encounter like other outcomes
 
       // Update refs immediately to prevent race condition with GPS callbacks
-      playerRef.current = healedPlayer; // Update ref immediately to prevent data loss
+      setPlayerAndSave(healedPlayer);
       encounterRef.current = null;
       isMinimizedRef.current = false;
       showCombatModalRef.current = false;
-
-      setPlayer(healedPlayer);
-      savePlayerData(healedPlayer);
       setIsEncounterModalMinimized(false);
       setShowCombatModal(false);
       setShowEncounterModal(false);
@@ -842,15 +798,11 @@ export default function HomeScreen() {
     updatedPlayer.fullHeal();
 
     // Update refs immediately to prevent race condition with GPS callbacks
-    // This prevents handleDistanceUpdate from seeing stale ref values before useEffect sync
-    playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
+    setPlayerAndSave(updatedPlayer);
     encounterRef.current = null;
     isMinimizedRef.current = false;
     showCombatModalRef.current = false;
     fleeProcessedRef.current = false; // Reset flee flag when encounter is resolved
-
-    setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
@@ -920,9 +872,7 @@ export default function HomeScreen() {
       updatedPlayer.incrementEncounters();
       // Reset HP to 100% after encounter (casual-friendly feature)
       updatedPlayer.fullHeal();
-      playerRef.current = updatedPlayer; // Update ref immediately to prevent data loss
-      setPlayer(updatedPlayer);
-      savePlayerData(updatedPlayer);
+      setPlayerAndSave(updatedPlayer);
     }
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
@@ -1034,11 +984,7 @@ export default function HomeScreen() {
     const updatedPlayer = new Player(currentPlayer.toJSON());
     updatedPlayer.forceLevelUp();
 
-    // Update ref immediately to prevent race condition with GPS callbacks
-    playerRef.current = updatedPlayer;
-
-    setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    setPlayerAndSave(updatedPlayer);
     Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
   };
 
@@ -1053,11 +999,7 @@ export default function HomeScreen() {
     const updatedPlayer = new Player(currentPlayer.toJSON());
     const levelsGained = updatedPlayer.addExperience(amount);
 
-    // Update ref immediately to prevent race condition with GPS callbacks
-    playerRef.current = updatedPlayer;
-
-    setPlayer(updatedPlayer);
-    savePlayerData(updatedPlayer);
+    setPlayerAndSave(updatedPlayer);
 
     if (levelsGained > 0) {
       Alert.alert(
@@ -1102,11 +1044,7 @@ export default function HomeScreen() {
             const updatedPlayer = new Player(currentPlayerAtConfirm.toJSON());
             updatedPlayer.resetLevel();
 
-            // Update ref immediately to prevent race condition with GPS callbacks
-            playerRef.current = updatedPlayer;
-
-            setPlayer(updatedPlayer);
-            savePlayerData(updatedPlayer);
+            setPlayerAndSave(updatedPlayer);
             Alert.alert('Level Reset', 'You have been reset to level 1.');
           },
         },
@@ -1445,9 +1383,7 @@ export default function HomeScreen() {
               hp: player.hp,
               maxHp: player.maxHp,
             });
-            playerRef.current = updatedPlayer;
-            setPlayer(updatedPlayer);
-            savePlayerData(updatedPlayer);
+            setPlayerAndSave(updatedPlayer);
           }
         }}
         onItemDeleted={() => {
@@ -1458,9 +1394,7 @@ export default function HomeScreen() {
               ...playerRef.current.toJSON(),
               inventory: player.inventory,
             });
-            playerRef.current = updatedPlayer;
-            setPlayer(updatedPlayer);
-            savePlayerData(updatedPlayer);
+            setPlayerAndSave(updatedPlayer);
           }
         }}
       />
