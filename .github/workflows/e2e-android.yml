@@ -102,8 +102,8 @@ jobs:
             # the emulator's network stack can actually route to them before launching the app.
             echo "Checking emulator→host Firebase connectivity..."
             for i in $(seq 1 15); do
-              AUTH=$(adb shell bash -c 'timeout 2 bash -c "echo >/dev/tcp/10.0.2.2/9099" 2>/dev/null && echo ok || echo fail')
-              FS=$(adb shell bash -c 'timeout 2 bash -c "echo >/dev/tcp/10.0.2.2/8080" 2>/dev/null && echo ok || echo fail')
+              AUTH=$(adb shell 'nc -w1 10.0.2.2 9099 < /dev/null > /dev/null 2>&1 && echo ok || echo fail' | tr -d '\r')
+              FS=$(adb shell 'nc -w1 10.0.2.2 8080 < /dev/null > /dev/null 2>&1 && echo ok || echo fail' | tr -d '\r')
               echo "  attempt $i: auth=$AUTH firestore=$FS"
               if [ "$AUTH" = "ok" ] && [ "$FS" = "ok" ]; then
                 echo "Emulator→host connectivity verified after ${i}x2s"
