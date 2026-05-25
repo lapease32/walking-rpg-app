@@ -97,8 +97,29 @@ jobs:
             adb shell input keyevent 224
             adb shell input keyevent 82
             adb shell settings put global firebase_emulator_host 10.0.2.2
+            # Verify the emulator can reach the Firebase emulators on the host (10.0.2.2).
+            # The host-side nc check only proves the ports are open on localhost; this confirms
+            # the emulator's network stack can actually route to them before launching the app.
+            echo "Checking emulator→host Firebase connectivity..."
+            for i in $(seq 1 15); do
+              AUTH=$(adb shell bash -c 'timeout 2 bash -c "echo >/dev/tcp/10.0.2.2/9099" 2>/dev/null && echo ok || echo fail')
+              FS=$(adb shell bash -c 'timeout 2 bash -c "echo >/dev/tcp/10.0.2.2/8080" 2>/dev/null && echo ok || echo fail')
+              echo "  attempt $i: auth=$AUTH firestore=$FS"
+              if [ "$AUTH" = "ok" ] && [ "$FS" = "ok" ]; then
+                echo "Emulator→host connectivity verified after ${i}x2s"
+                break
+              fi
+              if [ "$i" -eq 15 ]; then
+                echo "ERROR: emulator cannot reach Firebase emulators on host" && exit 1
+              fi
+              sleep 2
+            done
             adb install android/app/build/outputs/apk/release/app-release.apk
+            # Capture logcat in background for diagnostics; filter to app + Firebase tags
+            adb logcat -v time ReactNativeJS:V Firebase:V *:S > /tmp/logcat.txt &
+            LOGCAT_PID=$!
             ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml || true
+            kill $LOGCAT_PID 2>/dev/null || true
             exit $([ -f e2e/maestro/results.xml ] && grep -q 'failures="0"' e2e/maestro/results.xml && echo 0 || echo 1)
 
       - name: Stop Firebase emulators
@@ -111,3 +132,11 @@ jobs:
         with:
           name: maestro-android-results
           path: e2e/maestro/results.xml
+
+      - name: Upload logcat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logcat-android
+          path: /tmp/logcat.txt
+          if-no-files-found: ignore
