@@ -36,15 +36,31 @@ class CloudSyncService {
       return null;
     }
     try {
-      const doc = await firestore().collection('players').doc(user.uid).get();
-      if (!doc.exists) {
-        return null;
+      // Race the Firestore get against a 10-second timeout. The Firestore SDK can
+      // stall indefinitely on its first gRPC connection (slow network, emulator cold
+      // start, etc.) — without a timeout the app hangs on "Loading..." forever.
+      let timedOut = false;
+      const timeout = new Promise<null>(resolve =>
+        setTimeout(() => {
+          timedOut = true;
+          resolve(null);
+        }, 10000),
+      );
+      const fetch = firestore()
+        .collection('players')
+        .doc(user.uid)
+        .get()
+        .then(doc => {
+          if (!doc.exists) return null;
+          const data = doc.data() as { playerData: PlayerData; lastSavedAt: number } | undefined;
+          if (!data?.playerData) return null;
+          return { playerData: data.playerData, lastSavedAt: data.lastSavedAt };
+        });
+      const result = await Promise.race([fetch, timeout]);
+      if (timedOut) {
+        console.warn('CloudSyncService: loadPlayerData timed out — falling back to local storage');
       }
-      const data = doc.data() as { playerData: PlayerData; lastSavedAt: number } | undefined;
-      if (!data?.playerData) {
-        return null;
-      }
-      return { playerData: data.playerData, lastSavedAt: data.lastSavedAt };
+      return result;
     } catch (error) {
       console.error('CloudSyncService: failed to load player data:', error);
       return null;
