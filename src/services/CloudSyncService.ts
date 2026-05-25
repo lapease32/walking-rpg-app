@@ -14,19 +14,13 @@ class CloudSyncService {
       return;
     }
     try {
-      const docRef = firestore().collection('players').doc(user.uid);
-      await firestore().runTransaction(async transaction => {
-        const doc = await transaction.get(docRef);
-        const existing = doc.data() as { lastSavedAt?: number } | undefined;
-        // Only write if this save is strictly newer than what's in Firestore,
-        // preventing out-of-order fire-and-forget writes from overwriting newer data
-        if (!existing || (existing.lastSavedAt ?? 0) < lastSavedAt) {
-          transaction.set(docRef, { playerData, lastSavedAt });
-        }
-      });
+      // set() instead of runTransaction so Firestore's offline persistence can queue
+      // the write locally and flush when connectivity returns. Out-of-order write
+      // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
+      await firestore().collection('players').doc(user.uid).set({ playerData, lastSavedAt });
     } catch (error) {
       console.error('CloudSyncService: failed to save player data:', error);
-      // Non-fatal — local save already succeeded
+      // Non-fatal — local save already succeeded; offline persistence will retry
     }
   }
 
