@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
-  AppState,
-  AppStateStatus,
   Platform,
 } from 'react-native';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
@@ -16,6 +14,7 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { useAuth } from '../hooks/useAuth';
+import { useAppLifecycle } from '../hooks/useAppLifecycle';
 import { usePlayer } from '../hooks/usePlayer';
 import notifee, { EventType } from '@notifee/react-native';
 import { dropItem } from '../services/LootService';
@@ -67,22 +66,17 @@ export default function HomeScreen() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0); // Seconds remaining until encounters can occur
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false); // Whether to bypass time constraint
   const [isEncounterModalMinimized, setIsEncounterModalMinimized] = useState<boolean>(false); // Whether encounter modal is minimized
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState); // Track app state (foreground/background)
+
+  const { appState, appStateRef, prevAppStateRef } = useAppLifecycle();
 
   // Ref to prevent multiple victory processing for the same encounter
   const victoryProcessedRef = useRef<boolean>(false);
-
-  // Ref to track app state for async callbacks (avoids stale closure)
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Ref to prevent multiple flee processing for the same encounter
   const fleeProcessedRef = useRef<boolean>(false);
 
   // Ref to prevent concurrent checkPendingEncounter calls (race condition protection)
   const isCheckingPendingEncounterRef = useRef<boolean>(false);
-
-  // Ref to track previous app state (to detect transitions, not initial mount)
-  const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Ref to track if a notification tap is being processed (to skip appState transition check)
   const isProcessingNotificationTapRef = useRef<boolean>(false);
@@ -112,12 +106,6 @@ export default function HomeScreen() {
       setIsEncounterModalMinimized(false);
     },
   });
-
-  // Handle app state changes (foreground/background)
-  const handleAppStateChange = useCallback((nextAppState: AppStateStatus): void => {
-    appStateRef.current = nextAppState; // Update ref immediately to avoid stale closure
-    setAppState(nextAppState);
-  }, []);
 
   // Resume tracking if the OS killed the app while tracking was active
   const initializeTracking = async (): Promise<void> => {
@@ -178,14 +166,6 @@ export default function HomeScreen() {
     };
   }, []); // Empty deps - only set up once on mount
 
-  // Monitor app state changes (foreground/background)
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => {
-      subscription.remove();
-    };
-  }, [handleAppStateChange]);
-
   // Check for pending encounters when app comes to foreground
   // Only check when transitioning TO 'active' from a different state (not on initial mount)
   // Skip if a notification tap is being processed (to avoid duplicate calls)
@@ -200,6 +180,8 @@ export default function HomeScreen() {
       checkPendingEncounter();
     }
     prevAppStateRef.current = appState;
+    // prevAppStateRef is a stable ref from useAppLifecycle — not a reactive dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState]);
 
   // Keep refs in sync with state
@@ -218,10 +200,6 @@ export default function HomeScreen() {
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
   }, [showCombatModal]);
-
-  useEffect(() => {
-    appStateRef.current = appState;
-  }, [appState]);
 
   // Initialize encounter chance display
   useEffect(() => {
