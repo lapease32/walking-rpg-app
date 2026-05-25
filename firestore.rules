@@ -10,7 +10,7 @@ service cloud.firestore {
       allow read:   if isOwner(uid);
       allow create: if isOwner(uid) && isValidPlayerDoc(request.resource.data);
       allow update: if isOwner(uid) && isValidPlayerDoc(request.resource.data)
-                       && request.resource.data.lastSavedAt >= resource.data.lastSavedAt;
+                       && request.resource.data.lastSavedAt > resource.data.lastSavedAt;
     }
 
     function isOwner(uid) {
