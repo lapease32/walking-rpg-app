@@ -69,8 +69,8 @@ export default function DebugPanel({
     const baseLat = currentLocationRef.current?.latitude || 37.7749;
     const baseLon = currentLocationRef.current?.longitude || -122.4194;
     const newLocation: LocationData = {
-      latitude: baseLat + (Math.random() - 0.5) * 0.0001,
-      longitude: baseLon + (Math.random() - 0.5) * 0.0001,
+      latitude: baseLat + (Math.random() - 0.5) * 0.0001, // lgtm[js/insecure-randomness]
+      longitude: baseLon + (Math.random() - 0.5) * 0.0001, // lgtm[js/insecure-randomness]
       accuracy: 10,
       altitude: 0,
       heading: Math.random() * 360,
