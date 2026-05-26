@@ -83,8 +83,11 @@ public class MainApplication extends Application implements ReactApplication {
         db.useEmulator(host, 8080);
         Log.i("MainApplication", "Firebase emulators configured: " + host);
         CountDownLatch latch = new CountDownLatch(1);
+        // Pass an explicit background-thread executor — without one, Firebase
+        // dispatches the callback to the main thread, which is blocked by
+        // latch.await(), causing a guaranteed 5-second deadlock/timeout.
         db.collection("_prewarm").document("_prewarm").get()
-            .addOnCompleteListener(task -> {
+            .addOnCompleteListener(cmd -> new Thread(cmd).start(), task -> {
               Log.i("MainApplication", "Firestore prewarm: " +
                   (task.isSuccessful() ? "ok" :
                       task.getException() != null ? task.getException().getMessage() : "done"));
