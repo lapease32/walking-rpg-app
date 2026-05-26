@@ -28,7 +28,6 @@ public class MainApplication extends Application implements ReactApplication {
         protected List<ReactPackage> getPackages() {
           @SuppressWarnings("UnnecessaryLocalVariable")
           List<ReactPackage> packages = new PackageList(this).getPackages();
-          packages.add(new FirebaseEmulatorPackage());
           return packages;
         }
 
