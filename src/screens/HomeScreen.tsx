@@ -225,6 +225,9 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <Text>Loading...</Text>
+        {conflictState && (
+          <AccountConflictModal conflictState={conflictState} onResolve={resolveConflict} />
+        )}
       </SafeAreaView>
     );
   }

@@ -240,6 +240,17 @@ export async function loadTrackingState(): Promise<boolean> {
  * Non-fatal: if the clear fails, initializePlayer still runs and the cloud record
  * wins via timestamp comparison anyway.
  */
+export async function writeLocalPlayerSnapshot(data: PlayerData, savedAt: number): Promise<void> {
+  try {
+    await AsyncStorage.multiSet([
+      [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(data)],
+      [STORAGE_KEYS.PLAYER_SAVED_AT, String(savedAt)],
+    ]);
+  } catch (error) {
+    console.error('writeLocalPlayerSnapshot: storage error:', error);
+  }
+}
+
 export async function readLocalPlayerSnapshot(): Promise<{
   data: PlayerData | null;
   savedAt: number;

@@ -3,7 +3,11 @@ import { Alert } from 'react-native';
 import AuthService, { AccountConflictError, AuthUser } from '../services/AuthService';
 import CloudSyncService from '../services/CloudSyncService';
 import AnalyticsService from '../services/AnalyticsService';
-import { clearLocalPlayerData, readLocalPlayerSnapshot } from '../utils/storage';
+import {
+  clearLocalPlayerData,
+  readLocalPlayerSnapshot,
+  writeLocalPlayerSnapshot,
+} from '../utils/storage';
 import { PlayerData } from '../models/Player';
 
 export interface ConflictState {
@@ -97,8 +101,11 @@ export function useAuth({
       return;
     }
 
-    // Block onAuthStateChanged from running the normal clear+load during sign-in
+    // Block onAuthStateChanged from running the normal clear+load during sign-in.
+    // Kept true until resolveConflict completes — a late auth-state callback must
+    // not run clearLocalPlayerData() while the user is still choosing a save.
     conflictResolutionPendingRef.current = true;
+    let conflictStateWasSet = false;
     try {
       await AuthService.signInWithExistingCredential(error.credential);
       // Stop in-memory player from fire-and-forgetting saves to the new account
@@ -117,8 +124,13 @@ export function useAuth({
         cloudData: cloudRecord?.playerData ?? null,
         cloudSavedAt: cloudRecord?.lastSavedAt ?? 0,
       });
+      conflictStateWasSet = true;
     } finally {
-      conflictResolutionPendingRef.current = false;
+      // Only clear the guard if we failed to show the modal. If the modal is
+      // showing, the guard must stay true until resolveConflict() clears it.
+      if (!conflictStateWasSet) {
+        conflictResolutionPendingRef.current = false;
+      }
     }
   };
 
@@ -134,18 +146,23 @@ export function useAuth({
       // captured at sign-in time and may be stale if background tracking continued.
       const freshSnapshot = await readLocalPlayerSnapshot();
       if (freshSnapshot.data) {
-        await CloudSyncService.savePlayerData(
-          freshSnapshot.data,
-          Math.max(freshSnapshot.savedAt, Date.now()),
-        );
+        const freshTimestamp = Math.max(freshSnapshot.savedAt, Date.now());
+        // Fire-and-forget cloud upload; swallows errors internally.
+        CloudSyncService.savePlayerData(freshSnapshot.data, freshTimestamp);
+        // Write the fresh timestamp to local storage so loadPlayerData's
+        // comparison always picks local — even if the cloud upload fails or
+        // is still in-flight. This is the source of truth for the reload.
+        await writeLocalPlayerSnapshot(freshSnapshot.data, freshTimestamp);
       }
+    } else {
+      // 'cloud': clear local so loadPlayerData always loads from Firestore.
+      await clearLocalPlayerData();
     }
 
-    // In both cases clear local so loadPlayerData picks up from Firestore cleanly.
-    // 'local': Firestore now has our just-uploaded data → cloud wins the comparison.
-    // 'cloud': Firestore has the existing account's save → cloud wins the comparison.
-    await clearLocalPlayerData();
     await onAccountChangeRef.current();
+    // Release the guard only after reload — no stray auth callbacks can now
+    // trigger clearLocalPlayerData() mid-load.
+    conflictResolutionPendingRef.current = false;
   };
 
   const handleGoogleSignIn = async () => {
