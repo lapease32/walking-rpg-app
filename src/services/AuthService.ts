@@ -4,30 +4,15 @@ import {
   onAuthStateChanged,
   signOut,
   signInWithCredential,
-  connectAuthEmulator,
   GoogleAuthProvider,
   AppleAuthProvider,
   FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
-import { connectFirestoreEmulator, getFirestore } from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
-import { getEmulatorHost } from '../native/FirebaseEmulator';
 
 const GOOGLE_WEB_CLIENT_ID =
   '127260614524-4kb18foii77g0rtjjl446r5v3nvj3usc.apps.googleusercontent.com';
-
-// Begin the emulator host lookup at module-import time so the native call
-// is in-flight as early as possible. initialize() awaits this before making
-// any Firebase network calls, ensuring auth and Firestore are routed to the
-// emulator before signInAnonymously() fires.
-// Returns null on iOS, real devices, and non-CI Android emulators.
-const _emulatorsReady: Promise<void> = getEmulatorHost().then(host => {
-  if (host) {
-    connectAuthEmulator(getAuth(), `http://${host}:9099`, { disableWarnings: true });
-    connectFirestoreEmulator(getFirestore(), host, 8080);
-  }
-});
 
 export interface AuthUser {
   uid: string;
@@ -39,7 +24,6 @@ export interface AuthUser {
 
 class AuthService {
   async initialize(): Promise<void> {
-    await _emulatorsReady;
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
 
     if (!getAuth().currentUser) {
