@@ -37,6 +37,9 @@ export function useAuth({
   // Set before signInWithExistingCredential so the auth-state change it triggers
   // doesn't wipe local data before we've had a chance to compare saves.
   const conflictResolutionPendingRef = useRef(false);
+  // Re-entry guard: setConflictState(null) doesn't flush synchronously, so a
+  // rapid double-tap could pass the conflictState !== null check twice.
+  const conflictResolvingRef = useRef(false);
 
   // Keep callbacks current so the subscription closure never goes stale
   const onAccountChangeRef = useRef(onAccountChange);
@@ -154,7 +157,8 @@ export function useAuth({
   };
 
   const resolveConflict = async (choice: 'local' | 'cloud'): Promise<void> => {
-    if (!conflictState) return;
+    if (!conflictState || conflictResolvingRef.current) return;
+    conflictResolvingRef.current = true;
 
     // Capture before setConflictState(null) so both branches can reference them.
     const { localData, localSavedAt, cloudData, cloudSavedAt } = conflictState;
@@ -193,11 +197,12 @@ export function useAuth({
       }
       await onAccountChangeRef.current();
     } finally {
-      // Always clear persisted conflict state and release the guard — even if
+      // Always clear persisted conflict state and release both guards — even if
       // onAccountChange throws, stale callbacks must not permanently block the
       // normal account-switch flow.
       await clearPendingConflict();
       conflictResolutionPendingRef.current = false;
+      conflictResolvingRef.current = false;
     }
   };
 
