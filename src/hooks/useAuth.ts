@@ -137,32 +137,44 @@ export function useAuth({
   const resolveConflict = async (choice: 'local' | 'cloud'): Promise<void> => {
     if (!conflictState) return;
 
+    // Capture before setConflictState(null) so the cloud branch can reference it.
+    const { cloudData, cloudSavedAt } = conflictState;
     setConflictState(null);
     // onAccountSwitchRef was already called in handleAccountConflict to stop
     // in-flight saves — don't call it again here or it double-clears state.
 
-    if (choice === 'local') {
-      // Re-read AsyncStorage rather than using conflictState.localData, which was
-      // captured at sign-in time and may be stale if background tracking continued.
-      const freshSnapshot = await readLocalPlayerSnapshot();
-      if (freshSnapshot.data) {
-        const freshTimestamp = Math.max(freshSnapshot.savedAt, Date.now());
-        // Fire-and-forget cloud upload; swallows errors internally.
-        CloudSyncService.savePlayerData(freshSnapshot.data, freshTimestamp);
-        // Write the fresh timestamp to local storage so loadPlayerData's
-        // comparison always picks local — even if the cloud upload fails or
-        // is still in-flight. This is the source of truth for the reload.
-        await writeLocalPlayerSnapshot(freshSnapshot.data, freshTimestamp);
+    try {
+      if (choice === 'local') {
+        // Re-read AsyncStorage rather than using conflictState.localData, which was
+        // captured at sign-in time and may be stale if background tracking continued.
+        const freshSnapshot = await readLocalPlayerSnapshot();
+        if (freshSnapshot.data) {
+          const freshTimestamp = Math.max(freshSnapshot.savedAt, Date.now());
+          // Fire-and-forget cloud upload; swallows errors internally.
+          CloudSyncService.savePlayerData(freshSnapshot.data, freshTimestamp);
+          // Write the fresh timestamp to local storage so loadPlayerData's
+          // comparison always picks local — even if the cloud upload fails or
+          // is still in-flight. This is the source of truth for the reload.
+          await writeLocalPlayerSnapshot(freshSnapshot.data, freshTimestamp);
+        }
+      } else {
+        // Write the already-fetched cloud record to local storage as a fallback.
+        // loadPlayerData still prefers Firestore if the live re-fetch returns
+        // a strictly newer record, but if that fetch fails or times out, the
+        // local copy ensures the user keeps the cloud save they chose rather
+        // than being reset to a new player.
+        if (cloudData) {
+          await writeLocalPlayerSnapshot(cloudData, cloudSavedAt);
+        } else {
+          await clearLocalPlayerData();
+        }
       }
-    } else {
-      // 'cloud': clear local so loadPlayerData always loads from Firestore.
-      await clearLocalPlayerData();
+      await onAccountChangeRef.current();
+    } finally {
+      // Always release the guard — if onAccountChange throws, stale callbacks
+      // must not permanently block the normal account-switch flow.
+      conflictResolutionPendingRef.current = false;
     }
-
-    await onAccountChangeRef.current();
-    // Release the guard only after reload — no stray auth callbacks can now
-    // trigger clearLocalPlayerData() mid-load.
-    conflictResolutionPendingRef.current = false;
   };
 
   const handleGoogleSignIn = async () => {
