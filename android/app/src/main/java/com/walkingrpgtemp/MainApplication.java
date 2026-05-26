@@ -64,16 +64,27 @@ public class MainApplication extends Application implements ReactApplication {
     ReactNativeApplicationEntryPoint.loadReactNative(this);
   }
 
-  // Configure Firebase emulators before the JS bundle loads to avoid synchronous
-  // JSI calls from JavaScript racing with native Firestore initialization.
-  // Reads the 'firebase_emulator_host' system property set by the E2E CI workflow.
+  // Configure Firebase emulators and pre-warm the Firestore gRPC client before
+  // the JS bundle loads. Without pre-warming, the Firestore gRPC client initializes
+  // lazily when JS first calls getDoc() — several seconds into startup, after auth
+  // completes. At that point the Firebase Background Thread may hold the
+  // initialization lock indefinitely, freezing the JS thread via JSI. Calling
+  // get() here forces gRPC initialization in a background thread; it completes
+  // during bundle load (~2-3 s) so no lock is held when JS reaches Firestore.
+  // The read fails with PERMISSION_DENIED (no auth yet) but that is harmless —
+  // we only need the initialization side effect, not the document contents.
   private void configureFirebaseEmulators() {
     try {
       String host = Settings.Global.getString(getContentResolver(), "firebase_emulator_host");
       if (host != null && !host.isEmpty()) {
         FirebaseAuth.getInstance().useEmulator(host, 9099);
-        FirebaseFirestore.getInstance().useEmulator(host, 8080);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.useEmulator(host, 8080);
         Log.i("MainApplication", "Firebase emulators configured: " + host);
+        db.collection("_prewarm").document("_prewarm").get()
+            .addOnCompleteListener(task -> Log.i("MainApplication",
+                "Firestore prewarm: " + (task.isSuccessful() ? "ok" :
+                    task.getException() != null ? task.getException().getMessage() : "done")));
       }
     } catch (Exception e) {
       Log.w("MainApplication", "Firebase emulator configuration failed: " + e.getMessage());
