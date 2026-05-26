@@ -299,7 +299,13 @@ export async function readPendingConflict(): Promise<PendingConflictRecord | nul
     const json = await AsyncStorage.getItem(STORAGE_KEYS.CONFLICT_PENDING);
     if (!json) return null;
     const parsed: unknown = JSON.parse(json);
-    if (!parsed || typeof parsed !== 'object') return null;
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !('localSavedAt' in parsed) ||
+      !('cloudSavedAt' in parsed)
+    )
+      return null;
     return parsed as PendingConflictRecord;
   } catch {
     return null;

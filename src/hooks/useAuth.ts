@@ -143,9 +143,13 @@ export function useAuth({
         cloudData: cloudRecord?.playerData ?? null,
         cloudSavedAt: cloudRecord?.lastSavedAt ?? 0,
       };
-      setConflictState(pendingRecord);
-      // Persist so the modal re-appears if the app is killed before the user chooses.
+      // Persist before showing modal: if the app is killed the moment the modal
+      // appears, readPendingConflict on restart must find the record. Persisting
+      // first also eliminates a race where resolveConflict → clearPendingConflict
+      // could run before writePendingConflict completes (impossible in practice, but
+      // the ordering makes it structurally impossible).
       await writePendingConflict(pendingRecord);
+      setConflictState(pendingRecord);
       conflictStateWasSet = true;
     } finally {
       // Only clear the guard if we failed to show the modal. If the modal is
