@@ -13,7 +13,15 @@ const STORAGE_KEYS = {
   SETTINGS: '@walking_rpg:settings',
   PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
   TRACKING_STATE: '@walking_rpg:tracking_state',
+  CONFLICT_PENDING: '@walking_rpg:conflict_pending',
 } as const;
+
+export interface PendingConflictRecord {
+  localData: PlayerData | null;
+  localSavedAt: number;
+  cloudData: PlayerData | null;
+  cloudSavedAt: number;
+}
 
 export interface AppSettings {
   [key: string]: any;
@@ -278,6 +286,34 @@ export async function clearLocalPlayerData(): Promise<void> {
   }
 }
 
+export async function writePendingConflict(record: PendingConflictRecord): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.CONFLICT_PENDING, JSON.stringify(record));
+  } catch (error) {
+    console.error('writePendingConflict: storage error:', error);
+  }
+}
+
+export async function readPendingConflict(): Promise<PendingConflictRecord | null> {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEYS.CONFLICT_PENDING);
+    if (!json) return null;
+    const parsed: unknown = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed as PendingConflictRecord;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearPendingConflict(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.CONFLICT_PENDING);
+  } catch (error) {
+    console.error('clearPendingConflict: storage error:', error);
+  }
+}
+
 /**
  * Clear all app data
  */
@@ -289,6 +325,7 @@ export async function clearAllData(): Promise<boolean> {
       STORAGE_KEYS.SETTINGS,
       STORAGE_KEYS.PENDING_ENCOUNTER,
       STORAGE_KEYS.TRACKING_STATE,
+      STORAGE_KEYS.CONFLICT_PENDING,
     ]);
     return true;
   } catch (error) {

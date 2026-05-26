@@ -5,13 +5,15 @@ import CloudSyncService from '../services/CloudSyncService';
 import AnalyticsService from '../services/AnalyticsService';
 import {
   clearLocalPlayerData,
+  clearPendingConflict,
   readLocalPlayerSnapshot,
+  readPendingConflict,
   writeLocalPlayerSnapshot,
+  writePendingConflict,
 } from '../utils/storage';
 import { PlayerData } from '../models/Player';
 
 export interface ConflictState {
-  credential: InstanceType<typeof AccountConflictError>['credential'];
   localData: PlayerData | null;
   localSavedAt: number;
   cloudData: PlayerData | null;
@@ -86,7 +88,22 @@ export function useAuth({
 
   const initialize = useCallback(async (): Promise<void> => {
     await AuthService.initialize();
-    setAuthUser(AuthService.getCurrentUser());
+    const user = AuthService.getCurrentUser();
+    setAuthUser(user);
+
+    // Re-show the conflict modal if the app was killed while it was open.
+    // We're already signed into the linked account from the previous session.
+    const pending = await readPendingConflict();
+    if (pending && user && !user.isAnonymous) {
+      conflictResolutionPendingRef.current = true;
+      onAccountSwitchRef.current();
+      setConflictState(pending);
+      return;
+    }
+    if (pending) {
+      // User is no longer authenticated as the linked account — clear stale state.
+      await clearPendingConflict();
+    }
     await onAccountChangeRef.current();
   }, []);
 
@@ -117,13 +134,15 @@ export function useAuth({
       // cloud record as "no save" is unsafe — loadPlayerData returns null on
       // timeout and network errors too, so auto-uploading in that case would
       // silently overwrite an existing cloud save on a slow network.
-      setConflictState({
-        credential: error.credential,
+      const pendingRecord = {
         localData: localSnapshot.data,
         localSavedAt: localSnapshot.savedAt,
         cloudData: cloudRecord?.playerData ?? null,
         cloudSavedAt: cloudRecord?.lastSavedAt ?? 0,
-      });
+      };
+      setConflictState(pendingRecord);
+      // Persist so the modal re-appears if the app is killed before the user chooses.
+      await writePendingConflict(pendingRecord);
       conflictStateWasSet = true;
     } finally {
       // Only clear the guard if we failed to show the modal. If the modal is
@@ -137,8 +156,8 @@ export function useAuth({
   const resolveConflict = async (choice: 'local' | 'cloud'): Promise<void> => {
     if (!conflictState) return;
 
-    // Capture before setConflictState(null) so the cloud branch can reference it.
-    const { cloudData, cloudSavedAt } = conflictState;
+    // Capture before setConflictState(null) so both branches can reference them.
+    const { localData, localSavedAt, cloudData, cloudSavedAt } = conflictState;
     setConflictState(null);
     // onAccountSwitchRef was already called in handleAccountConflict to stop
     // in-flight saves — don't call it again here or it double-clears state.
@@ -147,15 +166,18 @@ export function useAuth({
       if (choice === 'local') {
         // Re-read AsyncStorage rather than using conflictState.localData, which was
         // captured at sign-in time and may be stale if background tracking continued.
+        // Fall back to the captured snapshot if AsyncStorage returns null (e.g., corruption).
         const freshSnapshot = await readLocalPlayerSnapshot();
-        if (freshSnapshot.data) {
-          const freshTimestamp = Math.max(freshSnapshot.savedAt, Date.now());
+        const dataToSave = freshSnapshot.data ?? localData;
+        if (dataToSave) {
+          const baseTimestamp = freshSnapshot.data ? freshSnapshot.savedAt : localSavedAt;
+          const freshTimestamp = Math.max(baseTimestamp, Date.now());
           // Fire-and-forget cloud upload; swallows errors internally.
-          CloudSyncService.savePlayerData(freshSnapshot.data, freshTimestamp);
+          CloudSyncService.savePlayerData(dataToSave, freshTimestamp);
           // Write the fresh timestamp to local storage so loadPlayerData's
           // comparison always picks local — even if the cloud upload fails or
           // is still in-flight. This is the source of truth for the reload.
-          await writeLocalPlayerSnapshot(freshSnapshot.data, freshTimestamp);
+          await writeLocalPlayerSnapshot(dataToSave, freshTimestamp);
         }
       } else {
         // Write the already-fetched cloud record to local storage as a fallback.
@@ -171,8 +193,10 @@ export function useAuth({
       }
       await onAccountChangeRef.current();
     } finally {
-      // Always release the guard — if onAccountChange throws, stale callbacks
-      // must not permanently block the normal account-switch flow.
+      // Always clear persisted conflict state and release the guard — even if
+      // onAccountChange throws, stale callbacks must not permanently block the
+      // normal account-switch flow.
+      await clearPendingConflict();
       conflictResolutionPendingRef.current = false;
     }
   };
@@ -184,7 +208,14 @@ export function useAuth({
       AnalyticsService.signIn('google');
     } catch (error: any) {
       if (error instanceof AccountConflictError) {
-        await handleAccountConflict(error);
+        try {
+          await handleAccountConflict(error);
+        } catch (conflictError: any) {
+          Alert.alert(
+            'Sign-in failed',
+            conflictError?.message ?? 'Something went wrong. Please try again.',
+          );
+        }
       } else {
         Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
       }
@@ -200,7 +231,14 @@ export function useAuth({
       AnalyticsService.signIn('apple');
     } catch (error: any) {
       if (error instanceof AccountConflictError) {
-        await handleAccountConflict(error);
+        try {
+          await handleAccountConflict(error);
+        } catch (conflictError: any) {
+          Alert.alert(
+            'Sign-in failed',
+            conflictError?.message ?? 'Something went wrong. Please try again.',
+          );
+        }
       } else {
         Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
       }
