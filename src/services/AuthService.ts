@@ -9,7 +9,8 @@ import {
   AppleAuthProvider,
   FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
-import { connectFirestoreEmulator, getFirestore } from '@react-native-firebase/firestore';
+import { getApp } from '@react-native-firebase/app';
+import { initializeFirestore } from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import { getEmulatorHost } from '../native/FirebaseEmulator';
@@ -22,10 +23,17 @@ const GOOGLE_WEB_CLIENT_ID =
 // any Firebase network calls, ensuring auth and Firestore are routed to the
 // emulator before signInAnonymously() fires.
 // Returns null on iOS, real devices, and non-CI Android emulators.
-const _emulatorsReady: Promise<void> = getEmulatorHost().then(host => {
+//
+// Firestore emulator uses initializeFirestore({ host, ssl }) rather than
+// connectFirestoreEmulator() because the latter calls native.useEmulator()
+// synchronously via JSI, which blocks the JS thread indefinitely if the
+// Firestore native SDK is mid-initialization (LevelDB/gRPC lock contention).
+// initializeFirestore calls native.settings() which returns a Promise — the
+// JS thread is never blocked waiting for the native call to complete.
+const _emulatorsReady: Promise<void> = getEmulatorHost().then(async host => {
   if (host) {
     connectAuthEmulator(getAuth(), `http://${host}:9099`, { disableWarnings: true });
-    connectFirestoreEmulator(getFirestore(), host, 8080);
+    await initializeFirestore(getApp(), { host: `${host}:8080`, ssl: false });
   }
 });
 
