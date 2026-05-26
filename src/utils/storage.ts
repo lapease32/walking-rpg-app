@@ -240,6 +240,25 @@ export async function loadTrackingState(): Promise<boolean> {
  * Non-fatal: if the clear fails, initializePlayer still runs and the cloud record
  * wins via timestamp comparison anyway.
  */
+export async function readLocalPlayerSnapshot(): Promise<{
+  data: PlayerData | null;
+  savedAt: number;
+}> {
+  try {
+    const result = await AsyncStorage.multiGet([
+      STORAGE_KEYS.PLAYER_DATA,
+      STORAGE_KEYS.PLAYER_SAVED_AT,
+    ]);
+    const json = result?.[0]?.[1] ?? null;
+    const savedAt = Number(result?.[1]?.[1] ?? 0);
+    if (!json) return { data: null, savedAt: 0 };
+    const parsed: unknown = JSON.parse(json);
+    return { data: isValidPlayerData(parsed) ? parsed : null, savedAt };
+  } catch {
+    return { data: null, savedAt: 0 };
+  }
+}
+
 export async function clearLocalPlayerData(): Promise<void> {
   try {
     await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
