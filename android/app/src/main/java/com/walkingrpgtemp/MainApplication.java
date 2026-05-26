@@ -116,10 +116,13 @@ public class MainApplication extends Application implements ReactApplication {
         // side — the Auth prewarm runs concurrently) but that is harmless.
         db.collection("_prewarm").document("_prewarm").get()
             .addOnCompleteListener(cmd -> new Thread(cmd).start(), task -> {
-              Log.i("MainApplication", "Firestore prewarm: " +
-                  (task.isSuccessful() ? "ok" :
-                      task.getException() != null ? task.getException().getMessage() : "done"));
-              latch.countDown();
+              try {
+                Log.i("MainApplication", "Firestore prewarm: " +
+                    (task.isSuccessful() ? "ok" :
+                        task.getException() != null ? task.getException().getMessage() : "done"));
+              } finally {
+                latch.countDown();
+              }
             });
 
         try {
