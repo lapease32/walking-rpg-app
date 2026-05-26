@@ -67,8 +67,8 @@ jobs:
           # handler may still be initializing — causing signInAnonymously() to hang.
           # curl verifies an actual HTTP response, ensuring the emulator is fully ready.
           for i in $(seq 1 30); do
-            AUTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:9099/ 2>/dev/null || echo "0")
-            FS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:8080/ 2>/dev/null || echo "0")
+            AUTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:9099/ 2>/dev/null) || AUTH="0"
+            FS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:8080/ 2>/dev/null) || FS="0"
             echo "  attempt $i: auth_http=$AUTH firestore_http=$FS"
             if [ "$AUTH" != "0" ] && [ "$FS" != "0" ]; then
               echo "Emulators HTTP-ready after ${i}x2s"

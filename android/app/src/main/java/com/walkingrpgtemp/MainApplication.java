@@ -102,10 +102,13 @@ public class MainApplication extends Application implements ReactApplication {
         // dispatched to the main thread (which is blocked by latch.await()).
         auth.signInAnonymously()
             .addOnCompleteListener(cmd -> new Thread(cmd).start(), task -> {
-              Log.i("MainApplication", "Auth prewarm: " +
-                  (task.isSuccessful() ? "ok (uid=" + auth.getCurrentUser().getUid() + ")" :
-                      task.getException() != null ? task.getException().getMessage() : "done"));
-              latch.countDown();
+              try {
+                Log.i("MainApplication", "Auth prewarm: " +
+                    (task.isSuccessful() ? "ok" :
+                        task.getException() != null ? task.getException().getMessage() : "done"));
+              } finally {
+                latch.countDown();
+              }
             });
 
         // Firestore prewarm: force gRPC + LevelDB init to complete before JS runs.
