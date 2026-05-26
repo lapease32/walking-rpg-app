@@ -1,8 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
-import AuthService, { AuthUser } from '../services/AuthService';
+import AuthService, { AccountConflictError, AuthUser } from '../services/AuthService';
+import CloudSyncService from '../services/CloudSyncService';
 import AnalyticsService from '../services/AnalyticsService';
-import { clearLocalPlayerData } from '../utils/storage';
+import { clearLocalPlayerData, readLocalPlayerSnapshot } from '../utils/storage';
+import { PlayerData } from '../models/Player';
+
+export interface ConflictState {
+  credential: InstanceType<typeof AccountConflictError>['credential'];
+  localData: PlayerData | null;
+  localSavedAt: number;
+  cloudData: PlayerData | null;
+  cloudSavedAt: number;
+}
 
 export function useAuth({
   onAccountChange,
@@ -13,9 +23,14 @@ export function useAuth({
 }) {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [conflictState, setConflictState] = useState<ConflictState | null>(null);
 
   const prevUidRef = useRef<string | null>(null);
   const lastNonAnonUidRef = useRef<string | null>(null);
+  // When true, the onAuthStateChanged handler skips the normal clear+load flow.
+  // Set before signInWithExistingCredential so the auth-state change it triggers
+  // doesn't wipe local data before we've had a chance to compare saves.
+  const conflictResolutionPendingRef = useRef(false);
 
   // Keep callbacks current so the subscription closure never goes stale
   const onAccountChangeRef = useRef(onAccountChange);
@@ -30,6 +45,15 @@ export function useAuth({
       const newUid = user?.uid ?? null;
       prevUidRef.current = newUid;
       if (prevUid !== null && newUid !== null && prevUid !== newUid) {
+        // Conflict resolution in progress — the sign-in was triggered by our own
+        // handleAccountConflict flow. Skip clear+load; that flow handles it explicitly.
+        if (conflictResolutionPendingRef.current) {
+          if (user && !user.isAnonymous) {
+            lastNonAnonUidRef.current = user.uid;
+          }
+          return;
+        }
+
         // Distinguish a same-account re-sign-in (anonymous → same Google UID after sign-out)
         // from a genuine switch to a different account. Check BEFORE updating lastNonAnonUidRef.
         const isReSignIn = newUid === lastNonAnonUidRef.current;
@@ -62,13 +86,76 @@ export function useAuth({
     await onAccountChangeRef.current();
   }, []);
 
+  const handleAccountConflict = async (error: AccountConflictError): Promise<void> => {
+    // Capture the anonymous save BEFORE the auth state changes
+    const localSnapshot = await readLocalPlayerSnapshot();
+
+    // Auto-resolve when one side has no data — no choice needed
+    if (!localSnapshot.data) {
+      // Anonymous user had no save; sign in and load cloud data normally
+      await clearLocalPlayerData();
+      await AuthService.signInWithExistingCredential(error.credential);
+      return;
+    }
+
+    // Block onAuthStateChanged from running the normal clear+load during sign-in
+    conflictResolutionPendingRef.current = true;
+    try {
+      await AuthService.signInWithExistingCredential(error.credential);
+      const cloudRecord = await CloudSyncService.loadPlayerData();
+
+      if (!cloudRecord?.playerData) {
+        // Existing account has no cloud save — keep local data, no conflict to resolve
+        conflictResolutionPendingRef.current = false;
+        await CloudSyncService.savePlayerData(localSnapshot.data, Date.now());
+        onAccountSwitchRef.current();
+        await onAccountChangeRef.current();
+        return;
+      }
+
+      setConflictState({
+        credential: error.credential,
+        localData: localSnapshot.data,
+        localSavedAt: localSnapshot.savedAt,
+        cloudData: cloudRecord.playerData,
+        cloudSavedAt: cloudRecord.lastSavedAt,
+      });
+    } finally {
+      conflictResolutionPendingRef.current = false;
+    }
+  };
+
+  const resolveConflict = async (choice: 'local' | 'cloud'): Promise<void> => {
+    if (!conflictState) return;
+    const { localData, localSavedAt } = conflictState;
+
+    setConflictState(null);
+    onAccountSwitchRef.current();
+
+    if (choice === 'local' && localData) {
+      // Upload local save with a fresh timestamp so it wins the Firestore race on reload.
+      // localSavedAt is used as the minimum to satisfy the strictly-increasing rule.
+      await CloudSyncService.savePlayerData(localData, Math.max(localSavedAt, Date.now()));
+    }
+
+    // In both cases clear local so loadPlayerData picks up from Firestore cleanly.
+    // 'local': Firestore now has our just-uploaded data → cloud wins the comparison.
+    // 'cloud': Firestore has the existing account's save → cloud wins the comparison.
+    await clearLocalPlayerData();
+    await onAccountChangeRef.current();
+  };
+
   const handleGoogleSignIn = async () => {
     setAuthLoading(true);
     try {
       await AuthService.signInWithGoogle();
       AnalyticsService.signIn('google');
     } catch (error: any) {
-      Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
+      if (error instanceof AccountConflictError) {
+        await handleAccountConflict(error);
+      } else {
+        Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -80,7 +167,11 @@ export function useAuth({
       await AuthService.signInWithApple();
       AnalyticsService.signIn('apple');
     } catch (error: any) {
-      Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
+      if (error instanceof AccountConflictError) {
+        await handleAccountConflict(error);
+      } else {
+        Alert.alert('Sign-in failed', error?.message ?? 'Something went wrong. Please try again.');
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -101,6 +192,8 @@ export function useAuth({
   return {
     authUser,
     authLoading,
+    conflictState,
+    resolveConflict,
     initialize,
     handleGoogleSignIn,
     handleAppleSignIn,

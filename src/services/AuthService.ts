@@ -22,6 +22,16 @@ export interface AuthUser {
   photoURL: string | null;
 }
 
+// Thrown by linkOrSignIn when the credential belongs to an existing account.
+// The caller is responsible for showing resolution UI and calling
+// AuthService.signInWithExistingCredential() once the user has chosen a save.
+export class AccountConflictError extends Error {
+  constructor(public readonly credential: FirebaseAuthTypes.AuthCredential) {
+    super('auth/credential-already-in-use');
+    this.name = 'AccountConflictError';
+  }
+}
+
 class AuthService {
   async initialize(): Promise<void> {
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
@@ -97,6 +107,12 @@ class AuthService {
     }
   }
 
+  // Signs in directly with a credential that is already linked to an existing account.
+  // Only call this after the user has resolved the save conflict via AccountConflictError.
+  async signInWithExistingCredential(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
+    await signInWithCredential(getAuth(), credential);
+  }
+
   private async linkOrSignIn(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
     const currentUser = getAuth().currentUser;
     if (currentUser?.isAnonymous) {
@@ -111,8 +127,9 @@ class AuthService {
         if (!accountAlreadyExists) {
           throw error;
         }
-        // The account already has a Firebase record — sign in to it instead.
-        // The anonymous session's data is abandoned in favour of the existing account's cloud save.
+        // The credential belongs to an existing account — surface this to the caller
+        // so they can show resolution UI before any data is lost.
+        throw new AccountConflictError(credential);
       }
     }
     await signInWithCredential(getAuth(), credential);

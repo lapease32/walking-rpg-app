@@ -28,6 +28,7 @@ import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
 import DebugPanel from '../components/DebugPanel';
+import { AccountConflictModal } from '../components/AccountConflictModal';
 import { APP_CONFIG } from '../constants/config';
 import { ENV_CONFIG } from '../constants/environment';
 import { EquipmentSlot } from '../models/Player';
@@ -86,6 +87,8 @@ export default function HomeScreen() {
   const {
     authUser,
     authLoading,
+    conflictState,
+    resolveConflict,
     initialize: initializeAuth,
     handleGoogleSignIn,
     handleAppleSignIn,
@@ -439,6 +442,9 @@ export default function HomeScreen() {
         onAppleSignIn={handleAppleSignIn}
         onSignOut={handleSignOut}
       />
+      {conflictState && (
+        <AccountConflictModal conflictState={conflictState} onResolve={resolveConflict} />
+      )}
     </SafeAreaView>
   );
 }
