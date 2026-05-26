@@ -13,7 +13,15 @@ const STORAGE_KEYS = {
   SETTINGS: '@walking_rpg:settings',
   PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
   TRACKING_STATE: '@walking_rpg:tracking_state',
+  CONFLICT_PENDING: '@walking_rpg:conflict_pending',
 } as const;
+
+export interface PendingConflictRecord {
+  localData: PlayerData | null;
+  localSavedAt: number;
+  cloudData: PlayerData | null;
+  cloudSavedAt: number;
+}
 
 export interface AppSettings {
   [key: string]: any;
@@ -240,11 +248,71 @@ export async function loadTrackingState(): Promise<boolean> {
  * Non-fatal: if the clear fails, initializePlayer still runs and the cloud record
  * wins via timestamp comparison anyway.
  */
+export async function writeLocalPlayerSnapshot(data: PlayerData, savedAt: number): Promise<void> {
+  await AsyncStorage.multiSet([
+    [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(data)],
+    [STORAGE_KEYS.PLAYER_SAVED_AT, String(savedAt)],
+  ]);
+}
+
+export async function readLocalPlayerSnapshot(): Promise<{
+  data: PlayerData | null;
+  savedAt: number;
+}> {
+  try {
+    const result = await AsyncStorage.multiGet([
+      STORAGE_KEYS.PLAYER_DATA,
+      STORAGE_KEYS.PLAYER_SAVED_AT,
+    ]);
+    const json = result?.[0]?.[1] ?? null;
+    const savedAt = Number(result?.[1]?.[1] ?? 0);
+    if (!json) return { data: null, savedAt: 0 };
+    const parsed: unknown = JSON.parse(json);
+    return { data: isValidPlayerData(parsed) ? parsed : null, savedAt };
+  } catch {
+    return { data: null, savedAt: 0 };
+  }
+}
+
 export async function clearLocalPlayerData(): Promise<void> {
   try {
     await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
   } catch (error) {
     console.error('clearLocalPlayerData: storage error, proceeding with reload:', error);
+  }
+}
+
+export async function writePendingConflict(record: PendingConflictRecord): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.CONFLICT_PENDING, JSON.stringify(record));
+  } catch (error) {
+    console.error('writePendingConflict: storage error:', error);
+  }
+}
+
+export async function readPendingConflict(): Promise<PendingConflictRecord | null> {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEYS.CONFLICT_PENDING);
+    if (!json) return null;
+    const parsed: unknown = JSON.parse(json);
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !('localSavedAt' in parsed) ||
+      !('cloudSavedAt' in parsed)
+    )
+      return null;
+    return parsed as PendingConflictRecord;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearPendingConflict(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.CONFLICT_PENDING);
+  } catch (error) {
+    console.error('clearPendingConflict: storage error:', error);
   }
 }
 
@@ -259,6 +327,7 @@ export async function clearAllData(): Promise<boolean> {
       STORAGE_KEYS.SETTINGS,
       STORAGE_KEYS.PENDING_ENCOUNTER,
       STORAGE_KEYS.TRACKING_STATE,
+      STORAGE_KEYS.CONFLICT_PENDING,
     ]);
     return true;
   } catch (error) {
