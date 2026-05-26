@@ -65,7 +65,17 @@ export function AccountConflictModal({ conflictState, onResolve }: AccountConfli
 
           <View style={styles.savesRow}>
             {localData && <SaveCard label="Guest Save" data={localData} savedAt={localSavedAt} />}
-            {cloudData && <SaveCard label="Cloud Save" data={cloudData} savedAt={cloudSavedAt} />}
+            {cloudData ? (
+              <SaveCard label="Cloud Save" data={cloudData} savedAt={cloudSavedAt} />
+            ) : (
+              <View style={[styles.saveCard, styles.saveCardUnavailable]}>
+                <Text style={styles.saveLabel}>Cloud Save</Text>
+                <Text style={styles.saveUnavailableText}>
+                  Could not be loaded (network issue). Keeping your guest save will overwrite any
+                  existing cloud data.
+                </Text>
+              </View>
+            )}
           </View>
 
           <Text style={styles.warning}>The other save will be permanently lost.</Text>
@@ -140,6 +150,17 @@ const styles = StyleSheet.create({
   },
   saveCardHighlight: {
     borderColor: '#4CAF50',
+  },
+  saveCardUnavailable: {
+    backgroundColor: '#FAFAFA',
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+  },
+  saveUnavailableText: {
+    fontSize: 13,
+    color: '#999',
+    lineHeight: 18,
+    marginTop: 4,
   },
   saveLabel: {
     fontSize: 13,

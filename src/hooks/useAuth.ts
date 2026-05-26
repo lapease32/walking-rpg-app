@@ -90,9 +90,8 @@ export function useAuth({
     // Capture the anonymous save BEFORE the auth state changes
     const localSnapshot = await readLocalPlayerSnapshot();
 
-    // Auto-resolve when one side has no data — no choice needed
+    // Auto-resolve only when the anonymous user has no save — no choice needed
     if (!localSnapshot.data) {
-      // Anonymous user had no save; sign in and load cloud data normally
       await clearLocalPlayerData();
       await AuthService.signInWithExistingCredential(error.credential);
       return;
@@ -102,23 +101,21 @@ export function useAuth({
     conflictResolutionPendingRef.current = true;
     try {
       await AuthService.signInWithExistingCredential(error.credential);
+      // Stop in-memory player from fire-and-forgetting saves to the new account
+      // UID while the conflict modal is displayed.
+      onAccountSwitchRef.current();
       const cloudRecord = await CloudSyncService.loadPlayerData();
 
-      if (!cloudRecord?.playerData) {
-        // Existing account has no cloud save — keep local data, no conflict to resolve
-        conflictResolutionPendingRef.current = false;
-        await CloudSyncService.savePlayerData(localSnapshot.data, Date.now());
-        onAccountSwitchRef.current();
-        await onAccountChangeRef.current();
-        return;
-      }
-
+      // Always show the modal when the anonymous user has data. Treating a null
+      // cloud record as "no save" is unsafe — loadPlayerData returns null on
+      // timeout and network errors too, so auto-uploading in that case would
+      // silently overwrite an existing cloud save on a slow network.
       setConflictState({
         credential: error.credential,
         localData: localSnapshot.data,
         localSavedAt: localSnapshot.savedAt,
-        cloudData: cloudRecord.playerData,
-        cloudSavedAt: cloudRecord.lastSavedAt,
+        cloudData: cloudRecord?.playerData ?? null,
+        cloudSavedAt: cloudRecord?.lastSavedAt ?? 0,
       });
     } finally {
       conflictResolutionPendingRef.current = false;
@@ -127,15 +124,21 @@ export function useAuth({
 
   const resolveConflict = async (choice: 'local' | 'cloud'): Promise<void> => {
     if (!conflictState) return;
-    const { localData, localSavedAt } = conflictState;
 
     setConflictState(null);
-    onAccountSwitchRef.current();
+    // onAccountSwitchRef was already called in handleAccountConflict to stop
+    // in-flight saves — don't call it again here or it double-clears state.
 
-    if (choice === 'local' && localData) {
-      // Upload local save with a fresh timestamp so it wins the Firestore race on reload.
-      // localSavedAt is used as the minimum to satisfy the strictly-increasing rule.
-      await CloudSyncService.savePlayerData(localData, Math.max(localSavedAt, Date.now()));
+    if (choice === 'local') {
+      // Re-read AsyncStorage rather than using conflictState.localData, which was
+      // captured at sign-in time and may be stale if background tracking continued.
+      const freshSnapshot = await readLocalPlayerSnapshot();
+      if (freshSnapshot.data) {
+        await CloudSyncService.savePlayerData(
+          freshSnapshot.data,
+          Math.max(freshSnapshot.savedAt, Date.now()),
+        );
+      }
     }
 
     // In both cases clear local so loadPlayerData picks up from Firestore cleanly.
