@@ -1,5 +1,5 @@
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import { getAuth } from '@react-native-firebase/auth';
+import { getFirestore, collection, doc, setDoc, getDoc } from '@react-native-firebase/firestore';
 import { PlayerData } from '../models/Player';
 
 export interface CloudPlayerRecord {
@@ -15,20 +15,20 @@ class CloudSyncService {
   private lastSyncTimestamp: number = 0;
 
   async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user) {
       return;
     }
     try {
       const syncTimestamp = Math.max(lastSavedAt, this.lastSyncTimestamp + 1);
       this.lastSyncTimestamp = syncTimestamp;
-      // set() instead of runTransaction so Firestore's offline persistence can queue
+      // setDoc() instead of runTransaction so Firestore's offline persistence can queue
       // the write locally and flush when connectivity returns. Out-of-order write
       // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
-      await firestore()
-        .collection('players')
-        .doc(user.uid)
-        .set({ playerData, lastSavedAt: syncTimestamp });
+      await setDoc(doc(collection(getFirestore(), 'players'), user.uid), {
+        playerData,
+        lastSavedAt: syncTimestamp,
+      });
     } catch (error) {
       console.error('CloudSyncService: failed to save player data:', error);
       // Non-fatal — local save already succeeded; offline persistence will retry
@@ -36,7 +36,7 @@ class CloudSyncService {
   }
 
   async loadPlayerData(): Promise<CloudPlayerRecord | null> {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (!user) {
       return null;
     }
@@ -51,16 +51,12 @@ class CloudSyncService {
           resolve(null);
         }, 10000),
       );
-      const fetch = firestore()
-        .collection('players')
-        .doc(user.uid)
-        .get()
-        .then(doc => {
-          if (!doc.exists) return null;
-          const data = doc.data() as { playerData: PlayerData; lastSavedAt: number } | undefined;
-          if (!data?.playerData) return null;
-          return { playerData: data.playerData, lastSavedAt: data.lastSavedAt };
-        });
+      const fetch = getDoc(doc(collection(getFirestore(), 'players'), user.uid)).then(snapshot => {
+        if (!snapshot.exists) return null;
+        const data = snapshot.data() as { playerData: PlayerData; lastSavedAt: number } | undefined;
+        if (!data?.playerData) return null;
+        return { playerData: data.playerData, lastSavedAt: data.lastSavedAt };
+      });
       const result = await Promise.race([fetch, timeout]);
       if (timedOut) {
         console.warn('CloudSyncService: loadPlayerData timed out — falling back to local storage');
