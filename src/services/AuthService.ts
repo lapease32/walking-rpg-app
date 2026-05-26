@@ -1,5 +1,15 @@
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+  signOut,
+  signInWithCredential,
+  connectAuthEmulator,
+  GoogleAuthProvider,
+  AppleAuthProvider,
+  FirebaseAuthTypes,
+} from '@react-native-firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import { getEmulatorHost } from '../native/FirebaseEmulator';
@@ -14,8 +24,8 @@ const GOOGLE_WEB_CLIENT_ID =
 // Returns null on iOS, real devices, and non-CI Android emulators.
 const _emulatorsReady: Promise<void> = getEmulatorHost().then(host => {
   if (host) {
-    auth().useEmulator(`http://${host}:9099`);
-    firestore().useEmulator(host, 8080);
+    connectAuthEmulator(getAuth(), `http://${host}:9099`, { disableWarnings: true });
+    connectFirestoreEmulator(getFirestore(), host, 8080);
   }
 });
 
@@ -32,9 +42,9 @@ class AuthService {
     await _emulatorsReady;
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
 
-    if (!auth().currentUser) {
+    if (!getAuth().currentUser) {
       try {
-        await auth().signInAnonymously();
+        await signInAnonymously(getAuth());
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
       }
@@ -42,12 +52,12 @@ class AuthService {
   }
 
   getCurrentUser(): AuthUser | null {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     return user ? this.toAuthUser(user) : null;
   }
 
   onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
-    return auth().onAuthStateChanged(user => {
+    return onAuthStateChanged(getAuth(), user => {
       callback(user ? this.toAuthUser(user) : null);
     });
   }
@@ -62,7 +72,7 @@ class AuthService {
     if (!idToken) {
       throw new Error('Google Sign-In failed: no ID token returned');
     }
-    const credential = auth.GoogleAuthProvider.credential(idToken);
+    const credential = GoogleAuthProvider.credential(idToken);
     await this.linkOrSignIn(credential);
   }
 
@@ -71,7 +81,6 @@ class AuthService {
       return;
     }
     // Dynamic require keeps Android bundle free of iOS-only native module
-
     const appleAuth = require('@invertase/react-native-apple-authentication').default;
     const appleResponse = await appleAuth.performRequest({
       requestedOperation: appleAuth.Operation.LOGIN,
@@ -81,12 +90,12 @@ class AuthService {
     if (!identityToken) {
       throw new Error('Apple Sign-In failed: no identity token returned');
     }
-    const credential = auth.AppleAuthProvider.credential(identityToken, nonce);
+    const credential = AppleAuthProvider.credential(identityToken, nonce);
     await this.linkOrSignIn(credential);
   }
 
   async signOut(): Promise<void> {
-    const user = auth().currentUser;
+    const user = getAuth().currentUser;
     if (user && !user.isAnonymous) {
       try {
         await GoogleSignin.signOut();
@@ -94,18 +103,18 @@ class AuthService {
         // Not signed in via Google — silently ignore
       }
     }
-    await auth().signOut();
+    await signOut(getAuth());
     try {
       // Re-authenticate anonymously so cloud sync continues to work after sign-out.
       // Non-fatal if this fails — sign-out succeeded; cloud sync resumes on next app launch.
-      await auth().signInAnonymously();
+      await signInAnonymously(getAuth());
     } catch (error) {
       console.error('AuthService: anonymous re-auth failed after sign-out:', error);
     }
   }
 
   private async linkOrSignIn(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     if (currentUser?.isAnonymous) {
       try {
         // Preserve the anonymous session's data by linking it to the new credential
@@ -122,7 +131,7 @@ class AuthService {
         // The anonymous session's data is abandoned in favour of the existing account's cloud save.
       }
     }
-    await auth().signInWithCredential(credential);
+    await signInWithCredential(getAuth(), credential);
   }
 
   private toAuthUser(user: FirebaseAuthTypes.User): AuthUser {

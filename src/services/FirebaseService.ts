@@ -1,32 +1,20 @@
-import firebase from '@react-native-firebase/app';
+import { getApps, getApp } from '@react-native-firebase/app';
 import { Platform } from 'react-native';
 import CrashlyticsService from './CrashlyticsService';
 
-/**
- * Firebase Service
- * Handles Firebase initialization and provides access to Firebase services
- */
 class FirebaseService {
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
 
-  /**
-   * Initialize Firebase
-   * This should be called once at app startup
-   * Returns a promise that resolves when Firebase is ready
-   */
   async initialize(): Promise<void> {
-    // If already initialized, return immediately
     if (this.initialized) {
       return;
     }
 
-    // If initialization is in progress, return the existing promise
     if (this.initializationPromise) {
       return this.initializationPromise;
     }
 
-    // Create and store the initialization promise
     this.initializationPromise = this._doInitialize();
     return this.initializationPromise;
   }
@@ -35,14 +23,12 @@ class FirebaseService {
     try {
       // Wait for native Firebase to auto-initialize from GoogleService-Info.plist / google-services.json
       let retries = 10;
-      while (!firebase.apps.length && retries > 0) {
+      while (!getApps().length && retries > 0) {
         await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
         retries--;
       }
 
-      // Check if Firebase apps are available
-      // Firebase auto-initializes from native config files
-      if (!firebase.apps.length) {
+      if (!getApps().length) {
         const diagnosticInfo =
           Platform.OS === 'ios'
             ? '\n\niOS Troubleshooting:\n' +
@@ -67,57 +53,44 @@ class FirebaseService {
         throw error;
       }
 
-      const app = firebase.app();
+      const app = getApp();
       const options = app.options;
 
-      // Verify that we have a valid project ID
       if (!options.projectId) {
         throw new Error('Firebase project ID is missing. Check your configuration files.');
       }
 
-      // Initialize Crashlytics after Firebase is ready
       try {
         await CrashlyticsService.initialize();
       } catch (error) {
         console.warn('Crashlytics initialization failed (non-critical):', error);
-        // Don't throw - Crashlytics failure shouldn't prevent app startup
       }
 
       this.initialized = true;
     } catch (error) {
       console.error('Error initializing Firebase:', error);
-      this.initializationPromise = null; // Reset so we can retry
+      this.initializationPromise = null;
       throw error;
     }
   }
 
-  /**
-   * Get the default Firebase app instance
-   */
   getApp() {
     if (!this.initialized) {
       throw new Error('Firebase has not been initialized. Call initialize() first.');
     }
-    return firebase.app();
+    return getApp();
   }
 
-  /**
-   * Check if Firebase is initialized
-   */
   isInitialized(): boolean {
     return this.initialized;
   }
 
-  /**
-   * Get Firebase app options
-   */
   getOptions() {
     if (!this.initialized) {
       throw new Error('Firebase has not been initialized. Call initialize() first.');
     }
-    return firebase.app().options;
+    return getApp().options;
   }
 }
 
-// Export singleton instance
 export default new FirebaseService();
