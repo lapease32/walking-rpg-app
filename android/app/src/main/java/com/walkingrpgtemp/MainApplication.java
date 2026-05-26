@@ -14,6 +14,8 @@ import com.facebook.react.defaults.DefaultReactNativeHost;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class MainApplication extends Application implements ReactApplication {
 
@@ -64,15 +66,14 @@ public class MainApplication extends Application implements ReactApplication {
     ReactNativeApplicationEntryPoint.loadReactNative(this);
   }
 
-  // Configure Firebase emulators and pre-warm the Firestore gRPC client before
-  // the JS bundle loads. Without pre-warming, the Firestore gRPC client initializes
-  // lazily when JS first calls getDoc() — several seconds into startup, after auth
-  // completes. At that point the Firebase Background Thread may hold the
-  // initialization lock indefinitely, freezing the JS thread via JSI. Calling
-  // get() here forces gRPC initialization in a background thread; it completes
-  // during bundle load (~2-3 s) so no lock is held when JS reaches Firestore.
-  // The read fails with PERMISSION_DENIED (no auth yet) but that is harmless —
-  // we only need the initialization side effect, not the document contents.
+  // Configure Firebase emulators and synchronously pre-warm the Firestore gRPC
+  // client before the JS bundle loads. Without blocking, loadReactNative() starts
+  // before the Firebase Background Thread finishes gRPC + LevelDB initialization.
+  // When JS then calls getDoc() via JSI (TurboModule), it hits the initialization
+  // lock that the Firebase Background Thread holds — the JS thread blocks forever.
+  // Blocking here on a CountDownLatch ensures initialization is complete before
+  // any JS code runs. The read fails with PERMISSION_DENIED (no auth yet) but
+  // that is harmless — only the initialization side effect is needed.
   private void configureFirebaseEmulators() {
     try {
       String host = Settings.Global.getString(getContentResolver(), "firebase_emulator_host");
@@ -81,10 +82,23 @@ public class MainApplication extends Application implements ReactApplication {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         db.useEmulator(host, 8080);
         Log.i("MainApplication", "Firebase emulators configured: " + host);
+        CountDownLatch latch = new CountDownLatch(1);
         db.collection("_prewarm").document("_prewarm").get()
-            .addOnCompleteListener(task -> Log.i("MainApplication",
-                "Firestore prewarm: " + (task.isSuccessful() ? "ok" :
-                    task.getException() != null ? task.getException().getMessage() : "done")));
+            .addOnCompleteListener(task -> {
+              Log.i("MainApplication", "Firestore prewarm: " +
+                  (task.isSuccessful() ? "ok" :
+                      task.getException() != null ? task.getException().getMessage() : "done"));
+              latch.countDown();
+            });
+        try {
+          boolean done = latch.await(5, TimeUnit.SECONDS);
+          if (!done) {
+            Log.w("MainApplication", "Firestore prewarm timed out after 5s");
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          Log.w("MainApplication", "Firestore prewarm interrupted");
+        }
       }
     } catch (Exception e) {
       Log.w("MainApplication", "Firebase emulator configuration failed: " + e.getMessage());
