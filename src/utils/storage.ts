@@ -249,14 +249,10 @@ export async function loadTrackingState(): Promise<boolean> {
  * wins via timestamp comparison anyway.
  */
 export async function writeLocalPlayerSnapshot(data: PlayerData, savedAt: number): Promise<void> {
-  try {
-    await AsyncStorage.multiSet([
-      [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(data)],
-      [STORAGE_KEYS.PLAYER_SAVED_AT, String(savedAt)],
-    ]);
-  } catch (error) {
-    console.error('writeLocalPlayerSnapshot: storage error:', error);
-  }
+  await AsyncStorage.multiSet([
+    [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(data)],
+    [STORAGE_KEYS.PLAYER_SAVED_AT, String(savedAt)],
+  ]);
 }
 
 export async function readLocalPlayerSnapshot(): Promise<{

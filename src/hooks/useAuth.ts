@@ -185,7 +185,16 @@ export function useAuth({
           // Write the fresh timestamp to local storage so loadPlayerData's
           // comparison always picks local — even if the cloud upload fails or
           // is still in-flight. This is the source of truth for the reload.
-          await writeLocalPlayerSnapshot(dataToSave, freshTimestamp);
+          try {
+            await writeLocalPlayerSnapshot(dataToSave, freshTimestamp);
+          } catch {
+            // Storage failure: local snapshot not written, so loadPlayerData may
+            // prefer the cloud record instead of the guest save the user chose.
+            Alert.alert(
+              'Storage error',
+              'Could not write your save locally. Your progress may not be restored correctly.',
+            );
+          }
         }
       } else {
         // Write the already-fetched cloud record to local storage as a fallback.
@@ -194,7 +203,10 @@ export function useAuth({
         // local copy ensures the user keeps the cloud save they chose rather
         // than being reset to a new player.
         if (cloudData) {
-          await writeLocalPlayerSnapshot(cloudData, cloudSavedAt);
+          // Non-fatal: loadPlayerData re-fetches from Firestore regardless.
+          await writeLocalPlayerSnapshot(cloudData, cloudSavedAt).catch(e =>
+            console.error('resolveConflict: writeLocalPlayerSnapshot failed for cloud choice:', e),
+          );
         } else {
           await clearLocalPlayerData();
         }
