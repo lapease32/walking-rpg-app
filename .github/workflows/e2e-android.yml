@@ -62,14 +62,20 @@ jobs:
         run: |
           npx firebase emulators:start --only auth,firestore --project demo-e2e &
           echo "EMULATOR_PID=$!" >> $GITHUB_ENV
-          # Wait up to 60s for both emulator ports; fail fast if they never open
+          # Wait up to 60s for both emulators to accept HTTP requests (not just TCP).
+          # nc -z passes as soon as the TCP socket opens, but the Auth emulator's HTTP
+          # handler may still be initializing — causing signInAnonymously() to hang.
+          # curl verifies an actual HTTP response, ensuring the emulator is fully ready.
           for i in $(seq 1 30); do
-            if nc -z localhost 9099 2>/dev/null && nc -z localhost 8080 2>/dev/null; then
-              echo "Emulators ready after ${i}x2s"
+            AUTH=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:9099/ 2>/dev/null) || AUTH="0"
+            FS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:8080/ 2>/dev/null) || FS="0"
+            echo "  attempt $i: auth_http=$AUTH firestore_http=$FS"
+            if [ "$AUTH" != "0" ] && [ "$FS" != "0" ]; then
+              echo "Emulators HTTP-ready after ${i}x2s"
               break
             fi
             if [ "$i" -eq 30 ]; then
-              echo "ERROR: Firebase emulators failed to start within 60s" && exit 1
+              echo "ERROR: Firebase emulators failed to become HTTP-ready within 60s" && exit 1
             fi
             sleep 2
           done
