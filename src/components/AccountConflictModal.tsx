@@ -91,13 +91,13 @@ export function AccountConflictModal({ conflictState, onResolve }: AccountConfli
                   <Text style={styles.buttonText}>Keep Guest Save</Text>
                 </TouchableOpacity>
               )}
-              {cloudData && (
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonCloud]}
-                  onPress={() => handleResolve('cloud')}>
-                  <Text style={styles.buttonText}>Keep Cloud Save</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[styles.button, cloudData ? styles.buttonCloud : styles.buttonCloudUnknown]}
+                onPress={() => handleResolve('cloud')}>
+                <Text style={styles.buttonText}>
+                  {cloudData ? 'Keep Cloud Save' : 'Use Cloud Account'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -199,6 +199,9 @@ const styles = StyleSheet.create({
   },
   buttonCloud: {
     backgroundColor: '#1976D2',
+  },
+  buttonCloudUnknown: {
+    backgroundColor: '#78909C',
   },
   buttonText: {
     color: '#FFFFFF',
