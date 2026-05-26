@@ -1,6 +1,8 @@
 package com.walkingrpgtemp;
 
 import android.app.Application;
+import android.provider.Settings;
+import android.util.Log;
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactHost;
@@ -9,6 +11,8 @@ import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.defaults.DefaultReactHost;
 import com.facebook.react.defaults.DefaultReactNativeHost;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.List;
 
 public class MainApplication extends Application implements ReactApplication {
@@ -57,6 +61,23 @@ public class MainApplication extends Application implements ReactApplication {
   @Override
   public void onCreate() {
     super.onCreate();
+    configureFirebaseEmulators();
     ReactNativeApplicationEntryPoint.loadReactNative(this);
+  }
+
+  // Configure Firebase emulators before the JS bundle loads to avoid synchronous
+  // JSI calls from JavaScript racing with native Firestore initialization.
+  // Reads the 'firebase_emulator_host' system property set by the E2E CI workflow.
+  private void configureFirebaseEmulators() {
+    try {
+      String host = Settings.Global.getString(getContentResolver(), "firebase_emulator_host");
+      if (host != null && !host.isEmpty()) {
+        FirebaseAuth.getInstance().useEmulator("http://" + host + ":9099");
+        FirebaseFirestore.getInstance().useEmulator(host, 8080);
+        Log.i("MainApplication", "Firebase emulators configured: " + host);
+      }
+    } catch (Exception e) {
+      Log.w("MainApplication", "Firebase emulator configuration failed: " + e.getMessage());
+    }
   }
 }
