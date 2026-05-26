@@ -72,7 +72,7 @@ public class MainApplication extends Application implements ReactApplication {
     try {
       String host = Settings.Global.getString(getContentResolver(), "firebase_emulator_host");
       if (host != null && !host.isEmpty()) {
-        FirebaseAuth.getInstance().useEmulator("http://" + host + ":9099");
+        FirebaseAuth.getInstance().useEmulator(host, 9099);
         FirebaseFirestore.getInstance().useEmulator(host, 8080);
         Log.i("MainApplication", "Firebase emulators configured: " + host);
       }
