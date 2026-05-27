@@ -13,17 +13,34 @@ import { savePlayerData, loadPlayerData } from '../utils/storage';
 // gets dropped. Defer the setter until AppState is 'active' to make the
 // initial paint deterministic.
 function commitWhenActive(commit: () => void): () => void {
-  if (AppState.currentState === 'active') {
+  // Fast path: already active.
+  const isActive = (): boolean => AppState.currentState === 'active';
+  if (isActive()) {
     commit();
     return () => {};
   }
+
+  let fired = false;
   const sub = AppState.addEventListener('change', state => {
-    if (state === 'active') {
+    if (state === 'active' && !fired) {
+      fired = true;
       sub.remove();
       commit();
     }
   });
-  return () => sub.remove();
+  // Re-check after subscribing — closes a TOCTOU race where the activity can
+  // transition to active between the initial read and addEventListener wiring
+  // up, in which case the change event has already fired and we'd otherwise
+  // wait forever. `isActive()` is a function call so TS doesn't keep the
+  // negative narrowing from the first check.
+  if (!fired && isActive()) {
+    fired = true;
+    sub.remove();
+    commit();
+  }
+  return () => {
+    if (!fired) sub.remove();
+  };
 }
 
 export function usePlayer() {
