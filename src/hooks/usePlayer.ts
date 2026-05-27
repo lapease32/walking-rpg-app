@@ -47,6 +47,12 @@ export function usePlayer() {
   }, []);
 
   const clearPlayer = useCallback(() => {
+    // Cancel any deferred initial commit — without this, a setPlayer queued
+    // by a still-awaiting initializePlayer could fire after clearPlayer
+    // (e.g. account-switch races) and briefly restore the wrong session's
+    // player on the UI.
+    pendingCommitUnsubRef.current?.();
+    pendingCommitUnsubRef.current = null;
     playerRef.current = null;
     setPlayer(null);
   }, []);
@@ -63,10 +69,16 @@ export function usePlayer() {
 
       // Replace any earlier pending commit (e.g. account-switch reload that
       // raced with another resume) so we never have two listeners armed.
+      // Commit playerRef.current at fire time rather than the captured
+      // playerToSet, so any updates that landed via setPlayerAndSave during
+      // the pause (e.g. background tracking distance updates) aren't
+      // clobbered by the stale snapshot.
       pendingCommitUnsubRef.current?.();
       pendingCommitUnsubRef.current = commitWhenActive(() => {
         pendingCommitUnsubRef.current = null;
-        setPlayer(playerToSet);
+        if (playerRef.current) {
+          setPlayer(playerRef.current);
+        }
       });
 
       if (!savedData) {
@@ -81,7 +93,9 @@ export function usePlayer() {
       pendingCommitUnsubRef.current?.();
       pendingCommitUnsubRef.current = commitWhenActive(() => {
         pendingCommitUnsubRef.current = null;
-        setPlayer(fallback);
+        if (playerRef.current) {
+          setPlayer(playerRef.current);
+        }
       });
     }
   }, []);
