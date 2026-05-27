@@ -45,19 +45,27 @@ class AuthService {
     );
     if (!existingUser) {
       console.warn('[INIT] AuthService.initialize calling signInAnonymously');
+      // 10s timeout matches the Java prewarm budget. If signInAnonymously hangs
+      // (observed under New Architecture against the Firebase Auth emulator),
+      // fail loudly instead of blocking the app's loading screen forever.
+      // clearTimeout is required so the happy path doesn't leak an unhandled
+      // rejection when the timer fires after sign-in already succeeded.
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error('signInAnonymously timed out after 10s')),
+          10000,
+        );
+      });
       try {
-        // 10s timeout matches the Java prewarm budget. If signInAnonymously hangs
-        // (observed under New Architecture against the Firebase Auth emulator),
-        // fail loudly instead of blocking the app's loading screen forever.
-        await Promise.race([
-          signInAnonymously(getAuth()),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('signInAnonymously timed out after 10s')), 10000),
-          ),
-        ]);
+        await Promise.race([signInAnonymously(getAuth()), timeoutPromise]);
         console.warn('[INIT] AuthService.initialize signInAnonymously done');
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
+      } finally {
+        if (timeoutHandle !== undefined) {
+          clearTimeout(timeoutHandle);
+        }
       }
     }
     console.warn('[INIT] AuthService.initialize end');
