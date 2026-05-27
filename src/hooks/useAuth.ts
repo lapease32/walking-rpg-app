@@ -133,9 +133,17 @@ export function useAuth({
       // User is no longer authenticated as the linked account — clear stale state.
       await clearPendingConflict();
     }
+    // Mark init complete BEFORE awaiting onAccountChange. The await can run
+    // for hundreds of ms (Firestore fetch), and a belated signInAnonymously
+    // response could arrive during that window. With the flag set first, the
+    // auth listener's null→non-null branch fires a fresh reload — without it,
+    // the listener sees flag=false, skips the reload, and never gets another
+    // event for that user. The fresh reload may race with the in-flight one;
+    // usePlayer's pendingCommitUnsubRef explicitly handles that case by
+    // replacing the earlier listener with the latest.
+    initializeCompletedRef.current = true;
     console.warn('[INIT] useAuth.initialize calling onAccountChange');
     await onAccountChangeRef.current();
-    initializeCompletedRef.current = true;
     console.warn('[INIT] useAuth.initialize end');
   }, []);
 
