@@ -13,10 +13,11 @@ This is a monetized App Store / Play Store app — not a demo. When a fix has a 
 - Always apply labels from the repo label set (`bugfix`, `feature`, `security`, `refactor`, `android`, `iOS`, `github`, `dependencies`, `distribution`, `debug mode`, etc.)
 - Omit the "## Test plan" section from PR bodies — the user will request testing explicitly before merging
 - When the user asks "should we create a PR?" treat it as a genuine question, give a recommendation with tradeoffs, and wait for confirmation before running `gh pr create`
+- **Never auto-merge.** After bugbot/checks pass, surface the result and ask before running `gh pr merge`. The user merges, not Claude.
 
 ## After creating a PR — bugbot loop
 
-After every PR is created, immediately start a self-paced `/loop` that polls for bugbot feedback and squash-merges when safe. Use ~270s poll intervals to stay within the prompt cache window.
+After every PR is created, immediately start a self-paced `/loop` that polls for bugbot feedback and surfaces the result to the user when safe to merge. Use ~270s poll intervals to stay within the prompt cache window. Do NOT auto-merge — the loop reports "ready to merge" and waits for the user to confirm.
 
 **Bugbot has two reporting modes — monitor BOTH:**
 1. **Review comment mode** — posts a review body ("found N potential issues") with inline comments per file; check shows `skipping`
