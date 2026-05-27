@@ -57,8 +57,15 @@ class AuthService {
           10000,
         );
       });
+      const signInPromise = signInAnonymously(getAuth());
+      // Attach a separate handler so that if signInAnonymously rejects AFTER
+      // the timeout already settled the race, the rejection isn't surfaced as
+      // an unhandled promise rejection. Promise.race's internal handlers
+      // observe the rejection too, but this is explicit insurance — late
+      // rejections (e.g. network-layer timeouts at 30s) are a known shape.
+      signInPromise.catch(() => {});
       try {
-        await Promise.race([signInAnonymously(getAuth()), timeoutPromise]);
+        await Promise.race([signInPromise, timeoutPromise]);
         console.warn('[INIT] AuthService.initialize signInAnonymously done');
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
