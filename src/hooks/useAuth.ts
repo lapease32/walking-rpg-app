@@ -40,6 +40,13 @@ export function useAuth({
   // Re-entry guard: setConflictState(null) doesn't flush synchronously, so a
   // rapid double-tap could pass the conflictState !== null check twice.
   const conflictResolvingRef = useRef(false);
+  // Set true once `initialize` has finished calling onAccountChange. Used to
+  // detect a belated first sign-in — if AuthService.signInAnonymously hits the
+  // 10s timeout but the underlying request completes shortly afterward, the
+  // auth listener fires with a user but initialize has already loaded with
+  // currentUser=null, so cloud progress would be skipped. Guarded on this
+  // flag, the listener triggers a reload.
+  const initializeCompletedRef = useRef(false);
 
   // Keep callbacks current so the subscription closure never goes stale
   const onAccountChangeRef = useRef(onAccountChange);
@@ -80,6 +87,22 @@ export function useAuth({
         reload.catch(error =>
           console.error('Failed to reload player after account switch:', error),
         );
+      } else if (
+        initializeCompletedRef.current &&
+        prevUid === null &&
+        newUid !== null &&
+        !conflictResolutionPendingRef.current
+      ) {
+        // Belated first sign-in: AuthService.signInAnonymously timed out during
+        // initialize, so onAccountChange ran with currentUser=null and the user
+        // is missing any cloud progress. Trigger a reload now that the user is
+        // actually signed in. No clear — anon save was created on null user and
+        // the timestamp comparison in loadPlayerData picks the right one.
+        onAccountChangeRef
+          .current()
+          .catch(error =>
+            console.error('Failed to reload player after late initial sign-in:', error),
+          );
       }
       // Update after the isReSignIn check so the check sees the previous value
       if (user && !user.isAnonymous) {
@@ -102,6 +125,7 @@ export function useAuth({
       conflictResolutionPendingRef.current = true;
       onAccountSwitchRef.current();
       setConflictState(pending);
+      initializeCompletedRef.current = true;
       console.warn('[INIT] useAuth.initialize end (conflict pending)');
       return;
     }
@@ -111,6 +135,7 @@ export function useAuth({
     }
     console.warn('[INIT] useAuth.initialize calling onAccountChange');
     await onAccountChangeRef.current();
+    initializeCompletedRef.current = true;
     console.warn('[INIT] useAuth.initialize end');
   }, []);
 
