@@ -57,6 +57,22 @@ export function usePlayer() {
     };
   }, []);
 
+  // Belt-and-suspenders retry on every active transition: if a previous
+  // setPlayer commit was lost by Fabric (because AppState.currentState was
+  // stale at the time of the synchronous check in commitWhenActive — the JS
+  // bridge can be behind the native activity state), this re-fires the
+  // setter once the activity is definitively active. React bails on
+  // referential equality so it's a no-op in the happy path; it only forces
+  // a render when React state and the ref have diverged.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active' && playerRef.current) {
+        setPlayer(playerRef.current);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const setPlayerAndSave = useCallback((updated: Player) => {
     playerRef.current = updated;
     setPlayer(updated);
