@@ -19,8 +19,12 @@ export function usePlayer() {
   }, []);
 
   const initializePlayer = useCallback(async (): Promise<void> => {
+    console.warn('[INIT] usePlayer.initializePlayer start');
     try {
       const savedData = await loadPlayerData();
+      console.warn(
+        `[INIT] usePlayer.initializePlayer loadPlayerData done (hasData=${!!savedData})`,
+      );
       if (savedData) {
         const p = Player.fromJSON(savedData);
         playerRef.current = p;
@@ -33,6 +37,7 @@ export function usePlayer() {
         await savePlayerData(newPlayer);
         AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
       }
+      console.warn('[INIT] usePlayer.initializePlayer end');
     } catch (error) {
       console.error('Error initializing player:', error);
       const fallback = new Player();

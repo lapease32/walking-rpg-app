@@ -105,8 +105,9 @@ jobs:
             adb shell settings put global firebase_emulator_host 10.0.2.2
             bash e2e/scripts/check-android-emulator-connectivity.sh
             adb install android/app/build/outputs/apk/release/app-release.apk
-            # Capture logcat: verbose from app/Firebase + all warnings/errors for crash traces
-            adb logcat -v time ReactNativeJS:V Firebase:V *:W > /tmp/logcat.txt &
+            # Capture logcat: verbose from app/Firebase, info from MainApplication (prewarm
+            # success/timeout markers), plus all warnings/errors for crash traces.
+            adb logcat -v time ReactNativeJS:V Firebase:V Firestore:V FirebaseAuth:V MainApplication:I *:W > /tmp/logcat.txt &
             LOGCAT_PID=$!
             ~/.maestro/bin/maestro test e2e/maestro/golden-path.yaml --format junit --output e2e/maestro/results.xml || true
             kill $LOGCAT_PID 2>/dev/null || true

@@ -34,15 +34,33 @@ export class AccountConflictError extends Error {
 
 class AuthService {
   async initialize(): Promise<void> {
+    console.warn('[INIT] AuthService.initialize start');
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
 
-    if (!getAuth().currentUser) {
+    const existingUser = getAuth().currentUser;
+    console.warn(
+      `[INIT] AuthService.initialize currentUser=${
+        existingUser ? `${existingUser.uid}(anon=${existingUser.isAnonymous})` : 'null'
+      }`,
+    );
+    if (!existingUser) {
+      console.warn('[INIT] AuthService.initialize calling signInAnonymously');
       try {
-        await signInAnonymously(getAuth());
+        // 10s timeout matches the Java prewarm budget. If signInAnonymously hangs
+        // (observed under New Architecture against the Firebase Auth emulator),
+        // fail loudly instead of blocking the app's loading screen forever.
+        await Promise.race([
+          signInAnonymously(getAuth()),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('signInAnonymously timed out after 10s')), 10000),
+          ),
+        ]);
+        console.warn('[INIT] AuthService.initialize signInAnonymously done');
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
       }
     }
+    console.warn('[INIT] AuthService.initialize end');
   }
 
   getCurrentUser(): AuthUser | null {
