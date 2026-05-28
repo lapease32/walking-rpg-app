@@ -36,6 +36,11 @@ export interface DistanceData {
 type LocationUpdateCallback = (location: LocationData) => void;
 type DistanceUpdateCallback = (distanceData: DistanceData) => void | Promise<void>;
 
+// 1 km/h in m/s — below this we consider the user stationary
+const LOW_SPEED_THRESHOLD_MS = 1 / 3.6;
+// How many consecutive low-speed readings (at 5s intervals ≈ 15s) before downgrading
+const LOW_SPEED_READINGS_TO_DOWNGRADE = 3;
+
 /**
  * Location Service
  * Handles GPS tracking, distance calculation, and movement monitoring
@@ -47,20 +52,31 @@ class LocationService {
   private onLocationUpdate: LocationUpdateCallback | null = null;
   private onDistanceUpdate: DistanceUpdateCallback | null = null;
   private isTracking: boolean = false;
+  private isHighAccuracy: boolean = true;
+  private consecutiveLowSpeedReadings: number = 0;
+
   private readonly getCurrentPositionConfig = {
     enableHighAccuracy: true,
     timeout: 15000,
     maximumAge: 10000,
   };
 
-  private readonly watchConfig = {
+  private readonly highAccuracyWatchConfig = {
     enableHighAccuracy: true,
-    distanceFilter: 5, // Minimum distance (in meters) to trigger update
-    // iOS: show the blue status-bar pill while backgrounded (required for background mode UX)
+    distanceFilter: 5,
     showsBackgroundLocationIndicator: true,
-    // Android: poll every 5 s; allow bursts down to 2 s when movement is detected
     interval: 5000,
     fastestInterval: 2000,
+  };
+
+  // Used when stationary: drops GPS chip usage to network-based location.
+  // Battery draw falls from ~150–300 mW to ~5–15 mW while the user isn't moving.
+  private readonly lowAccuracyWatchConfig = {
+    enableHighAccuracy: false,
+    distanceFilter: 30,
+    showsBackgroundLocationIndicator: true,
+    interval: 30000,
+    fastestInterval: 15000,
   };
 
   /**
@@ -141,6 +157,8 @@ class LocationService {
     this.onLocationUpdate = onLocationUpdate;
     this.onDistanceUpdate = onDistanceUpdate;
     this.isTracking = true;
+    this.isHighAccuracy = true;
+    this.consecutiveLowSpeedReadings = 0;
 
     // Get initial location
     this.getCurrentLocation()
@@ -153,7 +171,10 @@ class LocationService {
         console.error('Error getting initial location:', error);
       });
 
-    // Watch for position changes
+    this.startWatch();
+  }
+
+  private startWatch(): void {
     this.watchId = Geolocation.watchPosition(
       (position: GeolocationPosition) => {
         const location: LocationData = {
@@ -200,6 +221,13 @@ class LocationService {
         if (this.onLocationUpdate) {
           this.onLocationUpdate(location);
         }
+
+        // Adapt GPS accuracy to movement: use raw speed from the hardware
+        // (position.coords.speed) rather than the coerced location.speed so
+        // a null reading doesn't count as "stationary".
+        if (position.coords.speed !== null) {
+          this.updateAccuracyMode(position.coords.speed);
+        }
       },
       (error: GeolocationError) => {
         console.error('Location tracking error:', error);
@@ -211,8 +239,35 @@ class LocationService {
           console.error('Location request timeout');
         }
       },
-      this.watchConfig,
+      this.isHighAccuracy ? this.highAccuracyWatchConfig : this.lowAccuracyWatchConfig,
     );
+  }
+
+  private updateAccuracyMode(speedMs: number): void {
+    if (speedMs < LOW_SPEED_THRESHOLD_MS) {
+      this.consecutiveLowSpeedReadings++;
+      if (
+        this.isHighAccuracy &&
+        this.consecutiveLowSpeedReadings >= LOW_SPEED_READINGS_TO_DOWNGRADE
+      ) {
+        this.switchAccuracyMode(false);
+      }
+    } else {
+      this.consecutiveLowSpeedReadings = 0;
+      if (!this.isHighAccuracy) {
+        this.switchAccuracyMode(true);
+      }
+    }
+  }
+
+  private switchAccuracyMode(toHighAccuracy: boolean): void {
+    this.isHighAccuracy = toHighAccuracy;
+    this.consecutiveLowSpeedReadings = 0;
+    if (this.watchId !== null) {
+      Geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    this.startWatch();
   }
 
   /**
