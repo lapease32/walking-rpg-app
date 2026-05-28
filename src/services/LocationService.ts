@@ -187,6 +187,12 @@ class LocationService {
           timestamp: position.timestamp,
         };
 
+        // switchAccuracyMode resets currentLocation to null before restarting the
+        // watch. The first callback after a restart is the cached last-known position
+        // with speed=null. Without this guard, the null-speed branch below would
+        // immediately revert to high-accuracy, defeating the battery saving before it begins.
+        const isFirstCallbackAfterSwitch = this.currentLocation === null && !this.isHighAccuracy;
+
         // Calculate distance if we have a previous location
         if (this.currentLocation) {
           const distance = this.calculateDistance(
@@ -228,7 +234,7 @@ class LocationService {
         // never populate speed, so handle both cases:
         if (position.coords.speed !== null) {
           this.updateAccuracyMode(position.coords.speed);
-        } else if (!this.isHighAccuracy) {
+        } else if (!this.isHighAccuracy && !isFirstCallbackAfterSwitch) {
           // speed=null in low-accuracy mode means the network provider fired a
           // location update — which only happens when the user moved ≥30 m
           // (our distanceFilter). Restore high-accuracy so the GPS chip can
