@@ -13,38 +13,61 @@ import { savePlayerData, loadPlayerData } from '../utils/storage';
 // gets dropped. Defer the setter until AppState is 'active' to make the
 // initial paint deterministic.
 function commitWhenActive(commit: () => void): () => void {
-  // Fast path: already active.
-  const isActive = (): boolean => AppState.currentState === 'active';
-  if (isActive()) {
-    commit();
-    return () => {};
-  }
-
   let fired = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Arm the listener first — no synchronous AppState read before this, so
+  // there is no TOCTOU window where an 'active' event could slip past.
   const sub = AppState.addEventListener('change', state => {
     if (state === 'active' && !fired) {
       fired = true;
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       sub.remove();
       commit();
     }
   });
-  // Re-check after subscribing — closes a TOCTOU race where the activity can
-  // transition to active between the initial read and addEventListener wiring
-  // up, in which case the change event has already fired and we'd otherwise
-  // wait forever. `isActive()` is a function call so TS doesn't keep the
-  // negative narrowing from the first check.
-  if (!fired && isActive()) {
-    fired = true;
-    sub.remove();
-    commit();
-  }
+
+  // Yield the event loop via setTimeout(0) before reading AppState.currentState.
+  // commitWhenActive is called from Promise continuations (microtasks); any
+  // pending native AppState change notifications are macrotasks queued BEFORE
+  // our setTimeout, so they run first and update AppState.currentState to the
+  // true value. Without this yield the synchronous read can return 'active'
+  // while the activity is already paused (the 'background' macrotask is still
+  // pending), causing setPlayer to fire inside the Fabric drop window and the
+  // home-screen render to be silently discarded.
+  timeoutId = setTimeout(() => {
+    timeoutId = null;
+    if (!fired && AppState.currentState === 'active') {
+      fired = true;
+      sub.remove();
+      commit();
+    }
+  }, 0);
+
   return () => {
-    if (!fired) sub.remove();
+    if (!fired) {
+      fired = true;
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      sub.remove();
+    }
   };
 }
 
 export function usePlayer() {
   const [player, setPlayer] = useState<Player | null>(null);
+  // Incremented by the belt-and-suspenders on every 'active' transition so
+  // that React always schedules a re-render, even when playerRef.current
+  // and the current player state share the same object reference (which
+  // would otherwise cause React to bail via Object.is equality). HomeScreen
+  // re-renders, sees player !== null, and Fabric re-commits the native tree
+  // — recovering from any commit dropped by Fabric during a pause window.
+  const [, setRepaintToken] = useState(0);
   const playerRef = useRef<Player | null>(null);
   const pendingCommitUnsubRef = useRef<(() => void) | null>(null);
   // Monotonic token identifying the most-recently-started initializePlayer (or
@@ -65,17 +88,19 @@ export function usePlayer() {
     };
   }, []);
 
-  // Belt-and-suspenders retry on every active transition: if a previous
-  // setPlayer commit was lost by Fabric (because AppState.currentState was
-  // stale at the time of the synchronous check in commitWhenActive — the JS
-  // bridge can be behind the native activity state), this re-fires the
-  // setter once the activity is definitively active. React bails on
-  // referential equality so it's a no-op in the happy path; it only forces
-  // a render when React state and the ref have diverged.
+  // Belt-and-suspenders retry on every active transition. Two things happen:
+  // 1. setPlayer(playerRef.current) re-asserts the player value.
+  // 2. setRepaintToken increments unconditionally, guaranteeing React schedules
+  //    a re-render even when playerRef.current and the current state share the
+  //    same object reference. Without (2), React bails via Object.is and the
+  //    native tree (stuck on the loading screen) is never re-committed by Fabric.
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active' && playerRef.current) {
-        setPlayer(playerRef.current);
+      if (state === 'active') {
+        if (playerRef.current) {
+          setPlayer(playerRef.current);
+        }
+        setRepaintToken(t => t + 1);
       }
     });
     return () => sub.remove();
