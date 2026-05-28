@@ -36,6 +36,11 @@ export interface DistanceData {
 type LocationUpdateCallback = (location: LocationData) => void;
 type DistanceUpdateCallback = (distanceData: DistanceData) => void | Promise<void>;
 
+// 1 km/h in m/s — below this we consider the user stationary
+const LOW_SPEED_THRESHOLD_MS = 1 / 3.6;
+// How many consecutive low-speed readings (at 5s intervals ≈ 15s) before downgrading
+const LOW_SPEED_READINGS_TO_DOWNGRADE = 3;
+
 /**
  * Location Service
  * Handles GPS tracking, distance calculation, and movement monitoring
@@ -47,20 +52,31 @@ class LocationService {
   private onLocationUpdate: LocationUpdateCallback | null = null;
   private onDistanceUpdate: DistanceUpdateCallback | null = null;
   private isTracking: boolean = false;
+  private isHighAccuracy: boolean = true;
+  private consecutiveLowSpeedReadings: number = 0;
+
   private readonly getCurrentPositionConfig = {
     enableHighAccuracy: true,
     timeout: 15000,
     maximumAge: 10000,
   };
 
-  private readonly watchConfig = {
+  private readonly highAccuracyWatchConfig = {
     enableHighAccuracy: true,
-    distanceFilter: 5, // Minimum distance (in meters) to trigger update
-    // iOS: show the blue status-bar pill while backgrounded (required for background mode UX)
+    distanceFilter: 5,
     showsBackgroundLocationIndicator: true,
-    // Android: poll every 5 s; allow bursts down to 2 s when movement is detected
     interval: 5000,
     fastestInterval: 2000,
+  };
+
+  // Used when stationary: drops GPS chip usage to network-based location.
+  // Battery draw falls from ~150–300 mW to ~5–15 mW while the user isn't moving.
+  private readonly lowAccuracyWatchConfig = {
+    enableHighAccuracy: false,
+    distanceFilter: 30,
+    showsBackgroundLocationIndicator: true,
+    interval: 30000,
+    fastestInterval: 15000,
   };
 
   /**
@@ -141,6 +157,8 @@ class LocationService {
     this.onLocationUpdate = onLocationUpdate;
     this.onDistanceUpdate = onDistanceUpdate;
     this.isTracking = true;
+    this.isHighAccuracy = true;
+    this.consecutiveLowSpeedReadings = 0;
 
     // Get initial location
     this.getCurrentLocation()
@@ -153,7 +171,10 @@ class LocationService {
         console.error('Error getting initial location:', error);
       });
 
-    // Watch for position changes
+    this.startWatch();
+  }
+
+  private startWatch(): void {
     this.watchId = Geolocation.watchPosition(
       (position: GeolocationPosition) => {
         const location: LocationData = {
@@ -166,6 +187,12 @@ class LocationService {
           timestamp: position.timestamp,
         };
 
+        // switchAccuracyMode resets currentLocation to null before restarting the
+        // watch. The first callback after a restart is the cached last-known position
+        // with speed=null. Without this guard, the null-speed branch below would
+        // immediately revert to high-accuracy, defeating the battery saving before it begins.
+        const isFirstCallbackAfterSwitch = this.currentLocation === null && !this.isHighAccuracy;
+
         // Calculate distance if we have a previous location
         if (this.currentLocation) {
           const distance = this.calculateDistance(
@@ -175,8 +202,10 @@ class LocationService {
             location.longitude,
           );
 
-          // Only add distance if it's reasonable (filters sub-meter noise and GPS jumps)
-          if (distance >= 1 && distance < 1000) {
+          // Only accumulate distance from high-accuracy GPS readings. Network-based
+          // positions in low-accuracy mode drift 100–500 m even while stationary,
+          // which would grant phantom distance and trigger unearned encounters.
+          if (distance >= 1 && distance < 1000 && this.isHighAccuracy) {
             this.totalDistance += distance;
 
             if (this.onDistanceUpdate) {
@@ -200,6 +229,18 @@ class LocationService {
         if (this.onLocationUpdate) {
           this.onLocationUpdate(location);
         }
+
+        // Adapt GPS accuracy to movement. Network providers (low-accuracy mode)
+        // never populate speed, so handle both cases:
+        if (position.coords.speed !== null) {
+          this.updateAccuracyMode(position.coords.speed);
+        } else if (!this.isHighAccuracy && !isFirstCallbackAfterSwitch) {
+          // speed=null in low-accuracy mode means the network provider fired a
+          // location update — which only happens when the user moved ≥30 m
+          // (our distanceFilter). Restore high-accuracy so the GPS chip can
+          // report reliable speed and distance again.
+          this.switchAccuracyMode(true);
+        }
       },
       (error: GeolocationError) => {
         console.error('Location tracking error:', error);
@@ -211,8 +252,38 @@ class LocationService {
           console.error('Location request timeout');
         }
       },
-      this.watchConfig,
+      this.isHighAccuracy ? this.highAccuracyWatchConfig : this.lowAccuracyWatchConfig,
     );
+  }
+
+  private updateAccuracyMode(speedMs: number): void {
+    if (speedMs < LOW_SPEED_THRESHOLD_MS) {
+      this.consecutiveLowSpeedReadings++;
+      if (
+        this.isHighAccuracy &&
+        this.consecutiveLowSpeedReadings >= LOW_SPEED_READINGS_TO_DOWNGRADE
+      ) {
+        this.switchAccuracyMode(false);
+      }
+    } else {
+      this.consecutiveLowSpeedReadings = 0;
+      if (!this.isHighAccuracy) {
+        this.switchAccuracyMode(true);
+      }
+    }
+  }
+
+  private switchAccuracyMode(toHighAccuracy: boolean): void {
+    this.isHighAccuracy = toHighAccuracy;
+    this.consecutiveLowSpeedReadings = 0;
+    // Reset the anchor point so the position jump between network coordinates
+    // and the first GPS fix isn't counted as travelled distance.
+    this.currentLocation = null;
+    if (this.watchId !== null) {
+      Geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    this.startWatch();
   }
 
   /**
