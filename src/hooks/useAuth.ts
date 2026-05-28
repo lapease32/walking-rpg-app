@@ -40,6 +40,13 @@ export function useAuth({
   // Re-entry guard: setConflictState(null) doesn't flush synchronously, so a
   // rapid double-tap could pass the conflictState !== null check twice.
   const conflictResolvingRef = useRef(false);
+  // One-shot: armed only when initialize loads with NO current user (i.e.
+  // AuthService.signInAnonymously hit its 10s timeout). A belated sign-in
+  // afterward then triggers exactly one reload so cloud progress isn't
+  // skipped. Scoped this narrowly — NOT a generic "init done" flag — so the
+  // re-anonymous sign-in that signOut() performs internally doesn't match and
+  // spuriously reload. Reset to false as soon as it fires.
+  const pendingBelatedSignInRef = useRef(false);
 
   // Keep callbacks current so the subscription closure never goes stale
   const onAccountChangeRef = useRef(onAccountChange);
@@ -80,6 +87,25 @@ export function useAuth({
         reload.catch(error =>
           console.error('Failed to reload player after account switch:', error),
         );
+      } else if (
+        pendingBelatedSignInRef.current &&
+        prevUid === null &&
+        newUid !== null &&
+        !conflictResolutionPendingRef.current
+      ) {
+        // Belated first sign-in: AuthService.signInAnonymously timed out during
+        // initialize, so onAccountChange ran with currentUser=null and the user
+        // is missing any cloud progress. Trigger a reload now that the user is
+        // actually signed in. No clear — anon save was created on null user and
+        // the timestamp comparison in loadPlayerData picks the right one.
+        // One-shot: disarm immediately so later null→non-null transitions
+        // (e.g. the re-anon sign-in after a sign-out) don't reload spuriously.
+        pendingBelatedSignInRef.current = false;
+        onAccountChangeRef
+          .current()
+          .catch(error =>
+            console.error('Failed to reload player after late initial sign-in:', error),
+          );
       }
       // Update after the isReSignIn check so the check sees the previous value
       if (user && !user.isAnonymous) {
@@ -90,6 +116,7 @@ export function useAuth({
   }, []);
 
   const initialize = useCallback(async (): Promise<void> => {
+    console.warn('[INIT] useAuth.initialize start');
     await AuthService.initialize();
     const user = AuthService.getCurrentUser();
     setAuthUser(user);
@@ -101,13 +128,26 @@ export function useAuth({
       conflictResolutionPendingRef.current = true;
       onAccountSwitchRef.current();
       setConflictState(pending);
+      console.warn('[INIT] useAuth.initialize end (conflict pending)');
       return;
     }
     if (pending) {
       // User is no longer authenticated as the linked account — clear stale state.
       await clearPendingConflict();
     }
+    // Arm the belated-sign-in reload ONLY when we're about to load with no
+    // user — i.e. signInAnonymously timed out in AuthService.initialize. Set
+    // BEFORE awaiting onAccountChange: the await can run for hundreds of ms
+    // (Firestore fetch) and the belated signInAnonymously response could
+    // arrive during that window; the listener then fires a fresh reload. If a
+    // user is already present (normal case), leave it disarmed so the re-anon
+    // sign-in after a future sign-out doesn't reload spuriously. The fresh
+    // reload may race the in-flight one; usePlayer's generation guard makes
+    // the most-recently-started call win.
+    pendingBelatedSignInRef.current = AuthService.getCurrentUser() === null;
+    console.warn('[INIT] useAuth.initialize calling onAccountChange');
     await onAccountChangeRef.current();
+    console.warn('[INIT] useAuth.initialize end');
   }, []);
 
   const handleAccountConflict = async (error: AccountConflictError): Promise<void> => {

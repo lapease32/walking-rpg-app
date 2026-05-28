@@ -34,15 +34,48 @@ export class AccountConflictError extends Error {
 
 class AuthService {
   async initialize(): Promise<void> {
+    console.warn('[INIT] AuthService.initialize start');
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
 
-    if (!getAuth().currentUser) {
+    const existingUser = getAuth().currentUser;
+    console.warn(
+      `[INIT] AuthService.initialize currentUser=${
+        existingUser ? `${existingUser.uid}(anon=${existingUser.isAnonymous})` : 'null'
+      }`,
+    );
+    if (!existingUser) {
+      console.warn('[INIT] AuthService.initialize calling signInAnonymously');
+      // 10s timeout matches the Java prewarm budget. If signInAnonymously hangs
+      // (observed under New Architecture against the Firebase Auth emulator),
+      // fail loudly instead of blocking the app's loading screen forever.
+      // clearTimeout is required so the happy path doesn't leak an unhandled
+      // rejection when the timer fires after sign-in already succeeded.
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error('signInAnonymously timed out after 10s')),
+          10000,
+        );
+      });
+      const signInPromise = signInAnonymously(getAuth());
+      // Attach a separate handler so that if signInAnonymously rejects AFTER
+      // the timeout already settled the race, the rejection isn't surfaced as
+      // an unhandled promise rejection. Promise.race's internal handlers
+      // observe the rejection too, but this is explicit insurance — late
+      // rejections (e.g. network-layer timeouts at 30s) are a known shape.
+      signInPromise.catch(() => {});
       try {
-        await signInAnonymously(getAuth());
+        await Promise.race([signInPromise, timeoutPromise]);
+        console.warn('[INIT] AuthService.initialize signInAnonymously done');
       } catch (error) {
         console.error('AuthService: anonymous sign-in failed:', error);
+      } finally {
+        if (timeoutHandle !== undefined) {
+          clearTimeout(timeoutHandle);
+        }
       }
     }
+    console.warn('[INIT] AuthService.initialize end');
   }
 
   getCurrentUser(): AuthUser | null {

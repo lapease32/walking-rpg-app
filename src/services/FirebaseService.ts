@@ -20,6 +20,7 @@ class FirebaseService {
   }
 
   private async _doInitialize(): Promise<void> {
+    console.warn('[INIT] FirebaseService.initialize start');
     try {
       // Wait for native Firebase to auto-initialize from GoogleService-Info.plist / google-services.json
       let retries = 10;
@@ -67,6 +68,7 @@ class FirebaseService {
       }
 
       this.initialized = true;
+      console.warn('[INIT] FirebaseService.initialize end');
     } catch (error) {
       console.error('Error initializing Firebase:', error);
       this.initializationPromise = null;
