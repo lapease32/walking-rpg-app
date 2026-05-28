@@ -47,6 +47,14 @@ export function usePlayer() {
   const [player, setPlayer] = useState<Player | null>(null);
   const playerRef = useRef<Player | null>(null);
   const pendingCommitUnsubRef = useRef<(() => void) | null>(null);
+  // Monotonic token identifying the most-recently-started initializePlayer (or
+  // clearPlayer) call. initializePlayer captures it before awaiting and bails
+  // after the await if a newer call has superseded it. Without this, two
+  // concurrent initializePlayer calls — e.g. the initialize() call with a
+  // null user racing a belated-sign-in reload with cloud data — resolve in
+  // completion order, so a slow null-user load can clobber the signed-in
+  // load's result and silently drop cloud progress.
+  const initGenerationRef = useRef(0);
 
   // Cancel any pending deferred commit if the component unmounts so the
   // listener doesn't fire after teardown.
@@ -80,6 +88,10 @@ export function usePlayer() {
   }, []);
 
   const clearPlayer = useCallback(() => {
+    // Bump the generation so any in-flight initializePlayer that's still
+    // awaiting loadPlayerData bails instead of repopulating the player we're
+    // about to clear (account-switch races).
+    initGenerationRef.current++;
     // Cancel any deferred initial commit — without this, a setPlayer queued
     // by a still-awaiting initializePlayer could fire after clearPlayer
     // (e.g. account-switch races) and briefly restore the wrong session's
@@ -91,9 +103,17 @@ export function usePlayer() {
   }, []);
 
   const initializePlayer = useCallback(async (): Promise<void> => {
+    const myGeneration = ++initGenerationRef.current;
     console.warn('[INIT] usePlayer.initializePlayer start');
     try {
       const savedData = await loadPlayerData();
+      // A newer initializePlayer (e.g. belated-sign-in reload) or a clearPlayer
+      // superseded us while we awaited. Bail so our now-stale snapshot can't
+      // clobber the newer call's result or resurrect cleared state.
+      if (myGeneration !== initGenerationRef.current) {
+        console.warn('[INIT] usePlayer.initializePlayer superseded — bailing');
+        return;
+      }
       console.warn(
         `[INIT] usePlayer.initializePlayer loadPlayerData done (hasData=${!!savedData})`,
       );
@@ -121,6 +141,11 @@ export function usePlayer() {
       console.warn('[INIT] usePlayer.initializePlayer end');
     } catch (error) {
       console.error('Error initializing player:', error);
+      // Same supersede guard as the success path — don't install a fallback
+      // player over a newer call's result.
+      if (myGeneration !== initGenerationRef.current) {
+        return;
+      }
       const fallback = new Player();
       playerRef.current = fallback;
       pendingCommitUnsubRef.current?.();
