@@ -61,6 +61,13 @@ function commitWhenActive(commit: () => void): () => void {
 
 export function usePlayer() {
   const [player, setPlayer] = useState<Player | null>(null);
+  // Incremented by the belt-and-suspenders on every 'active' transition so
+  // that React always schedules a re-render, even when playerRef.current
+  // and the current player state share the same object reference (which
+  // would otherwise cause React to bail via Object.is equality). HomeScreen
+  // re-renders, sees player !== null, and Fabric re-commits the native tree
+  // — recovering from any commit dropped by Fabric during a pause window.
+  const [, setRepaintToken] = useState(0);
   const playerRef = useRef<Player | null>(null);
   const pendingCommitUnsubRef = useRef<(() => void) | null>(null);
   // Monotonic token identifying the most-recently-started initializePlayer (or
@@ -81,15 +88,19 @@ export function usePlayer() {
     };
   }, []);
 
-  // Belt-and-suspenders retry on every active transition: if commitWhenActive
-  // somehow fires during a Fabric drop window (unforeseen edge case), this
-  // re-fires setPlayer once the activity is definitively active. React bails
-  // on referential equality so it's a no-op in the normal path; it only
-  // forces a render when React state and the ref have diverged.
+  // Belt-and-suspenders retry on every active transition. Two things happen:
+  // 1. setPlayer(playerRef.current) re-asserts the player value.
+  // 2. setRepaintToken increments unconditionally, guaranteeing React schedules
+  //    a re-render even when playerRef.current and the current state share the
+  //    same object reference. Without (2), React bails via Object.is and the
+  //    native tree (stuck on the loading screen) is never re-committed by Fabric.
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active' && playerRef.current) {
-        setPlayer(playerRef.current);
+      if (state === 'active') {
+        if (playerRef.current) {
+          setPlayer(playerRef.current);
+        }
+        setRepaintToken(t => t + 1);
       }
     });
     return () => sub.remove();
