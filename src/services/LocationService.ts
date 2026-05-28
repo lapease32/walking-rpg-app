@@ -196,8 +196,10 @@ class LocationService {
             location.longitude,
           );
 
-          // Only add distance if it's reasonable (filters sub-meter noise and GPS jumps)
-          if (distance >= 1 && distance < 1000) {
+          // Only accumulate distance from high-accuracy GPS readings. Network-based
+          // positions in low-accuracy mode drift 100–500 m even while stationary,
+          // which would grant phantom distance and trigger unearned encounters.
+          if (distance >= 1 && distance < 1000 && this.isHighAccuracy) {
             this.totalDistance += distance;
 
             if (this.onDistanceUpdate) {
@@ -222,11 +224,16 @@ class LocationService {
           this.onLocationUpdate(location);
         }
 
-        // Adapt GPS accuracy to movement: use raw speed from the hardware
-        // (position.coords.speed) rather than the coerced location.speed so
-        // a null reading doesn't count as "stationary".
+        // Adapt GPS accuracy to movement. Network providers (low-accuracy mode)
+        // never populate speed, so handle both cases:
         if (position.coords.speed !== null) {
           this.updateAccuracyMode(position.coords.speed);
+        } else if (!this.isHighAccuracy) {
+          // speed=null in low-accuracy mode means the network provider fired a
+          // location update — which only happens when the user moved ≥30 m
+          // (our distanceFilter). Restore high-accuracy so the GPS chip can
+          // report reliable speed and distance again.
+          this.switchAccuracyMode(true);
         }
       },
       (error: GeolocationError) => {
@@ -263,6 +270,9 @@ class LocationService {
   private switchAccuracyMode(toHighAccuracy: boolean): void {
     this.isHighAccuracy = toHighAccuracy;
     this.consecutiveLowSpeedReadings = 0;
+    // Reset the anchor point so the position jump between network coordinates
+    // and the first GPS fix isn't counted as travelled distance.
+    this.currentLocation = null;
     if (this.watchId !== null) {
       Geolocation.clearWatch(this.watchId);
       this.watchId = null;
