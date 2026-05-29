@@ -12,8 +12,7 @@ This is a monetized App Store / Play Store app — not a demo. When a fix has a 
 
 - Always apply labels from the repo label set (`bugfix`, `feature`, `security`, `refactor`, `android`, `iOS`, `github`, `dependencies`, `distribution`, `debug mode`, etc.)
 - Omit the "## Test plan" section from PR bodies — the user will request testing explicitly before merging
-- When the user asks "should we create a PR?" treat it as a genuine question, give a recommendation with tradeoffs, and wait for confirmation before running `gh pr create`
-- **Never auto-merge.** After bugbot/checks pass, surface the result and ask before running `gh pr merge`. The user merges, not Claude.
+- Open PRs and apply bugbot fixes without asking for confirmation. Only ask before `gh pr merge` — **never auto-merge**. The user merges, not Claude.
 
 ## After creating a PR — bugbot loop
 

@@ -116,7 +116,6 @@ export function useAuth({
   }, []);
 
   const initialize = useCallback(async (): Promise<void> => {
-    console.warn('[INIT] useAuth.initialize start');
     await AuthService.initialize();
     const user = AuthService.getCurrentUser();
     setAuthUser(user);
@@ -128,7 +127,6 @@ export function useAuth({
       conflictResolutionPendingRef.current = true;
       onAccountSwitchRef.current();
       setConflictState(pending);
-      console.warn('[INIT] useAuth.initialize end (conflict pending)');
       return;
     }
     if (pending) {
@@ -145,9 +143,7 @@ export function useAuth({
     // reload may race the in-flight one; usePlayer's generation guard makes
     // the most-recently-started call win.
     pendingBelatedSignInRef.current = AuthService.getCurrentUser() === null;
-    console.warn('[INIT] useAuth.initialize calling onAccountChange');
     await onAccountChangeRef.current();
-    console.warn('[INIT] useAuth.initialize end');
   }, []);
 
   const handleAccountConflict = async (error: AccountConflictError): Promise<void> => {

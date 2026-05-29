@@ -38,10 +38,8 @@ class CloudSyncService {
   async loadPlayerData(): Promise<CloudPlayerRecord | null> {
     const user = getAuth().currentUser;
     if (!user) {
-      console.warn('[INIT] CloudSyncService.loadPlayerData skip (no user)');
       return null;
     }
-    console.warn(`[INIT] CloudSyncService.loadPlayerData start uid=${user.uid}`);
     try {
       // Race the Firestore get against a 10-second timeout. The Firestore SDK can
       // stall indefinitely on its first gRPC connection (slow network, emulator cold
@@ -63,9 +61,6 @@ class CloudSyncService {
       if (timedOut) {
         console.warn('CloudSyncService: loadPlayerData timed out — falling back to local storage');
       }
-      console.warn(
-        `[INIT] CloudSyncService.loadPlayerData end (timedOut=${timedOut}, hasResult=${!!result})`,
-      );
       return result;
     } catch (error) {
       console.error('CloudSyncService: failed to load player data:', error);
