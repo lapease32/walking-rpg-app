@@ -274,7 +274,9 @@ export function useEncounter({
 
     showCombatModalRef.current = true;
     setShowCombatModal(true);
-    setPlayerCombatState(initCombatState(currentPlayer.archetype));
+    // Only initialize once per encounter — preserves accumulated resource/status
+    // if the player closes and reopens the combat modal within the same encounter.
+    setPlayerCombatState(prev => prev ?? initCombatState(currentPlayer.archetype));
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
 
