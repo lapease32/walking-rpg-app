@@ -130,7 +130,8 @@ export const WALKING_SPEED = {
 
 import { DirectAbility } from '../models/Ability';
 
-export const ATTACK_TYPES: Readonly<Record<'BASIC' | 'STRONG' | 'HEAVY', DirectAbility>> = {
+// satisfies per-entry validates the shape; as const preserves deep literal types.
+export const ATTACK_TYPES = {
   BASIC: {
     id: 'basic_attack',
     name: 'Basic Attack',
@@ -140,7 +141,7 @@ export const ATTACK_TYPES: Readonly<Record<'BASIC' | 'STRONG' | 'HEAVY', DirectA
     resourceCost: 0,
     icon: '⚔️',
     damageType: 'physical',
-  },
+  } satisfies DirectAbility,
   STRONG: {
     id: 'strong_attack',
     name: 'Strong Attack',
@@ -150,7 +151,7 @@ export const ATTACK_TYPES: Readonly<Record<'BASIC' | 'STRONG' | 'HEAVY', DirectA
     resourceCost: 0,
     icon: '💥',
     damageType: 'physical',
-  },
+  } satisfies DirectAbility,
   HEAVY: {
     id: 'heavy_attack',
     name: 'Heavy Attack',
@@ -160,8 +161,8 @@ export const ATTACK_TYPES: Readonly<Record<'BASIC' | 'STRONG' | 'HEAVY', DirectA
     resourceCost: 0,
     icon: '🔨',
     damageType: 'physical',
-  },
-};
+  } satisfies DirectAbility,
+} as const;
 
 export type AttackType = keyof typeof ATTACK_TYPES;
 

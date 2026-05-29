@@ -440,6 +440,7 @@ export function useEncounter({
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false);
+    setPlayerCombatState(null);
     setEncounterChance(0);
     const blocking = EncounterService.isTimeConstraintBlocking();
     setIsTimeBlocking(blocking);
