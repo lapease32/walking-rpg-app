@@ -1,4 +1,5 @@
 import { Creature, createCreatureFromTemplate, CREATURE_TEMPLATES } from '../../models/Creature';
+import { DEFAULT_RESISTANCES, applyResistance } from '../../models/DamageType';
 
 const makeCreature = (overrides: Partial<ConstructorParameters<typeof Creature>[0]> = {}) =>
   new Creature({
@@ -150,6 +151,42 @@ describe('Creature', () => {
       const creature = createCreatureFromTemplate(template, 1);
       expect(creature.level).toBeGreaterThanOrEqual(1);
       jest.restoreAllMocks();
+    });
+  });
+
+  describe('resistances', () => {
+    it('defaults all resistances to 0', () => {
+      const creature = makeCreature();
+      expect(creature.resistances).toEqual(DEFAULT_RESISTANCES);
+    });
+
+    it('merges partial resistances with defaults', () => {
+      const creature = makeCreature({ resistances: { fire: 0.5 } });
+      expect(creature.resistances.fire).toBe(0.5);
+      expect(creature.resistances.physical).toBe(0);
+      expect(creature.resistances.frost).toBe(0);
+    });
+  });
+
+  describe('applyResistance helper', () => {
+    it('returns raw damage unchanged at resistance 0', () => {
+      expect(applyResistance(20, 0)).toBe(20);
+    });
+
+    it('halves damage at resistance 0.5', () => {
+      expect(applyResistance(20, 0.5)).toBe(10);
+    });
+
+    it('floors fractional results', () => {
+      expect(applyResistance(21, 0.5)).toBe(10);
+    });
+
+    it('increases damage at negative resistance (vulnerability)', () => {
+      expect(applyResistance(20, -0.5)).toBe(30);
+    });
+
+    it('returns 0 at full immunity (resistance 1.0)', () => {
+      expect(applyResistance(20, 1.0)).toBe(0);
     });
   });
 });
