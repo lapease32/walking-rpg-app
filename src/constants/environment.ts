@@ -4,10 +4,12 @@ export function getAppEnvironment(): AppEnvironment {
   if (__DEV__) {
     return 'development';
   }
-  // TODO: distinguish 'testing' (E2E / staging) from 'production' once proper
-  // build variants exist (react-native-config or native BuildConfig flag).
-  // Until then, non-dev builds return 'testing' so the debug panel stays
-  // available for E2E tests, which depend on debug-force-encounter.
+  // Non-dev builds intentionally return 'testing' until build variants exist.
+  // The E2E Maestro golden-path test taps debug-force-encounter (rendered only
+  // when enableDebugMode=true). Returning 'production' here hides that element
+  // and breaks the test. Proper fix: add react-native-config or a native
+  // BuildConfig flag so the E2E workflow can set APP_ENV=testing while
+  // production store builds get APP_ENV=production.
   return 'testing';
 }
 
