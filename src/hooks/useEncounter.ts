@@ -15,6 +15,7 @@ import {
   EncounterData,
 } from '../utils/storage';
 import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
+import { CombatantState, initCombatState, regenResource, resolveAbility } from '../models/Ability';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -39,6 +40,7 @@ export function useEncounter({
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false);
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false);
+  const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
 
   const victoryProcessedRef = useRef<boolean>(false);
   const fleeProcessedRef = useRef<boolean>(false);
@@ -100,6 +102,7 @@ export function useEncounter({
     setShowEncounterModal(false);
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
+    setPlayerCombatState(null);
   };
 
   const checkPendingEncounter = async (): Promise<void> => {
@@ -199,6 +202,7 @@ export function useEncounter({
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
+    setPlayerCombatState(null);
 
     AnalyticsService.combatVictory(
       currentEncounterState.creature.name,
@@ -246,6 +250,7 @@ export function useEncounter({
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
+    setPlayerCombatState(null);
   };
 
   const handleFight = (): void => {
@@ -269,6 +274,7 @@ export function useEncounter({
 
     showCombatModalRef.current = true;
     setShowCombatModal(true);
+    setPlayerCombatState(initCombatState(currentPlayer.archetype));
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
 
@@ -294,12 +300,16 @@ export function useEncounter({
     }
 
     const updatedPlayer = new Player(currentPlayer.toJSON());
-    const attackConfig = ATTACK_TYPES[attackType];
-    const playerDamage = updatedPlayer.calculateDamage(
+    const ability = ATTACK_TYPES[attackType];
+    const abilityResult = resolveAbility(
+      ability,
+      updatedPlayer.attack,
       creature.defense,
-      attackConfig.damageMultiplier,
+      creature.resistances,
+      updatedPlayer.maxHp,
     );
-    creature.takeDamage(playerDamage);
+    creature.takeDamage(abilityResult.damage);
+    setPlayerCombatState(prev => (prev ? regenResource(prev, updatedPlayer.archetype) : prev));
 
     if (!creature.isDefeated()) {
       const creatureDamage = creature.calculateDamage(updatedPlayer.defense);
@@ -337,6 +347,7 @@ export function useEncounter({
       setShowCombatModal(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
+      setPlayerCombatState(null);
       AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
 
       Alert.alert(
@@ -581,6 +592,7 @@ export function useEncounter({
     setBypassTimeConstraint,
     forceItemDrop,
     setForceItemDrop,
+    playerCombatState,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
