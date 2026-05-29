@@ -1,7 +1,4 @@
-/**
- * Creature Model
- * Represents a creature that can be encountered in the game
- */
+import { Resistances, DEFAULT_RESISTANCES } from './DamageType';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -16,6 +13,7 @@ export interface CreatureTemplate {
   rarity: Rarity;
   description?: string;
   encounterRate: number;
+  resistances?: Partial<Resistances>;
 }
 
 export interface CreatureConstructorParams {
@@ -31,6 +29,7 @@ export interface CreatureConstructorParams {
   rarity?: Rarity;
   description?: string;
   encounterRate?: number;
+  resistances?: Partial<Resistances>;
 }
 
 export class Creature {
@@ -46,6 +45,7 @@ export class Creature {
   rarity: Rarity;
   description: string;
   encounterRate: number;
+  resistances: Resistances;
 
   constructor({
     id,
@@ -60,6 +60,7 @@ export class Creature {
     rarity = 'common',
     description,
     encounterRate = 0.5,
+    resistances,
   }: CreatureConstructorParams) {
     this.id = id;
     this.name = name;
@@ -73,6 +74,7 @@ export class Creature {
     this.rarity = rarity;
     this.description = description || `A ${type} creature`;
     this.encounterRate = encounterRate;
+    this.resistances = { ...DEFAULT_RESISTANCES, ...resistances };
   }
 
   /**

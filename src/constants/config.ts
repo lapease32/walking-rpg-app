@@ -128,24 +128,29 @@ export const WALKING_SPEED = {
   MAX_KMH: 8, // Maximum speed to be considered walking
 } as const;
 
+import { DamageType } from '../models/DamageType';
+
 export const ATTACK_TYPES = {
   BASIC: {
     name: 'Basic Attack',
     damageMultiplier: 1.0,
-    cooldownMs: 1000, // 1 second
+    cooldownMs: 1000,
     icon: '⚔️',
+    damageType: 'physical' as DamageType,
   },
   STRONG: {
     name: 'Strong Attack',
     damageMultiplier: 1.5,
-    cooldownMs: 3000, // 3 seconds
+    cooldownMs: 3000,
     icon: '💥',
+    damageType: 'physical' as DamageType,
   },
   HEAVY: {
     name: 'Heavy Attack',
     damageMultiplier: 2.0,
-    cooldownMs: 5000, // 5 seconds
+    cooldownMs: 5000,
     icon: '🔨',
+    damageType: 'physical' as DamageType,
   },
 } as const;
 
