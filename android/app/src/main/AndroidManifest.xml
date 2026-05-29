@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Wake lock for keeping device awake during tracking -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Battery optimization exemption dialog (Doze / OEM killers like Samsung, Xiaomi) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
       android:name="com.walkingrpgtemp.MainApplication"

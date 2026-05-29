@@ -129,19 +129,14 @@ export function usePlayer() {
 
   const initializePlayer = useCallback(async (): Promise<void> => {
     const myGeneration = ++initGenerationRef.current;
-    console.warn('[INIT] usePlayer.initializePlayer start');
     try {
       const savedData = await loadPlayerData();
       // A newer initializePlayer (e.g. belated-sign-in reload) or a clearPlayer
       // superseded us while we awaited. Bail so our now-stale snapshot can't
       // clobber the newer call's result or resurrect cleared state.
       if (myGeneration !== initGenerationRef.current) {
-        console.warn('[INIT] usePlayer.initializePlayer superseded — bailing');
         return;
       }
-      console.warn(
-        `[INIT] usePlayer.initializePlayer loadPlayerData done (hasData=${!!savedData})`,
-      );
       const playerToSet = savedData ? Player.fromJSON(savedData) : new Player();
       playerRef.current = playerToSet;
 
@@ -163,7 +158,6 @@ export function usePlayer() {
         await savePlayerData(playerToSet);
       }
       AnalyticsService.playerSessionStart(playerToSet.level, playerToSet.totalDistance);
-      console.warn('[INIT] usePlayer.initializePlayer end');
     } catch (error) {
       console.error('Error initializing player:', error);
       // Same supersede guard as the success path — don't install a fallback
