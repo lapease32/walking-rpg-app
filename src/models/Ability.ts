@@ -166,5 +166,10 @@ export function resolveAbility(
       const shield = ability.shieldAmount ?? 0;
       return { ...base, heal, shield };
     }
+
+    default: {
+      const _exhaustive: never = ability;
+      return _exhaustive;
+    }
   }
 }

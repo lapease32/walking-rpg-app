@@ -11,6 +11,7 @@ import {
 import { Encounter } from '../models/Encounter';
 import { Player } from '../models/Player';
 import { ATTACK_TYPES, AttackType } from '../constants/config';
+import { resolveAbility } from '../models/Ability';
 
 interface CombatModalProps {
   encounter: Encounter | null;
@@ -242,11 +243,15 @@ export default function CombatModal({
                 const isDisabled = isOnCooldown || isDefeated || playerDefeated;
                 const cooldownPercent = getCooldownPercentage(attackType);
 
-                // Calculate expected damage (must match Player.calculateDamage logic)
-                const baseDamage = player.attack - creature.defense;
                 const expectedDamage = Math.max(
                   1,
-                  Math.floor(baseDamage * attack.damageMultiplier),
+                  resolveAbility(
+                    attack,
+                    player.attack,
+                    creature.defense,
+                    creature.resistances,
+                    player.maxHp,
+                  ).damage,
                 );
 
                 return (

@@ -437,10 +437,10 @@ export function useEncounter({
     victoryProcessedRef.current = false;
     fleeProcessedRef.current = false;
 
+    setPlayerCombatState(null);
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false);
-    setPlayerCombatState(null);
     setEncounterChance(0);
     const blocking = EncounterService.isTimeConstraintBlocking();
     setIsTimeBlocking(blocking);
