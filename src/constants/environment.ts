@@ -4,7 +4,11 @@ export function getAppEnvironment(): AppEnvironment {
   if (__DEV__) {
     return 'development';
   }
-  return 'production';
+  // TODO: distinguish 'testing' (E2E / staging) from 'production' once proper
+  // build variants exist (react-native-config or native BuildConfig flag).
+  // Until then, non-dev builds return 'testing' so the debug panel stays
+  // available for E2E tests, which depend on debug-force-encounter.
+  return 'testing';
 }
 
 export const APP_ENV = getAppEnvironment();
