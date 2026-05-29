@@ -1,5 +1,12 @@
-import { Player } from '../../models/Player';
+import { Player, Archetype } from '../../models/Player';
 import { PLAYER_CONFIG } from '../../constants/config';
+import {
+  ARCHETYPE_CONFIGS,
+  computeAttributes,
+  deriveAttack,
+  deriveDefense,
+  deriveMaxHp,
+} from '../../models/Archetype';
 import { WeaponItem, AccessoryItem } from '../../models/Item';
 
 const makeWeapon = (overrides: Partial<WeaponItem> = {}): WeaponItem => ({
@@ -28,24 +35,29 @@ const makeAccessory = (overrides: Partial<AccessoryItem> = {}): AccessoryItem =>
 
 describe('Player', () => {
   describe('constructor', () => {
-    it('creates a player with default level 1 stats', () => {
+    it('creates a Martial player with correct level 1 stats', () => {
       const player = new Player();
+      const { str, agi, int } = computeAttributes(Archetype.Martial, 1);
+      expect(player.archetype).toBe(Archetype.Martial);
       expect(player.level).toBe(1);
-      expect(player.attack).toBe(PLAYER_CONFIG.STARTING_ATTACK);
-      expect(player.defense).toBe(PLAYER_CONFIG.STARTING_DEFENSE);
-      expect(player.maxHp).toBe(PLAYER_CONFIG.STARTING_HP);
-      expect(player.hp).toBe(PLAYER_CONFIG.STARTING_HP);
+      expect(player.str).toBe(str);
+      expect(player.agi).toBe(agi);
+      expect(player.int).toBe(int);
+      expect(player.attack).toBe(deriveAttack(str, agi));
+      expect(player.defense).toBe(deriveDefense(str, agi));
+      expect(player.maxHp).toBe(deriveMaxHp(Archetype.Martial, str, agi));
+      expect(player.hp).toBe(player.maxHp);
     });
 
-    it('scales stats based on level when stats not explicitly provided', () => {
+    it('scales attributes and stats correctly at level 3', () => {
       const player = new Player({ level: 3 });
-      expect(player.attack).toBe(
-        PLAYER_CONFIG.STARTING_ATTACK + 2 * PLAYER_CONFIG.ATTACK_PER_LEVEL,
-      );
-      expect(player.defense).toBe(
-        PLAYER_CONFIG.STARTING_DEFENSE + 2 * PLAYER_CONFIG.DEFENSE_PER_LEVEL,
-      );
-      expect(player.maxHp).toBe(PLAYER_CONFIG.STARTING_HP + 2 * PLAYER_CONFIG.HP_PER_LEVEL);
+      const { str, agi, int } = computeAttributes(Archetype.Martial, 3);
+      expect(player.str).toBe(str);
+      expect(player.agi).toBe(agi);
+      expect(player.int).toBe(int);
+      expect(player.attack).toBe(deriveAttack(str, agi));
+      expect(player.defense).toBe(deriveDefense(str, agi));
+      expect(player.maxHp).toBe(deriveMaxHp(Archetype.Martial, str, agi));
     });
 
     it('uses explicit stats when provided', () => {
@@ -75,6 +87,40 @@ describe('Player', () => {
       const inventory = Array(60).fill(null);
       const player = new Player({ inventory });
       expect(player.inventory).toHaveLength(50);
+    });
+  });
+
+  describe('archetype differentiation', () => {
+    it('Mage has lower maxHp than Martial at the same level', () => {
+      const martial = new Player({ archetype: Archetype.Martial });
+      const mage = new Player({ archetype: Archetype.Mage });
+      expect(mage.maxHp).toBeLessThan(martial.maxHp);
+    });
+
+    it('Agile has lower maxHp than Martial but higher than Mage', () => {
+      const martial = new Player({ archetype: Archetype.Martial });
+      const agile = new Player({ archetype: Archetype.Agile });
+      const mage = new Player({ archetype: Archetype.Mage });
+      expect(agile.maxHp).toBeLessThan(martial.maxHp);
+      expect(agile.maxHp).toBeGreaterThan(mage.maxHp);
+    });
+
+    it('Martial has higher STR than Mage at level 10', () => {
+      const martial = new Player({ archetype: Archetype.Martial, level: 10 });
+      const mage = new Player({ archetype: Archetype.Mage, level: 10 });
+      expect(martial.str).toBeGreaterThan(mage.str);
+    });
+
+    it('Mage has higher INT than Martial at level 10', () => {
+      const martial = new Player({ archetype: Archetype.Martial, level: 10 });
+      const mage = new Player({ archetype: Archetype.Mage, level: 10 });
+      expect(mage.int).toBeGreaterThan(martial.int);
+    });
+
+    it('each archetype has the correct resource type', () => {
+      expect(ARCHETYPE_CONFIGS[Archetype.Martial].resource).toBe('rage');
+      expect(ARCHETYPE_CONFIGS[Archetype.Agile].resource).toBe('energy');
+      expect(ARCHETYPE_CONFIGS[Archetype.Mage].resource).toBe('mana');
     });
   });
 
@@ -128,15 +174,32 @@ describe('Player', () => {
       const defenseBefore = player.defense;
       const maxHpBefore = player.maxHp;
       player.addExperience(player.getExperienceForNextLevel());
-      expect(player.attack).toBe(attackBefore + PLAYER_CONFIG.ATTACK_PER_LEVEL);
-      expect(player.defense).toBe(defenseBefore + PLAYER_CONFIG.DEFENSE_PER_LEVEL);
-      expect(player.maxHp).toBe(maxHpBefore + PLAYER_CONFIG.HP_PER_LEVEL);
+      expect(player.attack).toBeGreaterThan(attackBefore);
+      expect(player.defense).toBeGreaterThan(defenseBefore);
+      expect(player.maxHp).toBeGreaterThan(maxHpBefore);
     });
 
-    it('restores hp by HP_PER_LEVEL on level up', () => {
-      const player = new Player({ hp: 50, maxHp: 100 });
+    it('grows attributes by the archetype-specific amount per level', () => {
+      const player = new Player({ archetype: Archetype.Martial });
+      const strBefore = player.str;
       player.addExperience(player.getExperienceForNextLevel());
-      expect(player.hp).toBe(50 + PLAYER_CONFIG.HP_PER_LEVEL);
+      // Martial grows 3 STR per level
+      expect(player.str).toBe(strBefore + 3);
+    });
+
+    it('restores hp on level up by the maxHp delta', () => {
+      const player = new Player({ hp: 50, maxHp: 100 });
+      const maxHpBefore = player.maxHp;
+      player.addExperience(player.getExperienceForNextLevel());
+      const expectedHp = 50 + (player.maxHp - maxHpBefore);
+      expect(player.hp).toBe(expectedHp);
+    });
+
+    it('does not restore hp past maxHp on level up', () => {
+      const player = new Player();
+      player.fullHeal();
+      player.addExperience(player.getExperienceForNextLevel());
+      expect(player.hp).toBe(player.maxHp);
     });
   });
 
@@ -148,7 +211,6 @@ describe('Player', () => {
 
     it('applies damage multiplier and floors result', () => {
       const player = new Player({ attack: 20 });
-      // (20 - 5) * 1.5 = 22.5 → 22
       expect(player.calculateDamage(5, 1.5)).toBe(22);
     });
 
@@ -320,6 +382,8 @@ describe('Player', () => {
       expect(restored.level).toBe(5);
       expect(restored.experience).toBe(42);
       expect(restored.attack).toBe(player.attack);
+      expect(restored.archetype).toBe(player.archetype);
+      expect(restored.str).toBe(player.str);
       expect(restored.inventory).toHaveLength(50);
     });
 
@@ -328,6 +392,29 @@ describe('Player', () => {
       const json = player.toJSON();
       json.inventory![0] = makeWeapon();
       expect(player.inventory[0]).toBeNull();
+    });
+
+    it('defaults to Martial and recomputes attributes when archetype is absent (old save)', () => {
+      const player = new Player({ level: 5, archetype: Archetype.Martial });
+      const json = player.toJSON();
+      // Simulate an old save by removing the new fields
+      delete (json as any).archetype;
+      delete (json as any).str;
+      delete (json as any).agi;
+      delete (json as any).int;
+
+      const restored = Player.fromJSON(json);
+      expect(restored.archetype).toBe(Archetype.Martial);
+      const expected = computeAttributes(Archetype.Martial, 5);
+      expect(restored.str).toBe(expected.str);
+      expect(restored.agi).toBe(expected.agi);
+      expect(restored.int).toBe(expected.int);
+    });
+  });
+
+  describe('PLAYER_CONFIG constants still referenced by other systems', () => {
+    it('MAX_INVENTORY_SIZE is 50', () => {
+      expect(PLAYER_CONFIG.MAX_INVENTORY_SIZE).toBe(50);
     });
   });
 });
