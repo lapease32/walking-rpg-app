@@ -1,8 +1,3 @@
-/**
- * Player Model
- * Tracks player stats, progress, and equipment
- */
-
 import { PLAYER_CONFIG } from '../constants/config';
 import {
   WeaponItem,
@@ -15,10 +10,18 @@ import {
   AccessoryItem,
   Item,
 } from './Item';
+import {
+  Archetype,
+  Attributes,
+  ARCHETYPE_CONFIGS,
+  computeAttributes,
+  deriveAttack,
+  deriveDefense,
+  deriveMaxHp,
+} from './Archetype';
 
-/**
- * Equipment slot types
- */
+export { Archetype };
+
 export type EquipmentSlot =
   | 'weapon'
   | 'offhand'
@@ -30,9 +33,6 @@ export type EquipmentSlot =
   | 'accessory1'
   | 'accessory2';
 
-/**
- * Equipment structure with equipment slots
- */
 export interface Equipment {
   weapon: null | WeaponItem;
   offhand: null | OffhandItem;
@@ -45,9 +45,6 @@ export interface Equipment {
   accessory2: null | AccessoryItem;
 }
 
-/**
- * Create an empty equipment with all slots set to null
- */
 export function createEmptyEquipment(): Equipment {
   return {
     weapon: null,
@@ -79,7 +76,13 @@ export interface PlayerData {
   totalEncounters: number;
   creaturesDefeated: number;
   equipment: Equipment;
-  inventory?: (Item | null)[]; // Optional for backwards compatibility with old saved data
+  inventory?: (Item | null)[];
+  // Archetype and primary attributes — absent in saves created before this
+  // feature; fromJSON defaults to Martial and recomputes from level.
+  archetype?: Archetype;
+  str?: number;
+  agi?: number;
+  int?: number;
 }
 
 export interface PlayerStats {
@@ -95,6 +98,10 @@ export interface PlayerStats {
   totalDistance: number;
   totalEncounters: number;
   creaturesDefeated: number;
+  archetype: Archetype;
+  str: number;
+  agi: number;
+  int: number;
 }
 
 export interface PlayerConstructorParams {
@@ -111,6 +118,10 @@ export interface PlayerConstructorParams {
   creaturesDefeated?: number;
   equipment?: Equipment;
   inventory?: (Item | null)[];
+  archetype?: Archetype;
+  str?: number;
+  agi?: number;
+  int?: number;
 }
 
 export class Player {
@@ -127,6 +138,10 @@ export class Player {
   creaturesDefeated: number;
   equipment: Equipment;
   inventory: (Item | null)[];
+  archetype: Archetype;
+  str: number;
+  agi: number;
+  int: number;
 
   constructor({
     id = 'player1',
@@ -142,22 +157,28 @@ export class Player {
     creaturesDefeated = 0,
     equipment,
     inventory,
+    archetype = Archetype.Martial,
+    str,
+    agi,
+    int,
   }: PlayerConstructorParams = {}) {
     this.id = id;
     this.name = name;
     this.level = level;
     this.experience = experience;
+    this.archetype = archetype;
 
-    // Calculate attack and defense based on level if not provided
-    // Base stats + stats per level
-    this.attack =
-      attack ?? PLAYER_CONFIG.STARTING_ATTACK + (level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL;
-    this.defense =
-      defense ?? PLAYER_CONFIG.STARTING_DEFENSE + (level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL;
+    // Primary attributes: use provided values or compute from archetype + level.
+    const computed: Attributes = computeAttributes(archetype, level);
+    this.str = str ?? computed.str;
+    this.agi = agi ?? computed.agi;
+    this.int = int ?? computed.int;
 
-    // Calculate max HP based on level if not provided
-    this.maxHp = maxHp ?? PLAYER_CONFIG.STARTING_HP + (level - 1) * PLAYER_CONFIG.HP_PER_LEVEL;
-    // Set current HP to maxHp if not provided, or use provided hp (but cap at maxHp)
+    // Derived combat stats: use provided values (e.g. loaded from a save that
+    // already has equipment bonuses baked in) or derive from attributes.
+    this.attack = attack ?? deriveAttack(this.str, this.agi);
+    this.defense = defense ?? deriveDefense(this.str, this.agi);
+    this.maxHp = maxHp ?? deriveMaxHp(this.archetype, this.str, this.agi);
     this.hp = hp ?? this.maxHp;
     if (this.hp > this.maxHp) {
       this.hp = this.maxHp;
@@ -166,173 +187,111 @@ export class Player {
     this.totalDistance = totalDistance;
     this.totalEncounters = totalEncounters;
     this.creaturesDefeated = creaturesDefeated;
-    // Initialize equipment with empty slots if not provided
-    if (equipment) {
-      this.equipment = equipment;
-    } else {
-      this.equipment = createEmptyEquipment();
-    }
-    // Always create a copy to avoid shared references between Player instances
+
+    this.equipment = equipment ?? createEmptyEquipment();
+
     const maxSlots = PLAYER_CONFIG.MAX_INVENTORY_SIZE;
     if (inventory && Array.isArray(inventory) && inventory.length === maxSlots) {
       this.inventory = [...inventory];
-    } else {
-      if (inventory && Array.isArray(inventory)) {
-        const normalized = [...inventory];
-        while (normalized.length < maxSlots) {
-          normalized.push(null);
-        }
-        this.inventory = normalized.slice(0, maxSlots);
-      } else {
-        this.inventory = createEmptyInventory();
+    } else if (inventory && Array.isArray(inventory)) {
+      const normalized = [...inventory];
+      while (normalized.length < maxSlots) {
+        normalized.push(null);
       }
+      this.inventory = normalized.slice(0, maxSlots);
+    } else {
+      this.inventory = createEmptyInventory();
     }
-
-    // Note: We don't recalculate stats here because:
-    // 1. If loading from JSON, stats already include equipment bonuses
-    // 2. Stats are recalculated when equipping/unequipping items via equipItem()
   }
 
-  /**
-   * Calculate experience needed for next level
-   */
   getExperienceForNextLevel(): number {
-    // Exponential growth: 100 * level^1.5. Clamp to minimum 1 to prevent
-    // checkLevelUp() from infinite-looping if level is ever corrupted to 0.
     return Math.floor(100 * Math.pow(Math.max(1, this.level), 1.5));
   }
 
-  /**
-   * Add experience and handle level ups
-   */
   addExperience(amount: number): number {
     this.experience += amount;
-    const levelsGained = this.checkLevelUp();
-    return levelsGained;
+    return this.checkLevelUp();
   }
 
-  /**
-   * Check if player should level up and handle it
-   */
   checkLevelUp(): number {
     let levelsGained = 0;
     let expNeeded = this.getExperienceForNextLevel();
+    const cfg = ARCHETYPE_CONFIGS[this.archetype];
 
     while (this.experience >= expNeeded) {
       this.experience -= expNeeded;
       this.level += 1;
       levelsGained += 1;
 
-      // Increase stats on level up
-      this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
-      this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
-      this.maxHp += PLAYER_CONFIG.HP_PER_LEVEL;
-      // Restore HP by the amount gained (full heal on level up)
-      this.hp += PLAYER_CONFIG.HP_PER_LEVEL;
-      // Cap at maxHp in case hp was already full
-      if (this.hp > this.maxHp) {
-        this.hp = this.maxHp;
-      }
+      this.str += cfg.strPerLevel;
+      this.agi += cfg.agiPerLevel;
+      this.int += cfg.intPerLevel;
 
       expNeeded = this.getExperienceForNextLevel();
+    }
+
+    if (levelsGained > 0) {
+      // recalculateStats recomputes maxHp from new attributes and adjusts
+      // current HP by the same delta — giving the level-up HP restoration.
+      this.recalculateStats();
     }
 
     return levelsGained;
   }
 
-  /**
-   * Calculate damage dealt to a creature
-   * Damage = (player attack - creature defense) * multiplier (minimum 1)
-   */
   calculateDamage(creatureDefense: number, damageMultiplier: number = 1.0): number {
     const baseDamage = this.attack - creatureDefense;
-    const damage = baseDamage * damageMultiplier;
-    return Math.max(1, Math.floor(damage)); // Minimum 1 damage, rounded down
+    return Math.max(1, Math.floor(baseDamage * damageMultiplier));
   }
 
-  /**
-   * Take damage from a creature
-   * Damage = creature attack - player defense (minimum 1)
-   */
   takeDamage(amount: number): void {
     this.hp = Math.max(0, this.hp - amount);
   }
 
-  /**
-   * Check if player is defeated
-   */
   isDefeated(): boolean {
     return this.hp <= 0;
   }
 
-  /**
-   * Restore HP (for healing, level up, etc.)
-   */
   restoreHp(amount: number): void {
     this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
-  /**
-   * Fully heal player
-   */
   fullHeal(): void {
     this.hp = this.maxHp;
   }
 
-  /**
-   * Add distance traveled
-   */
   addDistance(distance: number): void {
     this.totalDistance += distance;
   }
 
-  /**
-   * Increment encounter counter
-   */
   incrementEncounters(): void {
     this.totalEncounters += 1;
   }
 
-  /**
-   * Increment creatures defeated
-   */
   defeatCreature(): void {
     this.creaturesDefeated += 1;
   }
 
-  /**
-   * Force level up (debug function)
-   * Directly increments level and adjusts stats without requiring XP
-   */
   forceLevelUp(): void {
     this.level += 1;
-    this.attack += PLAYER_CONFIG.ATTACK_PER_LEVEL;
-    this.defense += PLAYER_CONFIG.DEFENSE_PER_LEVEL;
-    this.maxHp += PLAYER_CONFIG.HP_PER_LEVEL;
-    // Restore HP by the amount gained (full heal on level up)
-    this.hp += PLAYER_CONFIG.HP_PER_LEVEL;
-    // Cap at maxHp in case hp was already full
-    if (this.hp > this.maxHp) {
-      this.hp = this.maxHp;
-    }
+    const cfg = ARCHETYPE_CONFIGS[this.archetype];
+    this.str += cfg.strPerLevel;
+    this.agi += cfg.agiPerLevel;
+    this.int += cfg.intPerLevel;
+    this.recalculateStats();
   }
 
-  /**
-   * Reset level to 1 (debug function)
-   * Resets level, experience, and recalculates stats
-   */
   resetLevel(): void {
     this.level = 1;
     this.experience = 0;
-    this.attack = PLAYER_CONFIG.STARTING_ATTACK;
-    this.defense = PLAYER_CONFIG.STARTING_DEFENSE;
-    this.maxHp = PLAYER_CONFIG.STARTING_HP;
+    const attrs = computeAttributes(this.archetype, 1);
+    this.str = attrs.str;
+    this.agi = attrs.agi;
+    this.int = attrs.int;
+    this.recalculateStats();
     this.hp = this.maxHp;
   }
 
-  /**
-   * Get player stats as an object
-   */
   getStats(): PlayerStats {
     return {
       id: this.id,
@@ -347,115 +306,82 @@ export class Player {
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
       creaturesDefeated: this.creaturesDefeated,
+      archetype: this.archetype,
+      str: this.str,
+      agi: this.agi,
+      int: this.int,
     };
   }
 
-  /**
-   * Add an item to the inventory
-   * Returns the index where the item was added, or -1 if inventory is full
-   */
   addItemToInventory(item: Item): number {
     const emptySlotIndex = this.inventory.findIndex(slot => slot === null);
     if (emptySlotIndex !== -1) {
       this.inventory[emptySlotIndex] = item;
       return emptySlotIndex;
     }
-    return -1; // Inventory is full
+    return -1;
   }
 
-  /**
-   * Remove an item from the inventory at a specific index
-   * Returns the removed item, or null if the slot was empty or index is invalid
-   */
   removeItemFromInventory(index: number): Item | null {
     if (index < 0 || index >= this.inventory.length) {
-      return null; // Invalid index
+      return null;
     }
     const item = this.inventory[index];
     this.inventory[index] = null;
     return item;
   }
 
-  /**
-   * Get the number of empty slots in the inventory
-   */
   getEmptyInventorySlots(): number {
     return this.inventory.filter(slot => slot === null).length;
   }
 
-  /**
-   * Get the number of used slots in the inventory
-   */
   getUsedInventorySlots(): number {
     return this.inventory.filter(slot => slot !== null).length;
   }
 
-  /**
-   * Check if the inventory is full
-   */
   isInventoryFull(): boolean {
     return this.getEmptyInventorySlots() === 0;
   }
 
-  /**
-   * Equip an item from inventory
-   * If there's already an item in the slot, it will be unequipped and added back to inventory
-   * Returns true if successful, false if item cannot be equipped (wrong slot, level too low, etc.)
-   */
   equipItem(inventoryIndex: number): boolean {
     if (inventoryIndex < 0 || inventoryIndex >= this.inventory.length) {
-      return false; // Invalid index
+      return false;
     }
-
     const item = this.inventory[inventoryIndex];
     if (!item) {
-      return false; // No item at this index
+      return false;
     }
-
-    // Check if player level is high enough
     if (item.level > this.level) {
-      return false; // Level requirement not met
+      return false;
     }
 
-    // Get the equipment slot for this item
     let targetSlot: EquipmentSlot;
     if (item.type === 'accessory') {
-      // For accessories, prefer accessory1, but use accessory2 if accessory1 is occupied
       targetSlot = this.equipment.accessory1 === null ? 'accessory1' : 'accessory2';
     } else {
       targetSlot = item.slot;
     }
 
-    // Remove item from inventory
     this.inventory[inventoryIndex] = null;
 
-    // If there's already an item in the slot, unequip it and add to inventory
     const existingItem = this.equipment[targetSlot];
     if (existingItem) {
-      // Try to add the existing item back to inventory
       const emptySlotIndex = this.inventory.findIndex(slot => slot === null);
       if (emptySlotIndex !== -1) {
         this.inventory[emptySlotIndex] = existingItem;
       } else {
-        // Inventory is full, put the item we're trying to equip back
         this.inventory[inventoryIndex] = item;
-        return false; // Cannot unequip existing item because inventory is full
+        return false;
       }
     }
 
-    // Equip the new item
-    // Type assertion is safe because we've validated item.type matches targetSlot
-    // For accessories, targetSlot is 'accessory1' or 'accessory2' and item is AccessoryItem
-    // For other items, targetSlot === item.slot, so the types match
     if (item.type === 'accessory') {
-      // TypeScript knows item is AccessoryItem and targetSlot is 'accessory1' | 'accessory2'
       if (targetSlot === 'accessory1') {
         this.equipment.accessory1 = item;
       } else {
         this.equipment.accessory2 = item;
       }
     } else {
-      // TypeScript knows item.slot === targetSlot, so types match
       switch (targetSlot) {
         case 'weapon':
           this.equipment.weapon = item as WeaponItem;
@@ -481,56 +407,32 @@ export class Player {
       }
     }
 
-    // Recalculate stats based on equipment
     this.recalculateStats();
-
     return true;
   }
 
-  /**
-   * Recalculate player stats based on equipment
-   * This should be called whenever equipment changes
-   */
   private recalculateStats(): void {
-    // Base stats from level
-    let baseAttack =
-      PLAYER_CONFIG.STARTING_ATTACK + (this.level - 1) * PLAYER_CONFIG.ATTACK_PER_LEVEL;
-    let baseDefense =
-      PLAYER_CONFIG.STARTING_DEFENSE + (this.level - 1) * PLAYER_CONFIG.DEFENSE_PER_LEVEL;
-    let baseMaxHp = PLAYER_CONFIG.STARTING_HP + (this.level - 1) * PLAYER_CONFIG.HP_PER_LEVEL;
+    // Base stats from primary attributes
+    let baseAttack = deriveAttack(this.str, this.agi);
+    let baseDefense = deriveDefense(this.str, this.agi);
+    let baseMaxHp = deriveMaxHp(this.archetype, this.str, this.agi);
 
     // Add equipment bonuses
     Object.values(this.equipment).forEach(item => {
       if (item) {
-        if (item.attack !== undefined) {
-          baseAttack += item.attack;
-        }
-        if (item.defense !== undefined) {
-          baseDefense += item.defense;
-        }
-        if (item.maxHp !== undefined) {
-          baseMaxHp += item.maxHp;
-        }
+        if (item.attack !== undefined) baseAttack += item.attack;
+        if (item.defense !== undefined) baseDefense += item.defense;
+        if (item.maxHp !== undefined) baseMaxHp += item.maxHp;
       }
     });
 
-    // Calculate the change in maxHp
-    const oldMaxHp = this.maxHp;
-    const maxHpChange = baseMaxHp - oldMaxHp;
-
-    // Update stats
+    const maxHpChange = baseMaxHp - this.maxHp;
     this.attack = baseAttack;
     this.defense = baseDefense;
     this.maxHp = baseMaxHp;
-
-    // Adjust current HP by the same flat amount as maxHp changed
-    // This matches RPG behavior where equipping +50 maxHp gives +50 current HP
     this.hp = Math.max(0, Math.min(this.maxHp, this.hp + maxHpChange));
   }
 
-  /**
-   * Serialize player data for storage
-   */
   toJSON(): PlayerData {
     return {
       id: this.id,
@@ -545,14 +447,26 @@ export class Player {
       totalEncounters: this.totalEncounters,
       creaturesDefeated: this.creaturesDefeated,
       equipment: this.equipment,
-      inventory: [...this.inventory], // Return a copy to prevent shared references
+      inventory: [...this.inventory],
+      archetype: this.archetype,
+      str: this.str,
+      agi: this.agi,
+      int: this.int,
     };
   }
 
-  /**
-   * Create Player instance from JSON data
-   */
   static fromJSON(data: PlayerData): Player {
-    return new Player(data);
+    // Saves created before archetypes default to Martial.
+    // str/agi/int are recomputed from level if absent so old saves
+    // get correct attribute values without a manual migration step.
+    const archetype = data.archetype ?? Archetype.Martial;
+    let { str, agi, int: intVal } = data;
+    if (str === undefined || agi === undefined || intVal === undefined) {
+      const attrs = computeAttributes(archetype, data.level);
+      str = attrs.str;
+      agi = attrs.agi;
+      intVal = attrs.int;
+    }
+    return new Player({ ...data, archetype, str, agi, int: intVal });
   }
 }
