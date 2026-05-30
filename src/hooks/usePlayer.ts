@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 import { Player } from '../models/Player';
+import { Archetype } from '../models/Archetype';
 import AnalyticsService from '../services/AnalyticsService';
 import { savePlayerData, loadPlayerData } from '../utils/storage';
 
@@ -61,6 +62,7 @@ function commitWhenActive(commit: () => void): () => void {
 
 export function usePlayer() {
   const [player, setPlayer] = useState<Player | null>(null);
+  const [needsArchetypeSelection, setNeedsArchetypeSelection] = useState(false);
   // Incremented by the belt-and-suspenders on every 'active' transition so
   // that React always schedules a re-render, even when playerRef.current
   // and the current player state share the same object reference (which
@@ -137,7 +139,15 @@ export function usePlayer() {
       if (myGeneration !== initGenerationRef.current) {
         return;
       }
-      const playerToSet = savedData ? Player.fromJSON(savedData) : new Player();
+      if (!savedData) {
+        // New player — show archetype selection before creating/saving.
+        setNeedsArchetypeSelection(true);
+        return;
+      }
+
+      // Returning player — clear any stale archetype selection flag and load.
+      setNeedsArchetypeSelection(false);
+      const playerToSet = Player.fromJSON(savedData);
       playerRef.current = playerToSet;
 
       // Replace any earlier pending commit (e.g. account-switch reload that
@@ -154,9 +164,6 @@ export function usePlayer() {
         }
       });
 
-      if (!savedData) {
-        await savePlayerData(playerToSet);
-      }
       AnalyticsService.playerSessionStart(playerToSet.level, playerToSet.totalDistance);
     } catch (error) {
       console.error('Error initializing player:', error);
@@ -165,17 +172,40 @@ export function usePlayer() {
       if (myGeneration !== initGenerationRef.current) {
         return;
       }
-      const fallback = new Player();
-      playerRef.current = fallback;
-      pendingCommitUnsubRef.current?.();
-      pendingCommitUnsubRef.current = commitWhenActive(() => {
-        pendingCommitUnsubRef.current = null;
-        if (playerRef.current) {
-          setPlayer(playerRef.current);
-        }
-      });
+      // On error fall back to archetype selection rather than silently
+      // defaulting to Martial — the player's choice should always be explicit.
+      setNeedsArchetypeSelection(true);
     }
   }, []);
 
-  return { player, playerRef, setPlayerAndSave, clearPlayer, initializePlayer };
+  const handleArchetypeSelected = useCallback(async (archetype: Archetype): Promise<void> => {
+    const newPlayer = new Player({ archetype });
+    playerRef.current = newPlayer;
+    setNeedsArchetypeSelection(false);
+
+    try {
+      await savePlayerData(newPlayer);
+    } catch (error) {
+      console.error('Error saving new player after archetype selection:', error);
+    }
+
+    AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
+    pendingCommitUnsubRef.current?.();
+    pendingCommitUnsubRef.current = commitWhenActive(() => {
+      pendingCommitUnsubRef.current = null;
+      if (playerRef.current) {
+        setPlayer(playerRef.current);
+      }
+    });
+  }, []);
+
+  return {
+    player,
+    playerRef,
+    setPlayerAndSave,
+    clearPlayer,
+    initializePlayer,
+    needsArchetypeSelection,
+    handleArchetypeSelected,
+  };
 }
