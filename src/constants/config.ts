@@ -128,30 +128,40 @@ export const WALKING_SPEED = {
   MAX_KMH: 8, // Maximum speed to be considered walking
 } as const;
 
-import { DamageType } from '../models/DamageType';
+import { DirectAbility } from '../models/Ability';
 
+// satisfies per-entry validates the shape; as const preserves deep literal types.
 export const ATTACK_TYPES = {
   BASIC: {
+    id: 'basic_attack',
     name: 'Basic Attack',
+    primitive: 'direct',
     damageMultiplier: 1.0,
     cooldownMs: 1000,
+    resourceCost: 0,
     icon: '⚔️',
-    damageType: 'physical' as DamageType,
-  },
+    damageType: 'physical',
+  } satisfies DirectAbility,
   STRONG: {
+    id: 'strong_attack',
     name: 'Strong Attack',
+    primitive: 'direct',
     damageMultiplier: 1.5,
     cooldownMs: 3000,
+    resourceCost: 0,
     icon: '💥',
-    damageType: 'physical' as DamageType,
-  },
+    damageType: 'physical',
+  } satisfies DirectAbility,
   HEAVY: {
+    id: 'heavy_attack',
     name: 'Heavy Attack',
+    primitive: 'direct',
     damageMultiplier: 2.0,
     cooldownMs: 5000,
+    resourceCost: 0,
     icon: '🔨',
-    damageType: 'physical' as DamageType,
-  },
+    damageType: 'physical',
+  } satisfies DirectAbility,
 } as const;
 
 export type AttackType = keyof typeof ATTACK_TYPES;
