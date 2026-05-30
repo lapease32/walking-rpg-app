@@ -71,6 +71,12 @@ export function usePlayer() {
   // — recovering from any commit dropped by Fabric during a pause window.
   const [, setRepaintToken] = useState(0);
   const playerRef = useRef<Player | null>(null);
+  // Mirrors needsArchetypeSelection. A new user's first paint is driven by this
+  // flag, not by playerRef, so it needs the same Fabric-drop protections the
+  // player path has: deferred commits read it at fire time, and the
+  // belt-and-suspenders 'active' handler re-asserts it (playerRef is null for a
+  // brand-new user, so the player branch there can't cover this case).
+  const needsArchetypeSelectionRef = useRef(false);
   const pendingCommitUnsubRef = useRef<(() => void) | null>(null);
   // Monotonic token identifying the most-recently-started initializePlayer (or
   // clearPlayer) call. initializePlayer captures it before awaiting and bails
@@ -104,6 +110,12 @@ export function usePlayer() {
           // If a dropped Fabric commit left needsArchetypeSelection=true
           // but the player was already committed to playerRef, clear the flag.
           setNeedsArchetypeSelection(false);
+        } else if (needsArchetypeSelectionRef.current) {
+          // Brand-new user whose archetype-selection commit may have been dropped
+          // in the Fabric pause window during cold start. Re-assert it so the
+          // screen paints on resume — without this the user is stranded on the
+          // Loading screen. playerRef is null here, so the branch above can't help.
+          setNeedsArchetypeSelection(true);
         }
         setRepaintToken(t => t + 1);
       }
@@ -129,12 +141,32 @@ export function usePlayer() {
     pendingCommitUnsubRef.current?.();
     pendingCommitUnsubRef.current = null;
     playerRef.current = null;
+    needsArchetypeSelectionRef.current = false;
     setPlayer(null);
     setNeedsArchetypeSelection(false);
   }, []);
 
   const initializePlayer = useCallback(async (): Promise<void> => {
     const myGeneration = ++initGenerationRef.current;
+
+    // Show the archetype-selection screen for a new user. Deferred through
+    // commitWhenActive — mirroring the returning-player setPlayer path — so a
+    // cold-start commit landing in the Fabric pause window isn't dropped, which
+    // would otherwise strand the new user on the Loading screen. Sets the mirror
+    // ref so the belt-and-suspenders effect can re-assert on a later resume.
+    const showArchetypeSelection = () => {
+      needsArchetypeSelectionRef.current = true;
+      pendingCommitUnsubRef.current?.();
+      pendingCommitUnsubRef.current = commitWhenActive(() => {
+        pendingCommitUnsubRef.current = null;
+        // Read the ref at fire time so a superseding clearPlayer / newer init
+        // that changed the intent isn't overridden by this now-stale deferral.
+        if (needsArchetypeSelectionRef.current) {
+          setNeedsArchetypeSelection(true);
+        }
+      });
+    };
+
     try {
       const savedData = await loadPlayerData();
       // A newer initializePlayer (e.g. belated-sign-in reload) or a clearPlayer
@@ -145,11 +177,12 @@ export function usePlayer() {
       }
       if (!savedData) {
         // New player — show archetype selection before creating/saving.
-        setNeedsArchetypeSelection(true);
+        showArchetypeSelection();
         return;
       }
 
       // Returning player — clear any stale archetype selection flag and load.
+      needsArchetypeSelectionRef.current = false;
       setNeedsArchetypeSelection(false);
       const playerToSet = Player.fromJSON(savedData);
       playerRef.current = playerToSet;
@@ -178,15 +211,18 @@ export function usePlayer() {
       }
       // On error fall back to archetype selection rather than silently
       // defaulting to Martial — the player's choice should always be explicit.
-      setNeedsArchetypeSelection(true);
+      showArchetypeSelection();
     }
   }, []);
 
   const handleArchetypeSelected = useCallback(async (archetype: Archetype): Promise<void> => {
     const newPlayer = new Player({ archetype });
     playerRef.current = newPlayer;
-    // Do NOT clear needsArchetypeSelection here — defer it into the
-    // commitWhenActive callback so it batches with setPlayer in one render.
+    // Intent is now "player chosen" — clear the mirror ref so the
+    // belt-and-suspenders effect won't re-assert the selection screen on resume.
+    needsArchetypeSelectionRef.current = false;
+    // Do NOT clear the rendered needsArchetypeSelection flag here — defer it into
+    // the commitWhenActive callback so it batches with setPlayer in one render.
     // Clearing it early causes a "Loading..." flash between archetype selection
     // and the home screen (needsArchetypeSelection=false, player=null).
 
