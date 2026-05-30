@@ -29,6 +29,7 @@ import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
 import DebugPanel from '../components/DebugPanel';
 import { AccountConflictModal } from '../components/AccountConflictModal';
+import ArchetypeSelectionScreen from '../components/ArchetypeSelectionScreen';
 import { APP_CONFIG } from '../constants/config';
 import { ENV_CONFIG } from '../constants/environment';
 import { EquipmentSlot } from '../models/Player';
@@ -37,7 +38,15 @@ import { EquipmentSlot } from '../models/Player';
  * Main home screen with location tracking and encounter handling
  */
 export default function HomeScreen() {
-  const { player, playerRef, setPlayerAndSave, clearPlayer, initializePlayer } = usePlayer();
+  const {
+    player,
+    playerRef,
+    setPlayerAndSave,
+    clearPlayer,
+    initializePlayer,
+    needsArchetypeSelection,
+    handleArchetypeSelected,
+  } = usePlayer();
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [accuracyLevel, setAccuracyLevel] = useState<'high' | 'balanced' | 'battery'>('balanced');
@@ -220,6 +229,10 @@ export default function HomeScreen() {
 
     await onDistanceEncounterUpdate(distanceData, currentPlayer);
   };
+
+  if (needsArchetypeSelection) {
+    return <ArchetypeSelectionScreen onSelect={handleArchetypeSelected} />;
+  }
 
   if (!player) {
     return (

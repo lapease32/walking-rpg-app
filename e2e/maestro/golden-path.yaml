@@ -10,6 +10,15 @@ appId: com.walkingrpgtemp
       notifications: allow
       location: always
 
+# Fresh emulator = new user → archetype selection always shows first.
+# Select Martial so the rest of the flow uses known, stable base stats.
+- extendedWaitUntil:
+    visible:
+      id: "archetype-selection-screen"
+    timeout: 30000
+- tapOn:
+    id: "select-archetype-martial"
+
 # Wait for home screen — up to 240s for Firebase anonymous auth in CI
 # (Android emulator network stack can be slow on GitHub Actions runners)
 - extendedWaitUntil:
