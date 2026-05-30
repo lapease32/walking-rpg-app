@@ -18,6 +18,7 @@ import {
   computeEffectiveStats,
 } from '../models/Ability';
 import { ARCHETYPE_CONFIGS } from '../models/Archetype';
+import { DamageType } from '../models/DamageType';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 
 interface CombatModalProps {
@@ -218,6 +219,28 @@ export default function CombatModal({
             <View style={styles.statsRow}>
               <Text style={styles.statChip}>ATK {creature.attack}</Text>
               <Text style={styles.statChip}>DEF {creature.defense}</Text>
+              {(Object.entries(creature.resistances) as [DamageType, number][])
+                .filter(([, v]) => v !== 0)
+                .map(([type, value]) => {
+                  const icon: Record<DamageType, string> = {
+                    physical: '⚔️',
+                    fire: '🔥',
+                    frost: '🧊',
+                    arcane: '✨',
+                  };
+                  const pct = Math.round(value * 100);
+                  return (
+                    <Text
+                      key={type}
+                      style={[
+                        styles.statChip,
+                        value > 0 ? styles.resistChipPos : styles.resistChipNeg,
+                      ]}>
+                      {icon[type]} {pct > 0 ? '+' : ''}
+                      {pct}%
+                    </Text>
+                  );
+                })}
             </View>
           </View>
 
@@ -423,6 +446,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  resistChipPos: {
+    color: '#2e7d32',
+    backgroundColor: 'rgba(76,175,80,0.12)',
+  },
+  resistChipNeg: {
+    color: '#c62828',
+    backgroundColor: 'rgba(244,67,54,0.12)',
   },
   scrollContent: { padding: 14 },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 10 },
