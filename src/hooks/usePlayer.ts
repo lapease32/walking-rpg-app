@@ -130,6 +130,7 @@ export function usePlayer() {
     pendingCommitUnsubRef.current = null;
     playerRef.current = null;
     setPlayer(null);
+    setNeedsArchetypeSelection(false);
   }, []);
 
   const initializePlayer = useCallback(async (): Promise<void> => {
