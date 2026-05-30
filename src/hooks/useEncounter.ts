@@ -20,6 +20,7 @@ import {
   BuffDebuffAbility,
   CombatantState,
   StatusEffect,
+  RESOURCE_CONFIGS,
   initCombatState,
   regenResource,
   resolveAbility,
@@ -300,6 +301,12 @@ export function useEncounter({
     // if the player closes and reopens the combat modal within the same encounter.
     setPlayerCombatState(prev => prev ?? initCombatState(currentPlayer.archetype));
     setCreatureCombatState(prev => prev ?? { statusEffects: [], resource: 0 });
+    // Sync resource ref immediately so handleAbility guards work before the first
+    // useEffect fires (useEffect runs after paint; ref would otherwise stay at 0
+    // for Agile/Mage whose start value is non-zero).
+    if (playerCombatState === null) {
+      playerResourceRef.current = RESOURCE_CONFIGS[currentPlayer.archetype].startValue;
+    }
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
 
@@ -347,13 +354,14 @@ export function useEncounter({
     }
 
     // DoT killed creature — award victory without executing the queued ability.
+    // Return false: the selected ability never ran, so no cooldown should be set.
     if (creature.isDefeated()) {
       setCreatureCombatState(prev => newCreatureState ?? prev);
       showCombatModalRef.current = false;
       setShowCombatModal(false);
       setShowEncounterModal(false);
       handleVictory(updatedPlayer);
-      return true;
+      return false;
     }
 
     // Fix 1: resolve ability using stats adjusted by active buff/debuff effects.
@@ -395,18 +403,26 @@ export function useEncounter({
       }
     }
 
-    // Fix 7: clamp at 0; Fix 4: update ref synchronously before setState.
-    const newResource = Math.max(0, (newPlayerState?.resource ?? 0) - ability.resourceCost);
-    const regenedState = newPlayerState
-      ? regenResource({ ...newPlayerState, resource: newResource }, updatedPlayer.archetype)
-      : null;
-    playerResourceRef.current = regenedState?.resource ?? 0;
-
-    setPlayerCombatState(
-      regenedState && selfEffects.length > 0
-        ? { ...regenedState, statusEffects: [...regenedState.statusEffects, ...selfEffects] }
-        : regenedState,
+    // Compute new resource synchronously to update the ref before setState commits.
+    const snapshotResource = newPlayerState?.resource ?? playerResourceRef.current;
+    const newResource = Math.max(0, snapshotResource - ability.resourceCost);
+    const precompRegen = regenResource(
+      { statusEffects: [], resource: newResource },
+      updatedPlayer.archetype,
     );
+    playerResourceRef.current = precompRegen.resource;
+
+    // Fix 3: functional update so a concurrent ability can't overwrite our ticked state.
+    const capturedPlayerState = newPlayerState;
+    setPlayerCombatState(_prev => {
+      const base = capturedPlayerState ?? _prev;
+      if (!base) return null;
+      const afterCost = { ...base, resource: Math.max(0, base.resource - ability.resourceCost) };
+      const regenedState = regenResource(afterCost, updatedPlayer.archetype);
+      return selfEffects.length > 0
+        ? { ...regenedState, statusEffects: [...regenedState.statusEffects, ...selfEffects] }
+        : regenedState;
+    });
 
     // Fix 2: functional update prevents concurrent ability calls from losing enemy effects.
     setCreatureCombatState(prev => {
