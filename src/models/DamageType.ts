@@ -1,4 +1,4 @@
-export type DamageType = 'physical' | 'fire' | 'frost';
+export type DamageType = 'physical' | 'fire' | 'frost' | 'arcane';
 
 // Per-type resistance values on a creature (or eventually a player).
 // Range: -1 to 1.
@@ -7,12 +7,14 @@ export type DamageType = 'physical' | 'fire' | 'frost';
 //   0.5  = 50% damage reduction
 //   1.0  = immune (caller still enforces minimum 1 damage)
 //  -0.25 = 25% vulnerability (take 25% more)
+// arcane: pure magical damage — most creatures default to 0 resistance.
 export type Resistances = Record<DamageType, number>;
 
 export const DEFAULT_RESISTANCES: Readonly<Resistances> = {
   physical: 0,
   fire: 0,
   frost: 0,
+  arcane: 0,
 };
 
 // Apply a resistance value to a raw damage number.

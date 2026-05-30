@@ -39,7 +39,7 @@ describe('ARCHETYPE_ABILITIES — field integrity', () => {
     for (const ability of ALL_ABILITIES) {
       if (ability.primitive !== 'direct') continue;
       expect(ability.damageMultiplier).toBeGreaterThan(0);
-      expect(['physical', 'fire', 'frost']).toContain(ability.damageType);
+      expect(['physical', 'fire', 'frost', 'arcane']).toContain(ability.damageType);
     }
   });
 
@@ -48,7 +48,7 @@ describe('ARCHETYPE_ABILITIES — field integrity', () => {
       if (ability.primitive !== 'dot') continue;
       expect(ability.damagePerTick).toBeGreaterThan(0);
       expect(ability.tickCount).toBeGreaterThan(0);
-      expect(['physical', 'fire', 'frost']).toContain(ability.damageType);
+      expect(['physical', 'fire', 'frost', 'arcane']).toContain(ability.damageType);
     }
   });
 
@@ -122,6 +122,13 @@ describe('ARCHETYPE_ABILITIES — archetype identity', () => {
   it('Mage has a DoT ability', () => {
     const dots = ARCHETYPE_ABILITIES[Archetype.Mage].filter(a => a.primitive === 'dot');
     expect(dots.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Mage has at least one arcane ability (bypasses physical armor)', () => {
+    const arcane = ARCHETYPE_ABILITIES[Archetype.Mage].filter(
+      a => a.primitive === 'direct' && a.damageType === 'arcane',
+    );
+    expect(arcane.length).toBeGreaterThanOrEqual(1);
   });
 
   it('each archetype has a different ability set (no cross-archetype sharing)', () => {

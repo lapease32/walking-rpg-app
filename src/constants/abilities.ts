@@ -107,7 +107,7 @@ export const ARCHETYPE_ABILITIES: Readonly<Record<Archetype, Ability[]>> = {
       cooldownMs: 1500,
       resourceCost: 15,
       icon: '✨',
-      damageType: 'physical',
+      damageType: 'arcane',
     },
     {
       id: 'fireball',
@@ -148,7 +148,7 @@ export const ARCHETYPE_ABILITIES: Readonly<Record<Archetype, Ability[]>> = {
       cooldownMs: 6000,
       resourceCost: 50,
       icon: '🌟',
-      damageType: 'physical',
+      damageType: 'arcane',
     },
   ],
 };
