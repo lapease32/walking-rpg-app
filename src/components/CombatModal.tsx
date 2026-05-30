@@ -243,16 +243,13 @@ export default function CombatModal({
                 const isDisabled = isOnCooldown || isDefeated || playerDefeated;
                 const cooldownPercent = getCooldownPercentage(attackType);
 
-                const expectedDamage = Math.max(
-                  1,
-                  resolveAbility(
-                    attack,
-                    player.attack,
-                    creature.defense,
-                    creature.resistances,
-                    player.maxHp,
-                  ).damage,
-                );
+                const expectedDamage = resolveAbility(
+                  attack,
+                  player.attack,
+                  creature.defense,
+                  creature.resistances,
+                  player.maxHp,
+                ).damage;
 
                 return (
                   <TouchableOpacity
