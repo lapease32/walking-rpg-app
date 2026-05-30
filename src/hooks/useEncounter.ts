@@ -198,7 +198,7 @@ export function useEncounter({
     const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
 
-    const droppedItem = dropItem(forceItemDrop);
+    const droppedItem = dropItem(forceItemDrop, updatedPlayer.level);
     let lootMessage = '';
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);

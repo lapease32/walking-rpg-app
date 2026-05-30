@@ -6,20 +6,27 @@
 import { EquipmentSlot } from './Player';
 import { Rarity } from './Creature';
 
-/**
- * Base item properties shared by all items
- */
+// Stats that an affix can modify. Values are pre-baked into item.attack/defense/maxHp
+// so Player.recalculateStats needs no changes; the affix array is metadata for UI display.
+export type AffixStat = 'attack' | 'defense' | 'maxHp';
+
+export interface Affix {
+  stat: AffixStat;
+  value: number;
+}
+
 export interface BaseItem {
   id: string;
   name: string;
   description: string;
   rarity: Rarity;
-  level: number; // Minimum level required to equip
-  attack?: number; // Attack bonus (optional)
-  defense?: number; // Defense bonus (optional)
-  hp?: number; // HP bonus (optional)
-  maxHp?: number; // Max HP bonus (optional)
-  dropChance: number; // Chance to drop from defeated creatures (0.0 to 1.0)
+  level: number;
+  attack?: number;
+  defense?: number;
+  hp?: number;
+  maxHp?: number;
+  dropChance: number;
+  affixes?: Affix[]; // Rolled modifiers — values already included in attack/defense/maxHp
 }
 
 /**
