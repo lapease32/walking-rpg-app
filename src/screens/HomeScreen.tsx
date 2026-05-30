@@ -79,10 +79,11 @@ export default function HomeScreen() {
     setBypassTimeConstraint,
     forceItemDrop,
     setForceItemDrop,
+    playerCombatState,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
-    handleAttack,
+    handleAbility,
     handleDebugDefeat,
     handleMinimize,
     handleCloseCombatModal,
@@ -403,8 +404,9 @@ export default function HomeScreen() {
         encounter={currentEncounter}
         player={player}
         visible={showCombatModal}
-        onAttack={handleAttack}
+        onAbility={handleAbility}
         onClose={handleCloseCombatModal}
+        playerCombatState={playerCombatState}
       />
       <InventoryModal
         inventory={player?.inventory || []}

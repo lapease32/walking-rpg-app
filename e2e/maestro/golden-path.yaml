@@ -49,9 +49,9 @@ appId: com.walkingrpgtemp
       id: "combat-modal"
     timeout: 10000
 
-# Verify BASIC attack button is present
+# Verify Martial's Strike ability button is present (first ability in archetype roster)
 - assertVisible:
-    id: "attack-button-BASIC"
+    id: "ability-button-strike"
 
 # Close CombatModal
 - tapOn:

@@ -14,8 +14,17 @@ import {
   savePendingEncounter,
   EncounterData,
 } from '../utils/storage';
-import { AttackType, ATTACK_TYPES, ENCOUNTER_CONFIG } from '../constants/config';
-import { CombatantState, initCombatState, regenResource, resolveAbility } from '../models/Ability';
+import { ENCOUNTER_CONFIG } from '../constants/config';
+import {
+  Ability,
+  BuffDebuffAbility,
+  CombatantState,
+  StatusEffect,
+  initCombatState,
+  regenResource,
+  resolveAbility,
+  tickStatusEffects,
+} from '../models/Ability';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -41,6 +50,7 @@ export function useEncounter({
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false);
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
+  const [creatureCombatState, setCreatureCombatState] = useState<CombatantState | null>(null);
 
   const victoryProcessedRef = useRef<boolean>(false);
   const fleeProcessedRef = useRef<boolean>(false);
@@ -103,6 +113,7 @@ export function useEncounter({
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
+    setCreatureCombatState(null);
   };
 
   const checkPendingEncounter = async (): Promise<void> => {
@@ -203,6 +214,7 @@ export function useEncounter({
     setShowEncounterModal(false);
     setCurrentEncounter(null);
     setPlayerCombatState(null);
+    setCreatureCombatState(null);
 
     AnalyticsService.combatVictory(
       currentEncounterState.creature.name,
@@ -251,6 +263,7 @@ export function useEncounter({
     setShowEncounterModal(false);
     setCurrentEncounter(null);
     setPlayerCombatState(null);
+    setCreatureCombatState(null);
   };
 
   const handleFight = (): void => {
@@ -277,10 +290,11 @@ export function useEncounter({
     // Only initialize once per encounter — preserves accumulated resource/status
     // if the player closes and reopens the combat modal within the same encounter.
     setPlayerCombatState(prev => prev ?? initCombatState(currentPlayer.archetype));
+    setCreatureCombatState(prev => prev ?? { statusEffects: [], resource: 0 });
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
 
-  const handleAttack = (attackType: AttackType): void => {
+  const handleAbility = (ability: Ability): void => {
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
 
@@ -301,8 +315,33 @@ export function useEncounter({
       return;
     }
 
+    // Resource check — prevent using ability with insufficient resource.
+    if (ability.resourceCost > (playerCombatState?.resource ?? 0)) {
+      return;
+    }
+
     const updatedPlayer = new Player(currentPlayer.toJSON());
-    const ability = ATTACK_TYPES[attackType];
+
+    // Tick creature DoT effects (burns, bleeds) before the player acts.
+    let newCreatureState = creatureCombatState;
+    if (newCreatureState && newCreatureState.statusEffects.length > 0) {
+      const { dotDamage, updatedState } = tickStatusEffects(newCreatureState);
+      if (dotDamage > 0) {
+        creature.takeDamage(dotDamage);
+      }
+      newCreatureState = updatedState;
+    }
+
+    // If DoT killed the creature, skip player action and award victory.
+    if (creature.isDefeated()) {
+      setCreatureCombatState(newCreatureState);
+      showCombatModalRef.current = false;
+      setShowCombatModal(false);
+      setShowEncounterModal(false);
+      handleVictory(updatedPlayer);
+      return;
+    }
+
     const abilityResult = resolveAbility(
       ability,
       updatedPlayer.attack,
@@ -310,9 +349,47 @@ export function useEncounter({
       creature.resistances,
       updatedPlayer.maxHp,
     );
-    creature.takeDamage(abilityResult.damage);
-    setPlayerCombatState(prev => (prev ? regenResource(prev, updatedPlayer.archetype) : prev));
 
+    // Apply damage and heal.
+    creature.takeDamage(abilityResult.damage);
+    if (abilityResult.heal > 0) {
+      updatedPlayer.restoreHp(abilityResult.heal);
+    }
+
+    // Route applied effects to the right combatant.
+    const selfEffects: StatusEffect[] = [];
+    const enemyEffects: StatusEffect[] = [];
+    for (const effect of abilityResult.appliedEffects) {
+      if (ability.primitive === 'buff_debuff' && (ability as BuffDebuffAbility).targetSelf) {
+        selfEffects.push(effect);
+      } else {
+        enemyEffects.push(effect);
+      }
+    }
+
+    // Update player combat state: deduct cost, regen, apply self buffs.
+    setPlayerCombatState(prev => {
+      if (!prev) return prev;
+      const afterCost = { ...prev, resource: prev.resource - ability.resourceCost };
+      const afterRegen = regenResource(afterCost, updatedPlayer.archetype);
+      return selfEffects.length > 0
+        ? { ...afterRegen, statusEffects: [...afterRegen.statusEffects, ...selfEffects] }
+        : afterRegen;
+    });
+
+    // Update creature combat state: add enemy effects.
+    if (newCreatureState !== null) {
+      setCreatureCombatState(
+        enemyEffects.length > 0
+          ? {
+              ...newCreatureState,
+              statusEffects: [...newCreatureState.statusEffects, ...enemyEffects],
+            }
+          : newCreatureState,
+      );
+    }
+
+    // Creature counter-attacks if still alive.
     if (!creature.isDefeated()) {
       const creatureDamage = creature.calculateDamage(updatedPlayer.defense);
       updatedPlayer.takeDamage(creatureDamage);
@@ -350,6 +427,7 @@ export function useEncounter({
       setShowEncounterModal(false);
       setCurrentEncounter(null);
       setPlayerCombatState(null);
+      setCreatureCombatState(null);
       AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
 
       Alert.alert(
@@ -438,6 +516,7 @@ export function useEncounter({
     fleeProcessedRef.current = false;
 
     setPlayerCombatState(null);
+    setCreatureCombatState(null);
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false);
@@ -599,7 +678,7 @@ export function useEncounter({
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
-    handleAttack,
+    handleAbility,
     handleDebugDefeat,
     handleMinimize,
     handleCloseCombatModal,
