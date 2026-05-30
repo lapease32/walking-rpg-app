@@ -331,14 +331,17 @@ export function useEncounter({
 
     const updatedPlayer = new Player(currentPlayer.toJSON());
 
-    // Fix 3: tick player buff/debuff durations each player action.
-    let newPlayerState = playerCombatState;
-    if (newPlayerState && newPlayerState.statusEffects.length > 0) {
-      const { updatedState } = tickStatusEffects(newPlayerState);
-      newPlayerState = updatedState;
-    }
+    // Fix 6: compute effective stats from PRE-tick effects so the active turn
+    // benefits from all buffs including those expiring this turn (e.g. Battle Cry
+    // at tickDuration=3 gives exactly 3 buffed turns, not 2).
+    const currentPlayerState = playerCombatState;
+    const playerEffective = computeEffectiveStats(
+      updatedPlayer.attack,
+      updatedPlayer.defense,
+      currentPlayerState?.statusEffects ?? [],
+    );
 
-    // Fix 5: tick creature DoT with per-type resistance applied.
+    // Tick creature DoT effects with per-type resistance applied.
     let newCreatureState = creatureCombatState;
     if (newCreatureState && newCreatureState.statusEffects.length > 0) {
       const { dotEffects, updatedState } = tickStatusEffects(newCreatureState);
@@ -353,9 +356,14 @@ export function useEncounter({
       newCreatureState = updatedState;
     }
 
-    // DoT killed creature — award victory without executing the queued ability.
-    // Return false: the selected ability never ran, so no cooldown should be set.
+    // DoT killed creature — return false (queued ability never ran, no cooldown).
+    // Fix 5: persist player tick (durations) even though we return early.
     if (creature.isDefeated()) {
+      setPlayerCombatState(prev => {
+        const base = prev ?? currentPlayerState;
+        if (!base || base.statusEffects.length === 0) return base;
+        return tickStatusEffects(base).updatedState;
+      });
       setCreatureCombatState(prev => newCreatureState ?? prev);
       showCombatModalRef.current = false;
       setShowCombatModal(false);
@@ -364,12 +372,6 @@ export function useEncounter({
       return false;
     }
 
-    // Fix 1: resolve ability using stats adjusted by active buff/debuff effects.
-    const playerEffective = computeEffectiveStats(
-      updatedPlayer.attack,
-      updatedPlayer.defense,
-      newPlayerState?.statusEffects ?? [],
-    );
     const creatureEffectiveDefense = computeEffectiveStats(
       0,
       creature.defense,
@@ -403,24 +405,32 @@ export function useEncounter({
       }
     }
 
-    // Compute new resource synchronously to update the ref before setState commits.
-    const snapshotResource = newPlayerState?.resource ?? playerResourceRef.current;
-    const newResource = Math.max(0, snapshotResource - ability.resourceCost);
-    const precompRegen = regenResource(
-      { statusEffects: [], resource: newResource },
-      updatedPlayer.archetype,
+    // Update resource ref synchronously for the next tap's guard check.
+    const costAmount = ability.resourceCost;
+    const archetype = updatedPlayer.archetype;
+    const estimatedResource = Math.min(
+      RESOURCE_CONFIGS[archetype].max,
+      Math.max(0, (currentPlayerState?.resource ?? 0) - costAmount) +
+        RESOURCE_CONFIGS[archetype].regenPerTurn,
     );
-    playerResourceRef.current = precompRegen.resource;
+    playerResourceRef.current = estimatedResource;
 
-    // Fix 3: functional update so a concurrent ability can't overwrite our ticked state.
-    const capturedPlayerState = newPlayerState;
-    setPlayerCombatState(_prev => {
-      const base = capturedPlayerState ?? _prev;
+    // Fix 3 + Fix 4 + Fix 6: player tick moved inside functional updater so it
+    // applies to `prev` (the latest committed state), not the closure snapshot.
+    // This makes rapid-tap sequencing correct and preserves PRE-tick stats above.
+    const capturedSelfEffects = selfEffects;
+    setPlayerCombatState(prev => {
+      const base = prev ?? currentPlayerState;
       if (!base) return null;
-      const afterCost = { ...base, resource: Math.max(0, base.resource - ability.resourceCost) };
-      const regenedState = regenResource(afterCost, updatedPlayer.archetype);
-      return selfEffects.length > 0
-        ? { ...regenedState, statusEffects: [...regenedState.statusEffects, ...selfEffects] }
+      const { updatedState: ticked } =
+        base.statusEffects.length > 0 ? tickStatusEffects(base) : { updatedState: base };
+      const afterCost = { ...ticked, resource: Math.max(0, ticked.resource - costAmount) };
+      const regenedState = regenResource(afterCost, archetype);
+      return capturedSelfEffects.length > 0
+        ? {
+            ...regenedState,
+            statusEffects: [...regenedState.statusEffects, ...capturedSelfEffects],
+          }
         : regenedState;
     });
 
