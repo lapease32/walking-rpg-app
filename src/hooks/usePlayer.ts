@@ -101,6 +101,9 @@ export function usePlayer() {
       if (state === 'active') {
         if (playerRef.current) {
           setPlayer(playerRef.current);
+          // If a dropped Fabric commit left needsArchetypeSelection=true
+          // but the player was already committed to playerRef, clear the flag.
+          setNeedsArchetypeSelection(false);
         }
         setRepaintToken(t => t + 1);
       }
