@@ -44,12 +44,14 @@ is_mergeable() {
   # 3 & 4 only apply in review mode (skipping). When bugbot=pass it uses check mode and any
   # inline comments / review body are stale artifacts from a prior review cycle — ignore them.
   if [ "$bugbot_bucket" = "skipping" ]; then
-    # 3. No inline comments from cursor[bot] on the current HEAD commit.
-    # Filter by commit_id so stale comments from prior commits don't block after a fix is pushed.
+    # 3. No fresh inline comments from cursor[bot] on the current HEAD commit.
+    # Filter by commit_id (stale prior-commit comments don't block after a fix is pushed) AND
+    # exclude ref1_ carry-forwards (bugbot re-posts old findings with the new HEAD's commit_id,
+    # making them look fresh — only non-ref1_ IDs are genuinely new findings on this commit).
     local head_sha
     head_sha=$(gh pr view $PR --repo $REPO --json headRefOid --jq .headRefOid 2>/dev/null || echo "")
     inline=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
-      --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha\")] | length" 2>/dev/null || echo "99")
+      --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha\" and (.body | test(\"BUGBOT_BUG_ID: ref1_\") | not))] | length" 2>/dev/null || echo "99")
     [ "$inline" = "0" ] || return 1
 
     # 4. Review body must not report issues. Positive grep is portable across grep implementations.
@@ -70,7 +72,7 @@ emit_status() {
   local head_sha_status
   head_sha_status=$(gh pr view $PR --repo $REPO --json headRefOid --jq .headRefOid 2>/dev/null || echo "")
   inline=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
-    --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha_status\")] | length" 2>/dev/null || echo "err")
+    --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha_status\" and (.body | test(\"BUGBOT_BUG_ID: ref1_\") | not))] | length" 2>/dev/null || echo "err")
   review_snippet=$(gh api "repos/$REPO/pulls/$PR/reviews?per_page=100" \
     --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body[:100] // "none"' \
     2>/dev/null || echo "err")
@@ -115,7 +117,7 @@ bugbot_bucket=$(gh pr checks $PR --repo $REPO --json name,bucket \
 if [ "$bugbot_bucket" = "skipping" ]; then
   head_sha=$(gh pr view $PR --repo $REPO --json headRefOid --jq .headRefOid)
   gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
-    --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha\")] | length" | grep -q "^0$"
+    --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha\" and (.body | test(\"BUGBOT_BUG_ID: ref1_\") | not))] | length" | grep -q "^0$"
   review=$(gh api "repos/$REPO/pulls/$PR/reviews?per_page=100" \
     --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body // ""')
   echo "$review" | grep -qE "found [1-9][0-9]* potential" && echo "BUGBOT FOUND ISSUES" && exit 1
@@ -134,3 +136,4 @@ Merge only when all four pass. If bugbot check is `fail` OR inline comments exis
 > - Use a 60s poll interval in the monitor loop (not 270s) so build check transitions are caught quickly. The 270s recommendation is for the ScheduleWakeup fallback only.
 > - Gates 3 & 4 (inline comments, review body) only apply when `bugbot_bucket == "skipping"` (review mode). When bugbot=pass it uses check mode and any lingering inline comments or review bodies are stale artifacts from a prior review cycle — checking them will always falsely block the merge.
 > - Filter inline comments by `commit_id == HEAD_SHA` (fetched via `gh pr view --json headRefOid`). Bugbot comments from prior commits persist on the PR after a fix is pushed and will falsely block the gate if you count all cursor[bot] comments regardless of commit.
+> - Also filter out `ref1_` carry-forwards. Bugbot re-posts unresolved findings from prior rounds with the *current* HEAD's `commit_id`, so they pass the commit_id filter but are not new findings on the new code. Only a comment whose bug ID does NOT start with `ref1_` represents a fresh finding on this commit. Filter with `.body | test("BUGBOT_BUG_ID: ref1_") | not`.
