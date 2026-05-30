@@ -340,8 +340,12 @@ export function useEncounter({
       currentPlayerState.statusEffects,
     );
 
+    // Snapshot PRE-tick creature state so debuffs expiring this turn still apply to
+    // effective stat computation (symmetric with player buff pre-tick above).
+    const preTickCreatureState = creatureCombatStateRef.current;
+
     // Tick creature DoT effects with per-type resistance applied.
-    let newCreatureState = creatureCombatStateRef.current;
+    let newCreatureState = preTickCreatureState;
     if (newCreatureState && newCreatureState.statusEffects.length > 0) {
       const { dotEffects, updatedState } = tickStatusEffects(newCreatureState);
       let resistedDot = 0;
@@ -371,15 +375,16 @@ export function useEncounter({
       return false;
     }
 
+    // Use PRE-tick creature state so debuffs give their full labeled duration.
     const creatureEffectiveDefense = computeEffectiveStats(
       0,
       creature.defense,
-      newCreatureState?.statusEffects ?? [],
+      preTickCreatureState?.statusEffects ?? [],
     ).defense;
     const creatureEffectiveAttack = computeEffectiveStats(
       creature.attack,
       0,
-      newCreatureState?.statusEffects ?? [],
+      preTickCreatureState?.statusEffects ?? [],
     ).attack;
 
     const abilityResult = resolveAbility(
