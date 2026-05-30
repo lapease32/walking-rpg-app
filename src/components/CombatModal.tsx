@@ -18,7 +18,7 @@ interface CombatModalProps {
   encounter: Encounter | null;
   player: Player | null;
   visible: boolean;
-  onAbility: (ability: Ability) => void;
+  onAbility: (ability: Ability) => boolean;
   onClose: () => void;
   playerCombatState: CombatantState | null;
 }
@@ -91,6 +91,7 @@ export default function CombatModal({
   const resourceLabel =
     archetypeCfg.resource.charAt(0).toUpperCase() + archetypeCfg.resource.slice(1);
 
+  // Fix 6: set cooldown only after the hook confirms the ability actually ran.
   const handleAbilityPress = (ability: Ability) => {
     if (
       (cooldownsRef.current[ability.id] ?? 0) > 0 ||
@@ -100,9 +101,11 @@ export default function CombatModal({
     ) {
       return;
     }
-    cooldownsRef.current[ability.id] = ability.cooldownMs;
-    setCooldowns(prev => ({ ...prev, [ability.id]: ability.cooldownMs }));
-    onAbility(ability);
+    const ran = onAbility(ability);
+    if (ran) {
+      cooldownsRef.current[ability.id] = ability.cooldownMs;
+      setCooldowns(prev => ({ ...prev, [ability.id]: ability.cooldownMs }));
+    }
   };
 
   const formatCooldown = (ms: number): string => {

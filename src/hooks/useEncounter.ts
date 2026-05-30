@@ -24,7 +24,9 @@ import {
   regenResource,
   resolveAbility,
   tickStatusEffects,
+  computeEffectiveStats,
 } from '../models/Ability';
+import { applyResistance } from '../models/DamageType';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -59,6 +61,9 @@ export function useEncounter({
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const showCombatModalRef = useRef<boolean>(false);
+  // Synchronous resource tracker — mirrors playerCombatState.resource but updated
+  // immediately on ability use to prevent stale-closure double-spend.
+  const playerResourceRef = useRef<number>(0);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
@@ -71,6 +76,10 @@ export function useEncounter({
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
   }, [showCombatModal]);
+
+  useEffect(() => {
+    playerResourceRef.current = playerCombatState?.resource ?? 0;
+  }, [playerCombatState]);
 
   useEffect(() => {
     setEncounterChance(EncounterService.getDistanceBasedProbability());
@@ -294,17 +303,12 @@ export function useEncounter({
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
 
-  const handleAbility = (ability: Ability): void => {
+  const handleAbility = (ability: Ability): boolean => {
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
 
-    if (!currentEncounterState || !currentPlayer) {
-      return;
-    }
-
-    if (victoryProcessedRef.current) {
-      return;
-    }
+    if (!currentEncounterState || !currentPlayer) return false;
+    if (victoryProcessedRef.current) return false;
 
     const creature = currentEncounterState.creature;
 
@@ -312,49 +316,73 @@ export function useEncounter({
       handleVictory();
       showCombatModalRef.current = false;
       setShowCombatModal(false);
-      return;
+      return false;
     }
 
-    // Resource check — prevent using ability with insufficient resource.
-    if (ability.resourceCost > (playerCombatState?.resource ?? 0)) {
-      return;
-    }
+    // Fix 4: synchronous ref check prevents stale-closure double-spend.
+    if (ability.resourceCost > playerResourceRef.current) return false;
 
     const updatedPlayer = new Player(currentPlayer.toJSON());
 
-    // Tick creature DoT effects (burns, bleeds) before the player acts.
+    // Fix 3: tick player buff/debuff durations each player action.
+    let newPlayerState = playerCombatState;
+    if (newPlayerState && newPlayerState.statusEffects.length > 0) {
+      const { updatedState } = tickStatusEffects(newPlayerState);
+      newPlayerState = updatedState;
+    }
+
+    // Fix 5: tick creature DoT with per-type resistance applied.
     let newCreatureState = creatureCombatState;
     if (newCreatureState && newCreatureState.statusEffects.length > 0) {
-      const { dotDamage, updatedState } = tickStatusEffects(newCreatureState);
-      if (dotDamage > 0) {
-        creature.takeDamage(dotDamage);
+      const { dotEffects, updatedState } = tickStatusEffects(newCreatureState);
+      let resistedDot = 0;
+      for (const { damage, damageType } of dotEffects) {
+        resistedDot += applyResistance(
+          damage,
+          damageType ? (creature.resistances[damageType] ?? 0) : 0,
+        );
       }
+      if (resistedDot > 0) creature.takeDamage(resistedDot);
       newCreatureState = updatedState;
     }
 
-    // If DoT killed the creature, skip player action and award victory.
+    // DoT killed creature — award victory without executing the queued ability.
     if (creature.isDefeated()) {
-      setCreatureCombatState(newCreatureState);
+      setCreatureCombatState(prev => newCreatureState ?? prev);
       showCombatModalRef.current = false;
       setShowCombatModal(false);
       setShowEncounterModal(false);
       handleVictory(updatedPlayer);
-      return;
+      return true;
     }
+
+    // Fix 1: resolve ability using stats adjusted by active buff/debuff effects.
+    const playerEffective = computeEffectiveStats(
+      updatedPlayer.attack,
+      updatedPlayer.defense,
+      newPlayerState?.statusEffects ?? [],
+    );
+    const creatureEffectiveDefense = computeEffectiveStats(
+      0,
+      creature.defense,
+      newCreatureState?.statusEffects ?? [],
+    ).defense;
+    const creatureEffectiveAttack = computeEffectiveStats(
+      creature.attack,
+      0,
+      newCreatureState?.statusEffects ?? [],
+    ).attack;
 
     const abilityResult = resolveAbility(
       ability,
-      updatedPlayer.attack,
-      creature.defense,
+      playerEffective.attack,
+      creatureEffectiveDefense,
       creature.resistances,
       updatedPlayer.maxHp,
     );
 
-    // Apply damage and heal.
     creature.takeDamage(abilityResult.damage);
-    if (abilityResult.heal > 0) {
-      updatedPlayer.restoreHp(abilityResult.heal);
-    }
+    if (abilityResult.heal > 0) updatedPlayer.restoreHp(abilityResult.heal);
 
     // Route applied effects to the right combatant.
     const selfEffects: StatusEffect[] = [];
@@ -367,31 +395,30 @@ export function useEncounter({
       }
     }
 
-    // Update player combat state: deduct cost, regen, apply self buffs.
-    setPlayerCombatState(prev => {
-      if (!prev) return prev;
-      const afterCost = { ...prev, resource: prev.resource - ability.resourceCost };
-      const afterRegen = regenResource(afterCost, updatedPlayer.archetype);
-      return selfEffects.length > 0
-        ? { ...afterRegen, statusEffects: [...afterRegen.statusEffects, ...selfEffects] }
-        : afterRegen;
+    // Fix 7: clamp at 0; Fix 4: update ref synchronously before setState.
+    const newResource = Math.max(0, (newPlayerState?.resource ?? 0) - ability.resourceCost);
+    const regenedState = newPlayerState
+      ? regenResource({ ...newPlayerState, resource: newResource }, updatedPlayer.archetype)
+      : null;
+    playerResourceRef.current = regenedState?.resource ?? 0;
+
+    setPlayerCombatState(
+      regenedState && selfEffects.length > 0
+        ? { ...regenedState, statusEffects: [...regenedState.statusEffects, ...selfEffects] }
+        : regenedState,
+    );
+
+    // Fix 2: functional update prevents concurrent ability calls from losing enemy effects.
+    setCreatureCombatState(prev => {
+      const base = newCreatureState ?? prev ?? { statusEffects: [], resource: 0 };
+      return enemyEffects.length > 0
+        ? { ...base, statusEffects: [...base.statusEffects, ...enemyEffects] }
+        : base;
     });
 
-    // Update creature combat state: add enemy effects.
-    if (newCreatureState !== null) {
-      setCreatureCombatState(
-        enemyEffects.length > 0
-          ? {
-              ...newCreatureState,
-              statusEffects: [...newCreatureState.statusEffects, ...enemyEffects],
-            }
-          : newCreatureState,
-      );
-    }
-
-    // Creature counter-attacks if still alive.
+    // Creature counter-attacks using effective stats (debuffs on creature attack apply here).
     if (!creature.isDefeated()) {
-      const creatureDamage = creature.calculateDamage(updatedPlayer.defense);
+      const creatureDamage = Math.max(1, creatureEffectiveAttack - playerEffective.defense);
       updatedPlayer.takeDamage(creatureDamage);
     }
 
@@ -428,6 +455,7 @@ export function useEncounter({
       setCurrentEncounter(null);
       setPlayerCombatState(null);
       setCreatureCombatState(null);
+      playerResourceRef.current = 0;
       AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
 
       Alert.alert(
@@ -437,6 +465,8 @@ export function useEncounter({
         { cancelable: false },
       );
     }
+
+    return true;
   };
 
   const handleDebugDefeat = (): void => {

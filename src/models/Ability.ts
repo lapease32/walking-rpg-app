@@ -80,8 +80,14 @@ export interface AbilityResult {
   appliedEffects: StatusEffect[];
 }
 
+export interface DotEffect {
+  damage: number;
+  damageType?: DamageType;
+}
+
 export interface TickResult {
   dotDamage: number;
+  dotEffects: DotEffect[];
   updatedState: CombatantState;
 }
 
@@ -98,15 +104,17 @@ export function regenResource(state: CombatantState, archetype: Archetype): Comb
 }
 
 // Advance one turn's worth of status effects on a combatant.
-// Returns total DoT damage dealt this tick and the updated state with expired effects removed.
-// Resistance application for DoT damage is the caller's responsibility.
+// Returns dotDamage (total), dotEffects (per-effect breakdown for resistance),
+// and updatedState with expired effects removed.
 export function tickStatusEffects(state: CombatantState): TickResult {
   let dotDamage = 0;
+  const dotEffects: DotEffect[] = [];
   const remaining: StatusEffect[] = [];
 
   for (const effect of state.statusEffects) {
     if (effect.type === 'dot' && effect.damagePerTick !== undefined) {
       dotDamage += effect.damagePerTick;
+      dotEffects.push({ damage: effect.damagePerTick, damageType: effect.damageType });
     }
     if (effect.remainingTicks > 1) {
       remaining.push({ ...effect, remainingTicks: effect.remainingTicks - 1 });
@@ -114,7 +122,25 @@ export function tickStatusEffects(state: CombatantState): TickResult {
     // effect at remainingTicks === 1: last tick, then expires
   }
 
-  return { dotDamage, updatedState: { ...state, statusEffects: remaining } };
+  return { dotDamage, dotEffects, updatedState: { ...state, statusEffects: remaining } };
+}
+
+// Compute attack and defense adjusted by active status effect modifiers.
+// Enforces attack ≥ 1 and defense ≥ 0 after all modifiers are applied.
+export function computeEffectiveStats(
+  baseAttack: number,
+  baseDefense: number,
+  effects: StatusEffect[],
+): { attack: number; defense: number } {
+  let attack = baseAttack;
+  let defense = baseDefense;
+  for (const effect of effects) {
+    if (effect.statModifiers) {
+      attack += effect.statModifiers.attack ?? 0;
+      defense += effect.statModifiers.defense ?? 0;
+    }
+  }
+  return { attack: Math.max(1, attack), defense: Math.max(0, defense) };
 }
 
 export function resolveAbility(
