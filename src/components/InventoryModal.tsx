@@ -194,6 +194,11 @@ export default function InventoryModal({
                 </Text>
                 <Text style={styles.itemLevel}>Lv. {item.level}</Text>
                 <Text style={styles.itemRarity}>{item.rarity.toUpperCase()}</Text>
+                {item.affixes && item.affixes.length > 0 && (
+                  <Text style={styles.modifierBadge}>
+                    ◆ {item.affixes.length} {item.affixes.length === 1 ? 'modifier' : 'modifiers'}
+                  </Text>
+                )}
                 {(item.attack !== undefined ||
                   item.defense !== undefined ||
                   item.hp !== undefined ||
@@ -404,6 +409,12 @@ const styles = StyleSheet.create({
   itemRarity: {
     fontSize: 6,
     fontWeight: '600',
+    marginBottom: 2,
+  },
+  modifierBadge: {
+    fontSize: 7,
+    fontWeight: '600',
+    color: '#9C27B0',
     marginBottom: 2,
   },
   itemStats: {
