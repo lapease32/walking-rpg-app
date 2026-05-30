@@ -181,7 +181,10 @@ export function usePlayer() {
   const handleArchetypeSelected = useCallback(async (archetype: Archetype): Promise<void> => {
     const newPlayer = new Player({ archetype });
     playerRef.current = newPlayer;
-    setNeedsArchetypeSelection(false);
+    // Do NOT clear needsArchetypeSelection here — defer it into the
+    // commitWhenActive callback so it batches with setPlayer in one render.
+    // Clearing it early causes a "Loading..." flash between archetype selection
+    // and the home screen (needsArchetypeSelection=false, player=null).
 
     try {
       await savePlayerData(newPlayer);
@@ -195,6 +198,7 @@ export function usePlayer() {
       pendingCommitUnsubRef.current = null;
       if (playerRef.current) {
         setPlayer(playerRef.current);
+        setNeedsArchetypeSelection(false);
       }
     });
   }, []);
