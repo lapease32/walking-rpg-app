@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, MutableRefObject } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { Encounter } from '../models/Encounter';
 import { Player } from '../models/Player';
-import { Ability, CombatantState, RESOURCE_CONFIGS, resolveAbility } from '../models/Ability';
+import {
+  Ability,
+  CombatantState,
+  RESOURCE_CONFIGS,
+  resolveAbility,
+  computeEffectiveStats,
+} from '../models/Ability';
 import { ARCHETYPE_CONFIGS } from '../models/Archetype';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 
@@ -21,6 +27,7 @@ interface CombatModalProps {
   onAbility: (ability: Ability) => boolean;
   onClose: () => void;
   playerCombatState: CombatantState | null;
+  playerCombatStateRef: MutableRefObject<CombatantState | null>;
 }
 
 const DAMAGE_TYPE_COLORS: Record<string, string> = {
@@ -37,6 +44,7 @@ export default function CombatModal({
   onAbility,
   onClose,
   playerCombatState,
+  playerCombatStateRef,
 }: CombatModalProps) {
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
   const cooldownsRef = useRef<Record<string, number>>({});
@@ -91,13 +99,16 @@ export default function CombatModal({
   const resourceLabel =
     archetypeCfg.resource.charAt(0).toUpperCase() + archetypeCfg.resource.slice(1);
 
-  // Fix 6: set cooldown only after the hook confirms the ability actually ran.
+  // Set cooldown only after the hook confirms the ability actually ran.
+  // Use ref for the resource check — always reflects post-last-ability state,
+  // avoiding stale closures when the player taps faster than re-renders.
   const handleAbilityPress = (ability: Ability) => {
+    const currentResource = playerCombatStateRef.current?.resource ?? resourceCfg.startValue;
     if (
       (cooldownsRef.current[ability.id] ?? 0) > 0 ||
       isDefeated ||
       playerDefeated ||
-      ability.resourceCost > resource
+      ability.resourceCost > currentResource
     ) {
       return;
     }
@@ -115,9 +126,14 @@ export default function CombatModal({
 
   const getDamagePreview = (ability: Ability): string => {
     if (ability.primitive === 'direct') {
+      const effectiveAttack = computeEffectiveStats(
+        player.attack,
+        player.defense,
+        playerCombatState?.statusEffects ?? [],
+      ).attack;
       const dmg = resolveAbility(
         ability,
-        player.attack,
+        effectiveAttack,
         creature.defense,
         creature.resistances,
         player.maxHp,

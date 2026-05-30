@@ -20,7 +20,6 @@ import {
   BuffDebuffAbility,
   CombatantState,
   StatusEffect,
-  RESOURCE_CONFIGS,
   initCombatState,
   regenResource,
   resolveAbility,
@@ -53,7 +52,11 @@ export function useEncounter({
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false);
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
-  const [creatureCombatState, setCreatureCombatState] = useState<CombatantState | null>(null);
+  // Authoritative refs — always current, used for synchronous reads inside handlers.
+  // playerCombatStateRef replaces the old playerResourceRef pattern and extends it to
+  // the full state so every handler sees post-last-ability values, not stale closures.
+  const playerCombatStateRef = useRef<CombatantState | null>(null);
+  const creatureCombatStateRef = useRef<CombatantState | null>(null);
 
   const victoryProcessedRef = useRef<boolean>(false);
   const fleeProcessedRef = useRef<boolean>(false);
@@ -62,9 +65,6 @@ export function useEncounter({
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const showCombatModalRef = useRef<boolean>(false);
-  // Synchronous resource tracker — mirrors playerCombatState.resource but updated
-  // immediately on ability use to prevent stale-closure double-spend.
-  const playerResourceRef = useRef<number>(0);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
@@ -77,10 +77,6 @@ export function useEncounter({
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
   }, [showCombatModal]);
-
-  useEffect(() => {
-    playerResourceRef.current = playerCombatState?.resource ?? 0;
-  }, [playerCombatState]);
 
   useEffect(() => {
     setEncounterChance(EncounterService.getDistanceBasedProbability());
@@ -118,12 +114,13 @@ export function useEncounter({
     encounterRef.current = null;
     isMinimizedRef.current = false;
     showCombatModalRef.current = false;
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
     setCurrentEncounter(null);
     setShowEncounterModal(false);
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
-    setCreatureCombatState(null);
   };
 
   const checkPendingEncounter = async (): Promise<void> => {
@@ -219,12 +216,13 @@ export function useEncounter({
     isMinimizedRef.current = false;
     showCombatModalRef.current = false;
     fleeProcessedRef.current = false;
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
     setPlayerCombatState(null);
-    setCreatureCombatState(null);
 
     AnalyticsService.combatVictory(
       currentEncounterState.creature.name,
@@ -268,12 +266,13 @@ export function useEncounter({
       updatedPlayer.fullHeal();
       setPlayerAndSave(updatedPlayer);
     }
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
     setIsEncounterModalMinimized(false);
     setShowCombatModal(false);
     setShowEncounterModal(false);
     setCurrentEncounter(null);
     setPlayerCombatState(null);
-    setCreatureCombatState(null);
   };
 
   const handleFight = (): void => {
@@ -299,13 +298,14 @@ export function useEncounter({
     setShowCombatModal(true);
     // Only initialize once per encounter — preserves accumulated resource/status
     // if the player closes and reopens the combat modal within the same encounter.
-    setPlayerCombatState(prev => prev ?? initCombatState(currentPlayer.archetype));
-    setCreatureCombatState(prev => prev ?? { statusEffects: [], resource: 0 });
-    // Sync resource ref immediately so handleAbility guards work before the first
-    // useEffect fires (useEffect runs after paint; ref would otherwise stay at 0
-    // for Agile/Mage whose start value is non-zero).
-    if (playerCombatState === null) {
-      playerResourceRef.current = RESOURCE_CONFIGS[currentPlayer.archetype].startValue;
+    // Ref update is synchronous so handleAbility guards are correct before first render.
+    if (playerCombatStateRef.current === null) {
+      const initialState = initCombatState(currentPlayer.archetype);
+      playerCombatStateRef.current = initialState;
+      setPlayerCombatState(initialState);
+    }
+    if (creatureCombatStateRef.current === null) {
+      creatureCombatStateRef.current = { statusEffects: [], resource: 0 };
     }
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
   };
@@ -313,9 +313,10 @@ export function useEncounter({
   const handleAbility = (ability: Ability): boolean => {
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
+    // Read from ref — always the post-last-ability state, never a stale closure snapshot.
+    const currentPlayerState = playerCombatStateRef.current;
 
-    // Guard against race where handleAbility is called before combat state is set.
-    if (!currentEncounterState || !currentPlayer || !playerCombatState) return false;
+    if (!currentEncounterState || !currentPlayer || !currentPlayerState) return false;
     if (victoryProcessedRef.current) return false;
 
     const creature = currentEncounterState.creature;
@@ -327,26 +328,20 @@ export function useEncounter({
       return false;
     }
 
-    // Fix 4: synchronous ref check prevents stale-closure double-spend.
-    if (ability.resourceCost > playerResourceRef.current) return false;
+    // Synchronous resource check: ref value is updated immediately on each ability use.
+    if (ability.resourceCost > currentPlayerState.resource) return false;
 
     const updatedPlayer = new Player(currentPlayer.toJSON());
 
-    // Fix 6: compute effective stats from PRE-tick effects so the active turn
-    // benefits from all buffs including those expiring this turn (e.g. Battle Cry
-    // at tickDuration=3 gives exactly 3 buffed turns, not 2).
-    // Snapshot closure for effective stats. A second rapid tap before re-render
-    // would read the same snapshot and miss buffs added by the first tap — but all
-    // abilities have cooldownMs ≥ 800ms which prevents this in practice.
-    const currentPlayerState = playerCombatState;
+    // Effective stats from PRE-tick state — buffs expiring this turn still apply.
     const playerEffective = computeEffectiveStats(
       updatedPlayer.attack,
       updatedPlayer.defense,
-      currentPlayerState?.statusEffects ?? [],
+      currentPlayerState.statusEffects,
     );
 
     // Tick creature DoT effects with per-type resistance applied.
-    let newCreatureState = creatureCombatState;
+    let newCreatureState = creatureCombatStateRef.current;
     if (newCreatureState && newCreatureState.statusEffects.length > 0) {
       const { dotEffects, updatedState } = tickStatusEffects(newCreatureState);
       let resistedDot = 0;
@@ -360,15 +355,15 @@ export function useEncounter({
       newCreatureState = updatedState;
     }
 
-    // DoT killed creature — return false (queued ability never ran, no cooldown).
-    // Fix 5: persist player tick (durations) even though we return early.
+    // DoT killed creature — persist player tick even though the ability never ran.
     if (creature.isDefeated()) {
-      setPlayerCombatState(prev => {
-        const base = prev ?? currentPlayerState;
-        if (!base || base.statusEffects.length === 0) return base;
-        return tickStatusEffects(base).updatedState;
-      });
-      setCreatureCombatState(prev => newCreatureState ?? prev);
+      const tickedPlayer =
+        currentPlayerState.statusEffects.length > 0
+          ? tickStatusEffects(currentPlayerState).updatedState
+          : currentPlayerState;
+      playerCombatStateRef.current = tickedPlayer;
+      setPlayerCombatState(tickedPlayer);
+      creatureCombatStateRef.current = newCreatureState;
       showCombatModalRef.current = false;
       setShowCombatModal(false);
       setShowEncounterModal(false);
@@ -409,44 +404,33 @@ export function useEncounter({
       }
     }
 
-    // Update resource ref synchronously for the next tap's guard check.
-    // Use playerResourceRef.current (not the closure snapshot) as the base so rapid-tap
-    // sequences deduct from the running balance rather than the same stale starting value.
-    const costAmount = ability.resourceCost;
+    // Compute new player state synchronously from the ref and write back immediately.
+    // Rapid-tap sequences read the already-updated ref on the next tap rather than a
+    // stale closure snapshot, so resource deductions and buff durations are always correct.
     const archetype = updatedPlayer.archetype;
-    const estimatedResource = Math.min(
-      RESOURCE_CONFIGS[archetype].max,
-      Math.max(0, playerResourceRef.current - costAmount) +
-        RESOURCE_CONFIGS[archetype].regenPerTurn,
-    );
-    playerResourceRef.current = estimatedResource;
-
-    // Fix 3 + Fix 4 + Fix 6: player tick moved inside functional updater so it
-    // applies to `prev` (the latest committed state), not the closure snapshot.
-    // This makes rapid-tap sequencing correct and preserves PRE-tick stats above.
-    const capturedSelfEffects = selfEffects;
-    setPlayerCombatState(prev => {
-      const base = prev ?? currentPlayerState;
-      if (!base) return null;
-      const { updatedState: ticked } =
-        base.statusEffects.length > 0 ? tickStatusEffects(base) : { updatedState: base };
-      const afterCost = { ...ticked, resource: Math.max(0, ticked.resource - costAmount) };
-      const regenedState = regenResource(afterCost, archetype);
-      return capturedSelfEffects.length > 0
-        ? {
-            ...regenedState,
-            statusEffects: [...regenedState.statusEffects, ...capturedSelfEffects],
-          }
+    const { updatedState: tickedPlayer } =
+      currentPlayerState.statusEffects.length > 0
+        ? tickStatusEffects(currentPlayerState)
+        : { updatedState: currentPlayerState };
+    const afterCost = {
+      ...tickedPlayer,
+      resource: Math.max(0, tickedPlayer.resource - ability.resourceCost),
+    };
+    const regenedState = regenResource(afterCost, archetype);
+    const newPlayerState: CombatantState =
+      selfEffects.length > 0
+        ? { ...regenedState, statusEffects: [...regenedState.statusEffects, ...selfEffects] }
         : regenedState;
-    });
+    playerCombatStateRef.current = newPlayerState;
+    setPlayerCombatState(newPlayerState);
 
-    // Fix 2: functional update prevents concurrent ability calls from losing enemy effects.
-    setCreatureCombatState(prev => {
-      const base = newCreatureState ?? prev ?? { statusEffects: [], resource: 0 };
-      return enemyEffects.length > 0
-        ? { ...base, statusEffects: [...base.statusEffects, ...enemyEffects] }
-        : base;
-    });
+    // Compute new creature state synchronously.
+    const creatureBase = newCreatureState ?? { statusEffects: [], resource: 0 };
+    const newCreatureStateFinal: CombatantState =
+      enemyEffects.length > 0
+        ? { ...creatureBase, statusEffects: [...creatureBase.statusEffects, ...enemyEffects] }
+        : creatureBase;
+    creatureCombatStateRef.current = newCreatureStateFinal;
 
     // Creature counter-attacks using effective stats (debuffs on creature attack apply here).
     if (!creature.isDefeated()) {
@@ -481,13 +465,13 @@ export function useEncounter({
       encounterRef.current = null;
       isMinimizedRef.current = false;
       showCombatModalRef.current = false;
+      playerCombatStateRef.current = null;
+      creatureCombatStateRef.current = null;
       setIsEncounterModalMinimized(false);
       setShowCombatModal(false);
       setShowEncounterModal(false);
       setCurrentEncounter(null);
       setPlayerCombatState(null);
-      setCreatureCombatState(null);
-      playerResourceRef.current = 0;
       AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
 
       Alert.alert(
@@ -577,8 +561,9 @@ export function useEncounter({
     victoryProcessedRef.current = false;
     fleeProcessedRef.current = false;
 
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
     setPlayerCombatState(null);
-    setCreatureCombatState(null);
     setCurrentEncounter(encounter);
     setShowEncounterModal(true);
     setIsEncounterModalMinimized(false);
@@ -737,6 +722,7 @@ export function useEncounter({
     forceItemDrop,
     setForceItemDrop,
     playerCombatState,
+    playerCombatStateRef,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
