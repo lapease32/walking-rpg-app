@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Encounter } from '../models/Encounter';
 import { Rarity } from '../models/Creature';
+import { DamageType } from '../models/DamageType';
 
 interface EncounterModalProps {
   encounter: Encounter | null;
@@ -172,6 +173,37 @@ export default function EncounterModal({
                   ]}
                 />
               </View>
+
+              {/* Resistances — only show non-zero values */}
+              {(Object.entries(creature.resistances) as [DamageType, number][]).some(
+                ([, v]) => v !== 0,
+              ) && (
+                <View style={styles.resistancesContainer}>
+                  <Text style={styles.resistancesLabel}>Resistances</Text>
+                  <View style={styles.resistanceChips}>
+                    {(Object.entries(creature.resistances) as [DamageType, number][])
+                      .filter(([, v]) => v !== 0)
+                      .map(([type, value]) => {
+                        const icon: Record<DamageType, string> = {
+                          physical: '⚔️',
+                          fire: '🔥',
+                          frost: '🧊',
+                          arcane: '✨',
+                        };
+                        const pct = Math.round(value * 100);
+                        const color = value > 0 ? '#4CAF50' : '#F44336';
+                        return (
+                          <View key={type} style={[styles.resistChip, { borderColor: color }]}>
+                            <Text style={styles.resistChipText}>
+                              {icon[type]} {pct > 0 ? '+' : ''}
+                              {pct}%
+                            </Text>
+                          </View>
+                        );
+                      })}
+                  </View>
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -439,5 +471,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  resistancesContainer: {
+    marginTop: 10,
+  },
+  resistancesLabel: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  resistanceChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  resistChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  resistChipText: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '600',
   },
 });

@@ -8,7 +8,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { Item } from '../models/Item';
+import { Item, AffixStat } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { Player } from '../models/Player';
 
@@ -77,6 +77,12 @@ export default function ItemDetailsModal({
   };
 
   const canEquip = player !== null && item.level <= player.level;
+
+  const affixStatLabel: Record<AffixStat, string> = {
+    attack: 'Attack',
+    defense: 'Defense',
+    maxHp: 'Max HP',
+  };
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
@@ -150,6 +156,21 @@ export default function ItemDetailsModal({
                     </View>
                   )}
                 </View>
+              </View>
+            )}
+
+            {/* Affix Breakdown */}
+            {item.affixes && item.affixes.length > 0 && (
+              <View style={styles.affixContainer}>
+                <Text style={styles.affixTitle}>Modifiers</Text>
+                {item.affixes.map((affix, i) => (
+                  <View key={i} style={styles.affixRow}>
+                    <Text style={styles.affixBullet}>◆</Text>
+                    <Text style={styles.affixText}>
+                      +{affix.value} {affixStatLabel[affix.stat]}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
 
@@ -301,6 +322,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  affixContainer: {
+    marginBottom: 20,
+  },
+  affixTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  affixRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    backgroundColor: '#f0f4ff',
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  affixBullet: {
+    fontSize: 10,
+    color: '#9C27B0',
+    marginRight: 8,
+  },
+  affixText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
   },
   warningContainer: {
     padding: 12,
