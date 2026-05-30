@@ -314,7 +314,8 @@ export function useEncounter({
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
 
-    if (!currentEncounterState || !currentPlayer) return false;
+    // Guard against race where handleAbility is called before combat state is set.
+    if (!currentEncounterState || !currentPlayer || !playerCombatState) return false;
     if (victoryProcessedRef.current) return false;
 
     const creature = currentEncounterState.creature;
@@ -334,6 +335,9 @@ export function useEncounter({
     // Fix 6: compute effective stats from PRE-tick effects so the active turn
     // benefits from all buffs including those expiring this turn (e.g. Battle Cry
     // at tickDuration=3 gives exactly 3 buffed turns, not 2).
+    // Snapshot closure for effective stats. A second rapid tap before re-render
+    // would read the same snapshot and miss buffs added by the first tap — but all
+    // abilities have cooldownMs ≥ 800ms which prevents this in practice.
     const currentPlayerState = playerCombatState;
     const playerEffective = computeEffectiveStats(
       updatedPlayer.attack,
@@ -406,11 +410,13 @@ export function useEncounter({
     }
 
     // Update resource ref synchronously for the next tap's guard check.
+    // Use playerResourceRef.current (not the closure snapshot) as the base so rapid-tap
+    // sequences deduct from the running balance rather than the same stale starting value.
     const costAmount = ability.resourceCost;
     const archetype = updatedPlayer.archetype;
     const estimatedResource = Math.min(
       RESOURCE_CONFIGS[archetype].max,
-      Math.max(0, (currentPlayerState?.resource ?? 0) - costAmount) +
+      Math.max(0, playerResourceRef.current - costAmount) +
         RESOURCE_CONFIGS[archetype].regenPerTurn,
     );
     playerResourceRef.current = estimatedResource;
