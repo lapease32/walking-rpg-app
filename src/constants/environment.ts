@@ -9,28 +9,34 @@
 
 export type AppEnvironment = 'development' | 'testing' | 'production';
 
+// Build-time env var, inlined by babel at release-bundle time (see babel.config.js).
+// Declared module-locally so we don't pull in all of @types/node for one variable;
+// type-only, so the literal `process.env.APP_ENV` reference survives for the babel
+// inline plugin to replace.
+declare const process: { env: { APP_ENV?: string } };
+
 /**
- * Determine the current app environment
+ * Determine the current app environment.
  *
- * For now, we use __DEV__ to distinguish development from release builds.
- * Later, you can add build-time environment variables or build flavors
- * to distinguish testing from production.
+ * - development: __DEV__ (Metro dev server).
+ * - testing:     a release build that explicitly opted in via APP_ENV=testing
+ *                — our E2E CI builds, and any internal/beta build that wants the
+ *                debug panel, crash-test button, and env banner.
+ * - production:  any other release build — the FAIL-SAFE default.
+ *
+ * `process.env.APP_ENV` is inlined at bundle time by babel
+ * (transform-inline-environment-variables, scoped to the production babel env —
+ * see babel.config.js). A public App Store / Play build leaves APP_ENV unset, so
+ * it falls through to 'production' and ships with debug features OFF. This is
+ * deliberately fail-safe: forgetting to set a flag yields a locked-down build,
+ * not a leaky one (the previous behavior shipped debug mode in every release).
  */
 export function getAppEnvironment(): AppEnvironment {
-  // In development, always return 'development'
   if (__DEV__) {
     return 'development';
   }
-
-  // For release builds, check if it's a testing build
-  // You can later add a build-time constant or check app version
-  // For now, we'll use a simple check - you can enhance this later
-  // by adding a build-time environment variable or checking version string
-
-  // TODO: Add build-time detection for testing vs production
-  // For now, assume all non-dev builds are 'testing' until you set up proper build variants
-  // Change this to 'production' when you're ready to release publicly
-  return 'testing'; // Change to 'production' for public releases
+  // Only an explicit opt-in turns on debug features in a release build.
+  return process.env.APP_ENV === 'testing' ? 'testing' : 'production';
 }
 
 export const APP_ENV = getAppEnvironment();

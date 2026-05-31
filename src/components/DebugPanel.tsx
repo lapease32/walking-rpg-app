@@ -4,6 +4,7 @@ import { MutableRefObject } from 'react';
 import { Player } from '../models/Player';
 import { LocationData, DistanceData } from '../services/LocationService';
 import CrashlyticsService from '../services/CrashlyticsService';
+import { ENV_CONFIG } from '../constants/environment';
 
 interface Props {
   debugMode: boolean;
@@ -44,6 +45,15 @@ export default function DebugPanel({
   setForceItemDrop,
   forceEncounter,
 }: Props) {
+  // Hard gate: in a production build (enableDebugMode=false) the debug panel must
+  // not render at all — including the "Show Debug Mode" toggle, which would
+  // otherwise let a user re-enable force-encounter / instant-defeat in a shipped
+  // build regardless of the initial debugMode state. The build-time flag is the
+  // single source of truth; runtime toggling cannot reach debug controls in prod.
+  if (!ENV_CONFIG.enableDebugMode) {
+    return null;
+  }
+
   const simulateMovement = (): void => {
     const fakeDistance = 100;
     const baseLat = currentLocationRef.current?.latitude || 37.7749;

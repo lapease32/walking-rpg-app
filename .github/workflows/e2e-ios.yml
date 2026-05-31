@@ -14,6 +14,10 @@ jobs:
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 360000
+      # Opt this release build into the 'testing' environment so the debug panel
+      # (debug-force-encounter / debug-instant-defeat) the golden path taps stays
+      # enabled. Production builds leave APP_ENV unset → debug OFF (fail-safe).
+      APP_ENV: testing
 
     steps:
       - uses: actions/checkout@v4
