@@ -1,9 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
-import { Player } from '../models/Player';
+import { Player, PlayerData } from '../models/Player';
 import { Archetype } from '../models/Archetype';
 import AnalyticsService from '../services/AnalyticsService';
-import { savePlayerData, loadPlayerData } from '../utils/storage';
+import {
+  savePlayerData,
+  readLocalPlayerSnapshot,
+  reconcileCloudPlayerData,
+} from '../utils/storage';
 
 // On Android New Architecture (Fabric), state commits that happen while the
 // activity is paused — e.g. while a runtime permission dialog has focus —
@@ -80,6 +84,16 @@ export function usePlayer() {
   // completion order, so a slow null-user load can clobber the signed-in
   // load's result and silently drop cloud progress.
   const initGenerationRef = useRef(0);
+  // Local snapshot timestamp captured by initializePlayer; read by the post-paint
+  // cloud reconcile to decide whether cloud data is strictly newer.
+  const localSavedAtRef = useRef(0);
+  // The in-flight cloud reconcile promise. handleArchetypeSelected awaits it so a
+  // freshly-chosen archetype can never overwrite an existing cloud character
+  // (fresh install / reinstall). Resolves to cloud PlayerData when it wins, else null.
+  const cloudCheckRef = useRef<Promise<PlayerData | null> | null>(null);
+  // The init generation whose post-paint reconcile has already been started, so
+  // the reconcile effect fires exactly once per initializePlayer.
+  const reconciledGenerationRef = useRef(-1);
 
   // Cancel any pending deferred commit if the component unmounts so the
   // listener doesn't fire after teardown.
@@ -111,6 +125,34 @@ export function usePlayer() {
     return () => sub.remove();
   }, []);
 
+  // Cloud reconcile — runs AFTER the first screen paints (this effect fires
+  // post-commit, once the player or archetype-selection screen is on screen).
+  // The native Firestore read can synchronously block the JS thread on Android
+  // New Architecture; keeping it off the pre-paint path means the screen is
+  // already committed before any freeze, so the user is never stranded on
+  // "Loading…" (the long-standing E2E-Android flake). If the cloud holds a
+  // strictly-newer record (cross-device) or a character for a fresh install
+  // (local was empty), adopt it.
+  useEffect(() => {
+    if (!player && !needsArchetypeSelection) return;
+    const gen = initGenerationRef.current;
+    if (reconciledGenerationRef.current === gen) return; // already reconciled this load
+    reconciledGenerationRef.current = gen;
+
+    const promise = reconcileCloudPlayerData(localSavedAtRef.current);
+    cloudCheckRef.current = promise;
+    promise
+      .then(cloudData => {
+        if (gen !== initGenerationRef.current || !cloudData) return; // superseded or nothing newer
+        const cloudPlayer = Player.fromJSON(cloudData);
+        playerRef.current = cloudPlayer;
+        setPlayer(cloudPlayer);
+        setNeedsArchetypeSelection(false);
+        AnalyticsService.playerSessionStart(cloudPlayer.level, cloudPlayer.totalDistance);
+      })
+      .catch(error => console.error('usePlayer: cloud reconcile failed:', error));
+  }, [player, needsArchetypeSelection]);
+
   const setPlayerAndSave = useCallback((updated: Player) => {
     playerRef.current = updated;
     setPlayer(updated);
@@ -129,67 +171,113 @@ export function usePlayer() {
     pendingCommitUnsubRef.current?.();
     pendingCommitUnsubRef.current = null;
     playerRef.current = null;
+    // Drop the previous account's in-flight cloud check so the next account's
+    // initializePlayer + reconcile effect start a fresh one.
+    cloudCheckRef.current = null;
     setPlayer(null);
     setNeedsArchetypeSelection(false);
   }, []);
 
   const initializePlayer = useCallback(async (): Promise<void> => {
     const myGeneration = ++initGenerationRef.current;
+    // Paint archetype selection (deferred for the Fabric pause window). Used by
+    // both the no-local-data and error paths.
+    const showArchetypeSelection = () => {
+      pendingCommitUnsubRef.current?.();
+      pendingCommitUnsubRef.current = commitWhenActive(() => {
+        pendingCommitUnsubRef.current = null;
+        setNeedsArchetypeSelection(true);
+      });
+    };
     try {
-      const savedData = await loadPlayerData();
+      // LOCAL ONLY — never gate first paint on the cloud read; it can synchronously
+      // block the JS thread on Android New Arch and strand the user on "Loading…".
+      // The post-paint reconcile effect pulls cloud data once the screen is up.
+      const { data: localData, savedAt } = await readLocalPlayerSnapshot();
       // A newer initializePlayer (e.g. belated-sign-in reload) or a clearPlayer
-      // superseded us while we awaited. Bail so our now-stale snapshot can't
-      // clobber the newer call's result or resurrect cleared state.
+      // superseded us while we awaited. Bail so our stale snapshot can't clobber.
       if (myGeneration !== initGenerationRef.current) {
         return;
       }
-      if (!savedData) {
-        // New player — show archetype selection before creating/saving.
-        setNeedsArchetypeSelection(true);
+      localSavedAtRef.current = savedAt;
+
+      if (!localData) {
+        // No local save — genuinely new, or a fresh install whose cloud character
+        // the post-paint reconcile will adopt. Show archetype selection now;
+        // handleArchetypeSelected waits for the cloud check before creating a new
+        // character so an existing cloud save is never clobbered.
+        showArchetypeSelection();
         return;
       }
 
-      // Returning player — clear any stale archetype selection flag and load.
-      setNeedsArchetypeSelection(false);
-      const playerToSet = Player.fromJSON(savedData);
+      // Returning player — paint from the local snapshot immediately; the
+      // reconcile effect adopts cloud data afterward if it is strictly newer.
+      const playerToSet = Player.fromJSON(localData);
       playerRef.current = playerToSet;
-
-      // Replace any earlier pending commit (e.g. account-switch reload that
-      // raced with another resume) so we never have two listeners armed.
-      // Commit playerRef.current at fire time rather than the captured
-      // playerToSet, so any updates that landed via setPlayerAndSave during
-      // the pause (e.g. background tracking distance updates) aren't
-      // clobbered by the stale snapshot.
       pendingCommitUnsubRef.current?.();
       pendingCommitUnsubRef.current = commitWhenActive(() => {
         pendingCommitUnsubRef.current = null;
         if (playerRef.current) {
           setPlayer(playerRef.current);
+          setNeedsArchetypeSelection(false);
         }
       });
 
       AnalyticsService.playerSessionStart(playerToSet.level, playerToSet.totalDistance);
     } catch (error) {
       console.error('Error initializing player:', error);
-      // Same supersede guard as the success path — don't install a fallback
-      // player over a newer call's result.
       if (myGeneration !== initGenerationRef.current) {
         return;
       }
-      // On error fall back to archetype selection rather than silently
-      // defaulting to Martial — the player's choice should always be explicit.
-      setNeedsArchetypeSelection(true);
+      // On error fall back to archetype selection rather than silently defaulting
+      // to Martial — the player's choice should always be explicit.
+      showArchetypeSelection();
     }
   }, []);
 
   const handleArchetypeSelected = useCallback(async (archetype: Archetype): Promise<void> => {
+    const gen = initGenerationRef.current;
+
+    // Reinstall guard: wait for the cloud check before creating a character, so a
+    // fresh-install player who picks an archetype can't overwrite the cloud save
+    // the post-paint reconcile is still fetching. The effect normally starts the
+    // check; start it here too in case the user tapped before that effect ran
+    // (set reconciledGenerationRef so the effect doesn't double-fetch).
+    if (!cloudCheckRef.current) {
+      reconciledGenerationRef.current = gen;
+      cloudCheckRef.current = reconcileCloudPlayerData(localSavedAtRef.current);
+    }
+    let cloudData: PlayerData | null = null;
+    try {
+      cloudData = await cloudCheckRef.current;
+    } catch {
+      cloudData = null;
+    }
+    if (gen !== initGenerationRef.current) {
+      return; // account switched while we waited
+    }
+
+    if (cloudData || playerRef.current) {
+      // A cloud character exists — adopt it instead of creating a new one. The
+      // reconcile effect usually does this already; this covers the race where
+      // the user confirmed before the effect's setState committed.
+      if (cloudData && !playerRef.current) {
+        const cloudPlayer = Player.fromJSON(cloudData);
+        playerRef.current = cloudPlayer;
+        setPlayer(cloudPlayer);
+        setNeedsArchetypeSelection(false);
+        AnalyticsService.playerSessionStart(cloudPlayer.level, cloudPlayer.totalDistance);
+      }
+      return;
+    }
+
+    // No cloud character — safe to create the chosen archetype.
     const newPlayer = new Player({ archetype });
     playerRef.current = newPlayer;
     // Do NOT clear needsArchetypeSelection here — defer it into the
     // commitWhenActive callback so it batches with setPlayer in one render.
     // Clearing it early causes a "Loading..." flash between archetype selection
     // and the home screen (needsArchetypeSelection=false, player=null).
-
     try {
       await savePlayerData(newPlayer);
     } catch (error) {
