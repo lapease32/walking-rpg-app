@@ -1,4 +1,4 @@
-appId: com.walkingrpgtemp
+appId: com.lancepease.walkingrpg
 ---
 # Golden path: encounter → fight → victory
 # Maestro retries all assertions automatically — no explicit wait commands needed.
