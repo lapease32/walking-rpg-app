@@ -58,7 +58,7 @@
     "firebase-tools": "^15.18.0",
     "husky": "^9.1.7",
     "jest": "^30.3.0",
-    "lint-staged": "^17.0.4",
+    "lint-staged": "^17.0.7",
     "metro": "^0.84.3",
     "metro-cache-key": "^0.84.3",
     "patch-package": "^8.0.1",
