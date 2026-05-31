@@ -16,77 +16,66 @@ This is a monetized App Store / Play Store app — not a demo. When a fix has a 
 
 ## After creating a PR — bugbot loop
 
-After every PR is created, immediately start a self-paced `/loop` that polls for bugbot feedback and surfaces the result to the user when safe to merge. Use ~270s poll intervals to stay within the prompt cache window. Do NOT auto-merge — the loop reports "ready to merge" and waits for the user to confirm.
+After every PR is created, immediately start a self-paced `/loop` that polls for bugbot feedback and surfaces the result to the user when safe to merge. 60s monitor poll (catches build transitions quickly); ~270s `ScheduleWakeup` fallback (stays in the prompt-cache window). Do NOT auto-merge — the loop reports "ready to merge" and waits for the user to confirm.
 
-**Bugbot has two reporting modes — monitor BOTH:**
-1. **Review comment mode** — posts a review body ("found N potential issues") with inline comments per file; check shows `skipping`
-2. **Check status mode** — reports directly as a `pass`/`fail` check with no review body
+**Bugbot reports in two modes — the gate below handles both:**
+1. **Review mode** — posts inline comments (each is a GitHub *review thread*) + a review body; the `Cursor Bugbot` check shows `skipping`.
+2. **Check mode** — reports a `pass`/`fail` check with no review body.
 
-The Monitor must watch all three signals AND emit immediately if already mergeable at startup:
+**Work the UNRESOLVED review threads — that is the authoritative signal.** Do NOT count raw comments or grep the review body. (We used to filter inline comments by `commit_id` + `ref1_` carry-forward markers; it was unreliable — bugbot re-posts already-fixed findings against the new HEAD *without* the `ref1_` marker, so they looked fresh and falsely blocked the gate. Thread *resolution state* is the reliable signal.)
+
+For each **unresolved** `cursor` review thread on the PR:
+- **Legitimate** → fix it, commit, push. Bugbot **auto-resolves** the thread on its re-review once it confirms the fix — no manual resolve needed.
+- **False positive** → post a one-line reply stating *why* (auditable record), then resolve it with the `resolveReviewThread` mutation. Never resolve to silence a finding you haven't actually judged.
+
+Repeat until **zero unresolved `cursor` threads**. NOTE: in the GraphQL API bugbot's author login is `cursor` (the REST API renders the same bot `cursor[bot]`).
+
+**Merge gate — all must be true (never auto-merge; report and wait for the user):**
+1. All CI checks terminal (`pass`/`skipping`), list non-empty.
+2. `Cursor Bugbot` check ≠ `fail`.
+3. **Zero unresolved `cursor` review threads** on the PR.
 
 ```bash
 PR=<number>
 REPO=lapease32/walking-rpg-app
 
+# Authoritative "outstanding bugbot findings" signal: unresolved cursor review threads.
+unresolved_bugbot_threads() {
+  gh api graphql -f query='
+    query($owner:String!,$name:String!,$pr:Int!){
+      repository(owner:$owner,name:$name){
+        pullRequest(number:$pr){
+          reviewThreads(first:100){ nodes{ isResolved comments(first:1){ nodes{ author{ login } } } } }
+        }
+      }
+    }' -F owner=lapease32 -F name=walking-rpg-app -F pr=$PR \
+    --jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+           | select(.isResolved == false and .comments.nodes[0].author.login == "cursor")] | length' \
+    2>/dev/null || echo "err"
+}
+
 is_mergeable() {
-  local checks bugbot_bucket inline review_body
-
-  # 1. All CI checks must be terminal (pass/skipping). API failure → checks="" → jq errors → return 1.
+  local checks bugbot_bucket unresolved
   checks=$(gh pr checks $PR --repo $REPO --json name,bucket 2>/dev/null || true)
-  echo "$checks" | jq -e 'length > 0 and all(.bucket == "pass" or .bucket == "skipping")' \
-    >/dev/null 2>&1 || return 1
-
-  # 2. Bugbot check must not be fail. Take first match to guard against duplicate entries.
-  bugbot_bucket=$(echo "$checks" \
-    | jq -r '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // ""' 2>/dev/null || true)
+  echo "$checks" | jq -e 'length > 0 and all(.bucket == "pass" or .bucket == "skipping")' >/dev/null 2>&1 || return 1
+  bugbot_bucket=$(echo "$checks" | jq -r '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // ""' 2>/dev/null || true)
   [ "$bugbot_bucket" != "fail" ] || return 1
-
-  # 3 & 4 only apply in review mode (skipping). When bugbot=pass it uses check mode and any
-  # inline comments / review body are stale artifacts from a prior review cycle — ignore them.
-  if [ "$bugbot_bucket" = "skipping" ]; then
-    # 3. No fresh inline comments from cursor[bot] on the current HEAD commit.
-    # Filter by commit_id (stale prior-commit comments don't block after a fix is pushed) AND
-    # exclude ref1_ carry-forwards (bugbot re-posts old findings with the new HEAD's commit_id,
-    # making them look fresh — only non-ref1_ IDs are genuinely new findings on this commit).
-    local head_sha
-    head_sha=$(gh pr view $PR --repo $REPO --json headRefOid --jq .headRefOid 2>/dev/null || echo "")
-    inline=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
-      --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha\" and (.body | test(\"BUGBOT_BUG_ID: ref1_\") | not))] | length" 2>/dev/null || echo "99")
-    [ "$inline" = "0" ] || return 1
-
-    # 4. Review body must not report issues. Positive grep is portable across grep implementations.
-    review_body=$(gh api "repos/$REPO/pulls/$PR/reviews?per_page=100" \
-      --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body // ""' 2>/dev/null || true)
-    echo "$review_body" | grep -qE "found [1-9][0-9]* potential" && return 1
-  fi
-
+  unresolved=$(unresolved_bugbot_threads)
+  [ "$unresolved" = "0" ] || return 1
   return 0
 }
 
 emit_status() {
-  local checks bugbot_bucket inline review_snippet failed_checks pending_checks
+  local checks bugbot_bucket unresolved failed pending
   checks=$(gh pr checks $PR --repo $REPO --json name,bucket 2>/dev/null || true)
-
-  bugbot_bucket=$(echo "$checks" \
-    | jq -r '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // "none"' 2>/dev/null || echo "err")
-  local head_sha_status
-  head_sha_status=$(gh pr view $PR --repo $REPO --json headRefOid --jq .headRefOid 2>/dev/null || echo "")
-  inline=$(gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
-    --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha_status\" and (.body | test(\"BUGBOT_BUG_ID: ref1_\") | not))] | length" 2>/dev/null || echo "err")
-  review_snippet=$(gh api "repos/$REPO/pulls/$PR/reviews?per_page=100" \
-    --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body[:100] // "none"' \
-    2>/dev/null || echo "err")
-  # Include failed check names so build failures trigger CHANGED notifications immediately
-  failed_checks=$(echo "$checks" \
-    | jq -r '[.[] | select(.bucket == "fail") | .name] | join(",")' 2>/dev/null || echo "err")
-  # Include pending check names so checks completing triggers CHANGED notifications
-  pending_checks=$(echo "$checks" \
-    | jq -r '[.[] | select(.bucket == "pending") | .name] | join(",")' 2>/dev/null || echo "err")
-  # Collapse newlines in snippet so the status line stays single-line for string comparison
-  echo "STATUS bugbot=$bugbot_bucket inline=$inline failed=$failed_checks pending=$pending_checks review=${review_snippet//$'\n'/ }"
+  bugbot_bucket=$(echo "$checks" | jq -r '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // "none"' 2>/dev/null || echo "err")
+  unresolved=$(unresolved_bugbot_threads)
+  # failed/pending check names so build transitions trigger CHANGED notifications immediately
+  failed=$(echo "$checks" | jq -r '[.[] | select(.bucket == "fail") | .name] | join(",")' 2>/dev/null || echo "err")
+  pending=$(echo "$checks" | jq -r '[.[] | select(.bucket == "pending") | .name] | join(",")' 2>/dev/null || echo "err")
+  echo "STATUS bugbot=$bugbot_bucket unresolvedThreads=$unresolved failed=$failed pending=$pending"
 }
 
-# Emit immediately if already ready at startup
 if is_mergeable; then echo "READY_AT_STARTUP: $(emit_status)"; fi
 
 last_status=""
@@ -101,39 +90,42 @@ while true; do
 done
 ```
 
-**Safe-to-merge gate — all must be true (run immediately before merging):**
+**Working a thread (judge → reply if false positive → resolve):**
 
 ```bash
-# 1. All CI checks pass or skipping, and checks list is non-empty
-gh pr checks $PR --repo $REPO --json name,bucket \
-  | jq -e 'length > 0 and all(.bucket == "pass" or .bucket == "skipping")'
+# 1. List the unresolved cursor threads with their id + first comment, to judge each:
+gh api graphql -f query='
+  query($owner:String!,$name:String!,$pr:Int!){
+    repository(owner:$owner,name:$name){
+      pullRequest(number:$pr){
+        reviewThreads(first:100){ nodes{
+          id isResolved
+          comments(first:1){ nodes{ author{ login } path body } }
+        } }
+      }
+    }' -F owner=lapease32 -F name=walking-rpg-app -F pr=$PR \
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[]
+        | select(.isResolved == false and .comments.nodes[0].author.login == "cursor")
+        | {id, path: .comments.nodes[0].path, body: .comments.nodes[0].body[:240]}'
 
-# 2. Bugbot check is not fail (pass or skipping both allowed)
-bugbot_bucket=$(gh pr checks $PR --repo $REPO --json name,bucket \
-  --jq '[.[] | select(.name == "Cursor Bugbot") | .bucket] | first // ""')
-[ "$bugbot_bucket" != "fail" ]
+# 2. FALSE POSITIVE only — reply with the reason, then resolve. (Legit findings: just fix+push;
+#    bugbot auto-resolves on re-review.)
+gh api graphql -f query='
+  mutation($id:ID!,$body:String!){
+    addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id, body:$body}){ comment{ id } }
+  }' -F id=<THREAD_ID> -F body="False positive: <reason, e.g. localSavedAtRef was removed in <sha>>."
 
-# 3 & 4: only check in review mode (bugbot=skipping). When bugbot=pass these are stale.
-if [ "$bugbot_bucket" = "skipping" ]; then
-  head_sha=$(gh pr view $PR --repo $REPO --json headRefOid --jq .headRefOid)
-  gh api "repos/$REPO/pulls/$PR/comments?per_page=100" \
-    --jq "[.[] | select(.user.login == \"cursor[bot]\" and .commit_id == \"$head_sha\" and (.body | test(\"BUGBOT_BUG_ID: ref1_\") | not))] | length" | grep -q "^0$"
-  review=$(gh api "repos/$REPO/pulls/$PR/reviews?per_page=100" \
-    --jq '[.[] | select(.user.login == "cursor[bot]")] | last | .body // ""')
-  echo "$review" | grep -qE "found [1-9][0-9]* potential" && echo "BUGBOT FOUND ISSUES" && exit 1
-fi
-echo "All gates passed — safe to merge"
+gh api graphql -f query='
+  mutation($id:ID!){ resolveReviewThread(input:{threadId:$id}){ thread{ id isResolved } } }' \
+  -F id=<THREAD_ID>
 ```
 
-Merge only when all four pass. If bugbot check is `fail` OR inline comments exist OR review body says "found N" (N > 0): stop and report to the user.
+Merge only when all three gate conditions hold. If the bugbot check is `fail`, or any unresolved `cursor` thread remains: stop and report to the user.
 
 > **Key lessons:**
-> - Bugbot sometimes reports as a check `pass`/`fail` with no review body, and sometimes posts a full review with inline comments while the check shows `skipping`. Always poll all three signals independently.
-> - Review bodies are multi-line. Use a positive `grep -qE "found [1-9]..."` to detect issues — do NOT use `grep -qE "found 0|^$"` (blank lines match `^$`) or `grep -qvE` (behavior differs between macOS ugrep and GNU grep).
-> - Use `?per_page=100` on inline comments and reviews endpoints; the default page size is 30.
-> - Extract single bugbot bucket with `[...] | first // ""` to handle duplicate check entries safely.
-> - Include `failed_checks` and `pending_checks` (names of failing/pending checks) in `emit_status` so build transitions trigger `CHANGED` notifications immediately — without `pending_checks`, a check going from `pending` → `pass` produces no status change and the monitor stays silent.
-> - Use a 60s poll interval in the monitor loop (not 270s) so build check transitions are caught quickly. The 270s recommendation is for the ScheduleWakeup fallback only.
-> - Gates 3 & 4 (inline comments, review body) only apply when `bugbot_bucket == "skipping"` (review mode). When bugbot=pass it uses check mode and any lingering inline comments or review bodies are stale artifacts from a prior review cycle — checking them will always falsely block the merge.
-> - Filter inline comments by `commit_id == HEAD_SHA` (fetched via `gh pr view --json headRefOid`). Bugbot comments from prior commits persist on the PR after a fix is pushed and will falsely block the gate if you count all cursor[bot] comments regardless of commit.
-> - Also filter out `ref1_` carry-forwards. Bugbot re-posts unresolved findings from prior rounds with the *current* HEAD's `commit_id`, so they pass the commit_id filter but are not new findings on the new code. Only a comment whose bug ID does NOT start with `ref1_` represents a fresh finding on this commit. Filter with `.body | test("BUGBOT_BUG_ID: ref1_") | not`.
+> - **Thread resolution state is the signal, not comment counts.** `commit_id`/`ref1_` filtering was abandoned (2026-05-31) — bugbot re-posts fixed findings on the new HEAD without the `ref1_` marker, defeating that filter (burned us on PR #170).
+> - Bugbot **auto-resolves its own findings** once a re-review confirms the fix — verified on #170 (3 fixed findings auto-resolved; only 2 false positives stayed unresolved). So you usually only manually resolve false positives.
+> - The `Cursor Bugbot` **check status is independent of thread resolution** — resolving threads does not flip the check to `pass`; the check passes when a re-review finds nothing. The merge gate keys off *unresolved threads*, not the review body.
+> - GraphQL author login is `cursor`; REST renders it `cursor[bot]`. `resolveReviewThread` / `addPullRequestReviewThreadReply` are GraphQL-only (no plain `gh` subcommand) — proven working with the current token (#170, 2026-05-31).
+> - Use a 60s poll in the monitor (catches build transitions); 270s is the `ScheduleWakeup` fallback only. Include `failed`/`pending` check names in `emit_status` so a `pending → pass` transition produces a `CHANGED` notification.
+> - Bugbot reports `skipping` in review mode and `pass` in check mode — both are non-fail and allowed; the gate distinguishes outstanding work via unresolved threads, so it no longer needs to branch on the mode.
