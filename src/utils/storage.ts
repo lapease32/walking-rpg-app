@@ -88,14 +88,19 @@ export function isValidPlayerData(data: unknown): data is PlayerData {
  * thread on Android New Architecture (the E2E-Android flake) — gating first
  * paint on it strands the user on "Loading…". Running it post-paint means the
  * screen is already committed before any potential freeze. See usePlayer.
+ *
+ * The local timestamp is re-read AFTER the cloud fetch resolves (not passed in
+ * from before the read started), so progress the player earns while the read is
+ * in flight — written via savePlayerData with a fresh timestamp — is never
+ * clobbered by older cloud data.
  */
-export async function reconcileCloudPlayerData(localSavedAt: number): Promise<PlayerData | null> {
+export async function reconcileCloudPlayerData(): Promise<PlayerData | null> {
   const cloudRecord = await CloudSyncService.loadPlayerData();
-  if (
-    cloudRecord !== null &&
-    isValidPlayerData(cloudRecord.playerData) &&
-    cloudRecord.lastSavedAt > localSavedAt
-  ) {
+  if (cloudRecord === null || !isValidPlayerData(cloudRecord.playerData)) {
+    return null;
+  }
+  const { savedAt: currentLocalSavedAt } = await readLocalPlayerSnapshot();
+  if (cloudRecord.lastSavedAt > currentLocalSavedAt) {
     try {
       await writeLocalPlayerSnapshot(cloudRecord.playerData, cloudRecord.lastSavedAt);
     } catch (error) {
@@ -256,8 +261,16 @@ export async function readLocalPlayerSnapshot(): Promise<{
     const savedAt = Number(result?.[1]?.[1] ?? 0);
     if (!json) return { data: null, savedAt: 0 };
     const parsed: unknown = JSON.parse(json);
-    return { data: isValidPlayerData(parsed) ? parsed : null, savedAt };
+    if (isValidPlayerData(parsed)) {
+      return { data: parsed, savedAt };
+    }
+    // Corrupt/invalid local data — clear it so its stale timestamp can't block
+    // cloud reconciliation, and report savedAt:0 (treated as no local save).
+    await clearLocalPlayerData();
+    return { data: null, savedAt: 0 };
   } catch {
+    // JSON parse failed — same treatment: clear and report no local save.
+    await clearLocalPlayerData();
     return { data: null, savedAt: 0 };
   }
 }

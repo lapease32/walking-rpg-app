@@ -84,9 +84,6 @@ export function usePlayer() {
   // completion order, so a slow null-user load can clobber the signed-in
   // load's result and silently drop cloud progress.
   const initGenerationRef = useRef(0);
-  // Local snapshot timestamp captured by initializePlayer; read by the post-paint
-  // cloud reconcile to decide whether cloud data is strictly newer.
-  const localSavedAtRef = useRef(0);
   // The in-flight cloud reconcile promise. handleArchetypeSelected awaits it so a
   // freshly-chosen archetype can never overwrite an existing cloud character
   // (fresh install / reinstall). Resolves to cloud PlayerData when it wins, else null.
@@ -139,7 +136,7 @@ export function usePlayer() {
     if (reconciledGenerationRef.current === gen) return; // already reconciled this load
     reconciledGenerationRef.current = gen;
 
-    const promise = reconcileCloudPlayerData(localSavedAtRef.current);
+    const promise = reconcileCloudPlayerData();
     cloudCheckRef.current = promise;
     promise
       .then(cloudData => {
@@ -186,6 +183,9 @@ export function usePlayer() {
       pendingCommitUnsubRef.current?.();
       pendingCommitUnsubRef.current = commitWhenActive(() => {
         pendingCommitUnsubRef.current = null;
+        // A newer init/clearPlayer superseded us between arming and firing — a
+        // deferred commit from a stale init must not paint over the live one.
+        if (myGeneration !== initGenerationRef.current) return;
         setNeedsArchetypeSelection(true);
       });
     };
@@ -193,13 +193,12 @@ export function usePlayer() {
       // LOCAL ONLY — never gate first paint on the cloud read; it can synchronously
       // block the JS thread on Android New Arch and strand the user on "Loading…".
       // The post-paint reconcile effect pulls cloud data once the screen is up.
-      const { data: localData, savedAt } = await readLocalPlayerSnapshot();
+      const { data: localData } = await readLocalPlayerSnapshot();
       // A newer initializePlayer (e.g. belated-sign-in reload) or a clearPlayer
       // superseded us while we awaited. Bail so our stale snapshot can't clobber.
       if (myGeneration !== initGenerationRef.current) {
         return;
       }
-      localSavedAtRef.current = savedAt;
 
       if (!localData) {
         // No local save — genuinely new, or a fresh install whose cloud character
@@ -217,6 +216,7 @@ export function usePlayer() {
       pendingCommitUnsubRef.current?.();
       pendingCommitUnsubRef.current = commitWhenActive(() => {
         pendingCommitUnsubRef.current = null;
+        if (myGeneration !== initGenerationRef.current) return; // superseded
         if (playerRef.current) {
           setPlayer(playerRef.current);
           setNeedsArchetypeSelection(false);
@@ -245,7 +245,7 @@ export function usePlayer() {
     // (set reconciledGenerationRef so the effect doesn't double-fetch).
     if (!cloudCheckRef.current) {
       reconciledGenerationRef.current = gen;
-      cloudCheckRef.current = reconcileCloudPlayerData(localSavedAtRef.current);
+      cloudCheckRef.current = reconcileCloudPlayerData();
     }
     let cloudData: PlayerData | null = null;
     try {
