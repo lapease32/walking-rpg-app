@@ -82,7 +82,7 @@ android {
 
     namespace "com.walkingrpgtemp"
     defaultConfig {
-        applicationId "com.walkingrpgtemp"
+        applicationId "com.lancepease.walkingrpg"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -104,11 +104,11 @@ android {
         debug {
             signingConfig signingConfigs.debug
             manifestPlaceholders += [usesCleartextTraffic: "true"]
-            // No applicationIdSuffix: google-services.json only has "com.walkingrpgtemp".
-            // A .debug suffix would use com.walkingrpgtemp.debug, which has no Firebase config,
-            // so Firebase would fail to init and FirebaseService would throw in development.
+            // No applicationIdSuffix: google-services.json only has "com.lancepease.walkingrpg".
+            // A .debug suffix would use com.lancepease.walkingrpg.debug, which has no Firebase
+            // config, so Firebase would fail to init and FirebaseService would throw in development.
             // Trade-off: debug and release cannot be installed side-by-side. To restore
-            // coexistence, add an Android app for com.walkingrpgtemp.debug in Firebase Console,
+            // coexistence, add an Android app for com.lancepease.walkingrpg.debug in Firebase Console,
             // download an updated google-services.json with both clients, then add the suffix back.
         }
         release {
