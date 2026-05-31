@@ -76,45 +76,38 @@ export function isValidPlayerData(data: unknown): data is PlayerData {
   );
 }
 
-export async function loadPlayerData(): Promise<PlayerData | null> {
-  // Load local data and its timestamp in parallel with the cloud fetch
-  const [cloudRecord, localResult] = await Promise.all([
-    CloudSyncService.loadPlayerData(),
-    AsyncStorage.multiGet([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]).catch(
-      () => null,
-    ),
-  ]);
-
-  const localJson = localResult?.[0]?.[1] ?? null;
-  const localSavedAt = Number(localResult?.[1]?.[1] ?? 0);
-
-  // Use cloud data only when it is strictly newer than what we have locally
-  if (cloudRecord !== null && isValidPlayerData(cloudRecord.playerData)) {
-    if (cloudRecord.lastSavedAt > localSavedAt) {
-      AsyncStorage.multiSet([
-        [STORAGE_KEYS.PLAYER_DATA, JSON.stringify(cloudRecord.playerData)],
-        [STORAGE_KEYS.PLAYER_SAVED_AT, String(cloudRecord.lastSavedAt)],
-      ]).catch(console.error);
-      return cloudRecord.playerData;
-    }
+/**
+ * Fetch the cloud player record and, if it is strictly newer than the local
+ * snapshot, persist it locally and return it. Returns null when the cloud has
+ * nothing newer (no record, not newer, or the read timed out).
+ *
+ * This is the cloud half of what used to be loadPlayerData(). It is deliberately
+ * separated so the cold-start flow can paint the first screen from the LOCAL
+ * snapshot (readLocalPlayerSnapshot) first and run this reconciliation AFTER the
+ * initial render. The native Firestore read can synchronously block the JS
+ * thread on Android New Architecture (the E2E-Android flake) — gating first
+ * paint on it strands the user on "Loading…". Running it post-paint means the
+ * screen is already committed before any potential freeze. See usePlayer.
+ *
+ * The local timestamp is re-read AFTER the cloud fetch resolves (not passed in
+ * from before the read started), so progress the player earns while the read is
+ * in flight — written via savePlayerData with a fresh timestamp — is never
+ * clobbered by older cloud data.
+ */
+export async function reconcileCloudPlayerData(): Promise<PlayerData | null> {
+  const cloudRecord = await CloudSyncService.loadPlayerData();
+  if (cloudRecord === null || !isValidPlayerData(cloudRecord.playerData)) {
+    return null;
   }
-
-  // Local data is at least as fresh — use it
-  if (localJson) {
+  const { savedAt: currentLocalSavedAt } = await readLocalPlayerSnapshot();
+  if (cloudRecord.lastSavedAt > currentLocalSavedAt) {
     try {
-      const parsed: unknown = JSON.parse(localJson);
-      if (!isValidPlayerData(parsed)) {
-        console.error('Corrupted player data in storage, resetting to new player');
-        await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
-        return null;
-      }
-      return parsed;
+      await writeLocalPlayerSnapshot(cloudRecord.playerData, cloudRecord.lastSavedAt);
     } catch (error) {
-      console.error('Error loading player data:', error);
-      return null;
+      console.error('reconcileCloudPlayerData: failed to persist cloud data locally:', error);
     }
+    return cloudRecord.playerData;
   }
-
   return null;
 }
 
@@ -268,8 +261,16 @@ export async function readLocalPlayerSnapshot(): Promise<{
     const savedAt = Number(result?.[1]?.[1] ?? 0);
     if (!json) return { data: null, savedAt: 0 };
     const parsed: unknown = JSON.parse(json);
-    return { data: isValidPlayerData(parsed) ? parsed : null, savedAt };
+    if (isValidPlayerData(parsed)) {
+      return { data: parsed, savedAt };
+    }
+    // Corrupt/invalid local data — clear it so its stale timestamp can't block
+    // cloud reconciliation, and report savedAt:0 (treated as no local save).
+    await clearLocalPlayerData();
+    return { data: null, savedAt: 0 };
   } catch {
+    // JSON parse failed — same treatment: clear and report no local save.
+    await clearLocalPlayerData();
     return { data: null, savedAt: 0 };
   }
 }
