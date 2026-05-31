@@ -398,7 +398,7 @@ export default function HomeScreen() {
         onFight={handleFight}
         onFlee={handleFlee}
         onMinimize={handleMinimize}
-        debugMode={debugMode}
+        debugMode={ENV_CONFIG.enableDebugMode && debugMode}
         onDebugDefeat={handleDebugDefeat}
       />
       <CombatModal
