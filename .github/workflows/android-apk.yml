@@ -1,0 +1,62 @@
+name: Android Release APK
+
+# On-demand only (Run workflow button). Produces a self-contained, production
+# release APK for sideloading / Firebase App Distribution to a tester's real
+# device — no Play Console needed. Not a PR gate, so it never slows checks.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+
+      - name: Set Android SDK path
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      # Production build: APP_ENV is intentionally unset → getAppEnvironment() fails
+      # safe to 'production' → debug panel OFF. That's what a tester should evaluate.
+      # Plain assembleRelease uses the default reactNativeArchitectures
+      # (armeabi-v7a,arm64-v8a,x86,x86_64) → one universal app-release.apk that runs
+      # on real ARM phones. Signed with the debug keystore for now: fine for a one-off
+      # smoke test; a real upload keystore is a separate prerequisite before ongoing
+      # distribution (see task backlog).
+      - name: Assemble release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stridequest-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
