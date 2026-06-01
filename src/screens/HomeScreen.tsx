@@ -49,7 +49,6 @@ export default function HomeScreen() {
   } = usePlayer();
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [accuracyLevel, setAccuracyLevel] = useState<'high' | 'balanced' | 'battery'>('balanced');
   const [selectedEquipmentSlot, setSelectedEquipmentSlot] = useState<EquipmentSlot | null>(null);
   const [debugMode, setDebugMode] = useState<boolean>(ENV_CONFIG.enableDebugMode);
 
@@ -451,11 +450,6 @@ export default function HomeScreen() {
       <SettingsModal
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        accuracyLevel={accuracyLevel}
-        onAccuracyLevelChange={level => {
-          setAccuracyLevel(level);
-          // TODO: Implement functionality to change distance interval
-        }}
         authUser={authUser}
         authLoading={authLoading}
         onGoogleSignIn={handleGoogleSignIn}
