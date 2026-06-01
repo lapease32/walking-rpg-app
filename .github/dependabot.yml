@@ -59,3 +59,14 @@ updates:
           - 'jest-*'
           - '@jest/*'
           - 'ts-jest'
+      # Catch-all for everything else: collapse remaining dev-tooling minor+patch bumps
+      # (lint-staged, eslint, husky, prettier, @typescript-eslint/*, etc.) into ONE weekly
+      # PR to minimize open Dependabot PRs. Scoped to development deps only — runtime deps
+      # stay ungrouped so a regression stays bisectable (cf. PR #173, where a grouped runtime
+      # patch hid which dep broke iOS startup). Listed last so the named groups claim their
+      # packages first.
+      dev-tooling:
+        dependency-type: 'development'
+        update-types: ['minor', 'patch']
+        patterns:
+          - '*'
