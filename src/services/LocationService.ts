@@ -107,7 +107,7 @@ class LocationService {
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       {
         title: 'Location Permission',
-        message: 'Walking RPG needs your location to track movement and trigger encounters.',
+        message: 'StrideQuest needs your location to track movement and trigger encounters.',
         buttonPositive: 'Allow',
         buttonNegative: 'Deny',
       },

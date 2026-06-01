@@ -282,7 +282,7 @@ export default function HomeScreen() {
               activeOpacity={0.7}>
               <Text style={styles.settingsButtonText}>⚙️</Text>
             </TouchableOpacity>
-            <Text style={styles.title}>Walking RPG</Text>
+            <Text style={styles.title}>StrideQuest</Text>
           </View>
 
           <PlayerStats player={player} />

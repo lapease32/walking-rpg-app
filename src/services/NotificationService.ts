@@ -44,7 +44,7 @@ class NotificationService {
     try {
       await notifee.displayNotification({
         id: 'location_tracking_service',
-        title: 'Walking RPG',
+        title: 'StrideQuest',
         body: 'Tracking your location for encounters',
         android: {
           channelId: this.trackingChannelId,
