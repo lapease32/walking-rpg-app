@@ -51,11 +51,11 @@
 		</dict>
 	</dict>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Walking RPG needs your location to track your movement and trigger creature encounters even when the app is in the background.</string>
+	<string>StrideQuest needs your location to track your movement and trigger creature encounters even when the app is in the background.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Walking RPG needs your location to track your movement and trigger creature encounters even when the app is in the background.</string>
+	<string>StrideQuest needs your location to track your movement and trigger creature encounters even when the app is in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Walking RPG needs your location to track your movement and trigger creature encounters while you walk.</string>
+	<string>StrideQuest needs your location to track your movement and trigger creature encounters while you walk.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIBackgroundModes</key>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Player } from '../models/Player';
+import { ARCHETYPE_CONFIGS } from '../models/Archetype';
 
 interface PlayerStatsProps {
   player: Player | null;
@@ -25,7 +26,7 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.playerName}>{stats.name}</Text>
+        <Text style={styles.playerName}>{ARCHETYPE_CONFIGS[player.archetype].name}</Text>
         <Text style={styles.level}>Level {stats.level}</Text>
       </View>
 

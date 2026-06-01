@@ -35,7 +35,7 @@ export interface ArchetypeConfig {
 
 export const ARCHETYPE_CONFIGS: Readonly<Record<Archetype, ArchetypeConfig>> = {
   [Archetype.Martial]: {
-    name: 'Martial',
+    name: 'Warrior',
     description: 'Melee physical damage dealer. High armor and health, fuelled by rage.',
     resource: 'rage',
     strBase: 10,
@@ -47,7 +47,7 @@ export const ARCHETYPE_CONFIGS: Readonly<Record<Archetype, ArchetypeConfig>> = {
     hpConstant: 64,
   },
   [Archetype.Agile]: {
-    name: 'Agile',
+    name: 'Rogue',
     description: 'Finesse fighter. Swift and precise, medium survivability, fuelled by energy.',
     resource: 'energy',
     strBase: 6,
