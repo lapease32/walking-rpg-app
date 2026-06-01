@@ -21,6 +21,15 @@ updates:
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: '@react-native-async-storage/async-storage'
         update-types: ['version-update:semver-major']
+      # Pinned out after PR #173 (2026-05-31): this grouped patch bump (react 19.2.6 +
+      # react-native-permissions 5.5.2) reproducibly hung iOS new-user startup — the home
+      # screen never loaded after archetype selection (E2E iOS red x2 vs main green x7).
+      # We didn't bisect which dep is at fault, so block both exact versions; a later fixed
+      # patch can still be proposed.
+      - dependency-name: 'react'
+        versions: ['19.2.6']
+      - dependency-name: 'react-native-permissions'
+        versions: ['5.5.2']
       # Prettier major upgrades require reformatting all files — defer until planned
       - dependency-name: 'prettier'
         update-types: ['version-update:semver-major']
