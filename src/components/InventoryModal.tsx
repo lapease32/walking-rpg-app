@@ -8,7 +8,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { Item, canEquipInSlot } from '../models/Item';
+import { Item, canEquipInSlot, getItemSlot } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { Player, EquipmentSlot } from '../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
@@ -22,6 +22,18 @@ interface InventoryModalProps {
   onItemDeleted?: () => void;
   equipmentSlot?: EquipmentSlot | null; // Optional filter for equipment slot
 }
+
+// Stats shown per item, in display order. Values are item totals (affixes baked in).
+type StatKey = 'attack' | 'defense' | 'maxHp' | 'hp';
+const STAT_DISPLAY: { key: StatKey; icon: string; prefix: string }[] = [
+  { key: 'attack', icon: '⚔️', prefix: '' },
+  { key: 'defense', icon: '🛡️', prefix: '' },
+  { key: 'maxHp', icon: '💚', prefix: '+' },
+  { key: 'hp', icon: '❤️', prefix: '+' },
+];
+const STAT_UP = '#2e7d32'; // green: beats the equipped item's stat
+const STAT_DOWN = '#c62828'; // red: worse than equipped
+const STAT_NEUTRAL = '#444'; // equal, or nothing equipped to compare against
 
 /**
  * Modal component for displaying player inventory
@@ -74,6 +86,7 @@ export default function InventoryModal({
       }
     }
   }, [inventory, selectedItemIndex, selectedItem]);
+
   const rarityColors: Record<Rarity, string> = {
     common: '#9E9E9E',
     uncommon: '#4CAF50',
@@ -98,6 +111,14 @@ export default function InventoryModal({
       accessory: '💍',
     };
     return iconMap[item.type] || '📦';
+  };
+
+  // The item currently equipped in this item's slot, for stat comparison.
+  // Accessories compare against accessory1 (their default slot) — a reasonable hint;
+  // the detail modal shows the full picture.
+  const getEquippedFor = (target: Item): Item | null => {
+    if (!player) return null;
+    return player.equipment[getItemSlot(target)] ?? null;
   };
 
   const handleItemPress = (item: Item | null, originalIndex: number) => {
@@ -160,65 +181,55 @@ export default function InventoryModal({
     setSelectedItemIndex(-1);
   };
 
-  const renderInventorySlot = (item: Item | null, index: number) => {
-    const isEmpty = item === null;
-    const slotBorderColor = !isEmpty && item ? getRarityColor(item.rarity) : '#d0d0d0';
-    const slotBorderStyle: 'solid' | 'dashed' = isEmpty ? 'dashed' : 'solid';
+  const renderItemRow = (item: Item, originalIndex: number) => {
+    const rarityColor = getRarityColor(item.rarity);
+    const equipped = getEquippedFor(item);
+    const affixCount = item.affixes?.length ?? 0;
 
     return (
       <TouchableOpacity
-        key={index}
-        style={styles.slotContainer}
-        onPress={() => handleItemPress(item, index)}
-        disabled={isEmpty}
-        activeOpacity={isEmpty ? 1 : 0.7}>
-        <View
-          style={[
-            styles.slot,
-            isEmpty && styles.emptySlot,
-            { borderColor: slotBorderColor, borderStyle: slotBorderStyle },
-          ]}>
-          {isEmpty ? (
-            <View style={styles.emptySlotContent}>
-              <Text style={styles.emptySlotIcon}>📦</Text>
-              <Text style={styles.emptySlotText}>Empty</Text>
-            </View>
-          ) : (
-            item && (
-              <View style={styles.itemContent}>
-                <Text style={styles.itemIcon}>{getItemIcon(item)}</Text>
-                <Text
-                  style={[styles.itemName, { color: getRarityColor(item.rarity) }]}
-                  numberOfLines={2}>
-                  {item.name}
+        key={item.id}
+        style={[styles.row, { borderLeftColor: rarityColor }]}
+        onPress={() => handleItemPress(item, originalIndex)}
+        activeOpacity={0.7}>
+        <Text style={styles.rowIcon}>{getItemIcon(item)}</Text>
+        <View style={styles.rowBody}>
+          <Text style={[styles.rowName, { color: rarityColor }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.rowMeta}>
+            Lv {item.level} · {item.rarity.toUpperCase()}
+            {affixCount > 0 ? ` · ◆ ${affixCount}` : ''}
+          </Text>
+          <View style={styles.statRow}>
+            {STAT_DISPLAY.map(({ key, icon, prefix }) => {
+              const value = item[key];
+              if (value === undefined) {
+                return null;
+              }
+              // Compare against the equipped item's same stat (treat missing as 0).
+              // Only color/arrow when something is equipped to compare against.
+              const equippedValue = equipped ? (equipped[key] ?? 0) : undefined;
+              let color = STAT_NEUTRAL;
+              let arrow = '';
+              if (equippedValue !== undefined) {
+                if (value > equippedValue) {
+                  color = STAT_UP;
+                  arrow = ' ▲';
+                } else if (value < equippedValue) {
+                  color = STAT_DOWN;
+                  arrow = ' ▼';
+                }
+              }
+              return (
+                <Text key={key} style={[styles.statChip, { color }]}>
+                  {icon} {prefix}
+                  {value}
+                  {arrow}
                 </Text>
-                <Text style={styles.itemLevel}>Lv. {item.level}</Text>
-                <Text style={styles.itemRarity}>{item.rarity.toUpperCase()}</Text>
-                {item.affixes && item.affixes.length > 0 && (
-                  <Text style={styles.modifierBadge}>
-                    ◆ {item.affixes.length} {item.affixes.length === 1 ? 'modifier' : 'modifiers'}
-                  </Text>
-                )}
-                {(item.attack !== undefined ||
-                  item.defense !== undefined ||
-                  item.hp !== undefined ||
-                  item.maxHp !== undefined) && (
-                  <View style={styles.itemStats}>
-                    {item.attack !== undefined && (
-                      <Text style={styles.statText}>⚔️ {item.attack}</Text>
-                    )}
-                    {item.defense !== undefined && (
-                      <Text style={styles.statText}>🛡️ {item.defense}</Text>
-                    )}
-                    {item.hp !== undefined && <Text style={styles.statText}>❤️ +{item.hp}</Text>}
-                    {item.maxHp !== undefined && (
-                      <Text style={styles.statText}>💚 +{item.maxHp}</Text>
-                    )}
-                  </View>
-                )}
-              </View>
-            )
-          )}
+              );
+            })}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -227,6 +238,11 @@ export default function InventoryModal({
   const usedSlots = inventory.filter(item => item !== null).length;
   const totalSlots = inventory.length;
   const filteredUsedSlots = filteredInventoryData.filter(({ item }) => item !== null).length;
+
+  // Non-empty items to render as rows (keeps original index for equip/delete by index)
+  const itemRows = filteredInventoryData.filter(
+    (entry): entry is { item: Item; originalIndex: number } => entry.item !== null,
+  );
 
   // Get slot label for display
   const getSlotLabel = (slot: EquipmentSlot): string => {
@@ -266,13 +282,23 @@ export default function InventoryModal({
                 : `${usedSlots} / ${totalSlots} slots used`}
             </Text>
           </View>
+          {player && (
+            <Text style={styles.legend}>
+              <Text style={{ color: STAT_UP }}>▲ better</Text> /{' '}
+              <Text style={{ color: STAT_DOWN }}>▼ worse</Text> than equipped
+            </Text>
+          )}
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.inventoryGrid}>
-              {filteredInventoryData.map(({ item, originalIndex }) =>
-                renderInventorySlot(item, originalIndex),
-              )}
-            </View>
+            {itemRows.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {equipmentSlot
+                  ? 'No items for this slot yet.'
+                  : 'No items yet — defeat creatures to find loot!'}
+              </Text>
+            ) : (
+              itemRows.map(({ item, originalIndex }) => renderItemRow(item, originalIndex))
+            )}
           </ScrollView>
         </View>
       </Pressable>
@@ -332,7 +358,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   statsText: {
     fontSize: 14,
@@ -340,90 +366,60 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
+  legend: {
+    fontSize: 11,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   scrollContent: {
     paddingBottom: 10,
   },
-  inventoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 2,
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
-  slotContainer: {
-    width: '18.5%', // 5 columns with margins
-    aspectRatio: 0.85, // Slightly taller to accommodate more content
-    marginRight: '1.875%', // Space between items (will overflow slightly on last item of row, but acceptable)
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafafa',
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#e0e0e0',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginBottom: 8,
   },
-  slot: {
-    flex: 1,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    padding: 6,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    overflow: 'hidden',
+  rowIcon: {
+    fontSize: 28,
+    marginRight: 12,
   },
-  emptySlot: {
-    backgroundColor: '#fafafa',
-    borderStyle: 'dashed',
-    borderColor: '#d0d0d0',
-  },
-  emptySlotContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptySlotIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  emptySlotText: {
-    fontSize: 10,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  itemContent: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+  rowBody: {
     flex: 1,
   },
-  itemIcon: {
-    fontSize: 20,
-    marginBottom: 2,
-  },
-  itemName: {
-    fontSize: 9,
+  rowName: {
+    fontSize: 15,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 1,
-    lineHeight: 11,
-  },
-  itemLevel: {
-    fontSize: 7,
-    color: '#666',
-    marginBottom: 1,
-  },
-  itemRarity: {
-    fontSize: 6,
-    fontWeight: '600',
     marginBottom: 2,
   },
-  modifierBadge: {
-    fontSize: 7,
-    fontWeight: '600',
-    color: '#9C27B0',
-    marginBottom: 2,
+  rowMeta: {
+    fontSize: 11,
+    color: '#888',
+    marginBottom: 5,
   },
-  itemStats: {
+  statRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    marginTop: 1,
   },
-  statText: {
-    fontSize: 6,
-    color: '#666',
-    lineHeight: 8,
+  statChip: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginRight: 14,
+    marginBottom: 2,
   },
 });
