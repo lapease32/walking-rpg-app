@@ -1,144 +1,39 @@
-# Quick Start Guide
+# Quick Start
 
-Get up and running with your Walking RPG app in minutes!
+The fast path. For detail see [SETUP.md](SETUP.md); for design see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Installation
+## 1. Firebase config (required)
+
+Add your Firebase config files (both are gitignored — the native build needs them):
+
+- `android/app/google-services.json`
+- `ios/WalkingRPGTemp/GoogleService-Info.plist`
+
+## 2. Install & run
 
 ```bash
-# Install dependencies
 yarn install
+cd ios && bundle exec pod install && cd ..   # iOS only
 
-# For iOS (macOS only)
-cd ios && pod install && cd ..
+yarn start            # Metro
+yarn ios              # or: yarn android
 ```
 
-## Configuration
+(iOS can also be run from `ios/WalkingRPGTemp.xcworkspace` in Xcode.)
 
-### iOS Permissions
+## 3. Test the walk loop
 
-Add to `ios/WalkingRPG/Info.plist`:
+Encounters trigger from GPS distance, so simulate movement to test indoors:
 
-```xml
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>This app needs location access to track your walks.</string>
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>This app needs location access to track your walks.</string>
-```
+- **iOS Simulator:** Features → Location
+- **Android Emulator:** Extended Controls (•••) → Location
 
-### Android Permissions
+…or walk outdoors on a real device (most representative).
 
-Add to `android/app/src/main/AndroidManifest.xml`:
+## Tuning gameplay
 
-```xml
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-```
+Gameplay constants live in `src/constants/config.ts` (encounter/distance/combat tuning) and `src/constants/abilities.ts` (per-archetype ability rosters). Archetype base stats are in `src/models/Archetype.ts`.
 
-## Run the App
+---
 
-```bash
-# Start Metro
-yarn start
-
-# Run on iOS
-yarn ios
-
-# Run on Android
-yarn android
-```
-
-## Testing
-
-### Test on Real Device (Recommended)
-- Physical device provides best GPS accuracy
-- Enables actual walking to trigger encounters
-
-### Test on Simulator/Emulator
-- **iOS**: Xcode Simulator → Features → Location
-- **Android**: Emulator Extended Controls → Location
-
-## Key Files to Customize
-
-### Add More Creatures
-Edit `src/models/Creature.ts`:
-- Add to `CREATURE_TEMPLATES` array
-- Define stats, rarity, description
-- TypeScript types ensure type safety
-
-### Adjust Encounter Rates
-Edit `src/constants/config.ts`:
-- `MIN_ENCOUNTER_DISTANCE`: Minimum meters before encounter
-- `ENCOUNTER_CHANCE_PER_METER`: Probability per meter
-- `MIN_TIME_BETWEEN_ENCOUNTERS`: Cooldown in milliseconds
-
-### Modify Player Progression
-Edit `src/models/Player.ts`:
-- `getExperienceForNextLevel()`: Change leveling formula
-- Adjust experience rewards in `Creature.getExperienceReward()`
-- Modify combat stats scaling (`ATTACK_PER_LEVEL`, `DEFENSE_PER_LEVEL`)
-
-## Common Tasks
-
-### Force an Encounter (Testing)
-In `src/screens/HomeScreen.tsx`, the `forceEncounter` function is already available in debug mode:
-```typescript
-const forceEncounter = (): void => {
-  const location: Location = currentLocation
-    ? {
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
-      }
-    : {
-        latitude: 37.7749,
-        longitude: -122.4194,
-      };
-  const encounter = EncounterService.forceEncounter(
-    location,
-    player?.level || 1
-  );
-  setCurrentEncounter(encounter);
-  setShowEncounterModal(true);
-};
-```
-
-### Change Distance Units
-Edit `src/components/DistanceDisplay.tsx`:
-```typescript
-<DistanceDisplay distance={currentDistance} unit="mi" /> // miles
-```
-
-### Adjust GPS Accuracy
-Edit `src/services/LocationService.ts`:
-- `distanceFilter`: Lower = more updates (battery drain)
-- `enableHighAccuracy`: False = better battery
-
-## Next Features to Build
-
-1. **Creature Collection** - Inventory/caught creatures list (combat system already implemented)
-2. **Location Biomes** - Different creatures by area type
-3. **Map View** - Visual map with location markers
-4. **Daily Quests** - Goals and challenges
-5. **Enhanced Combat** - Creature attacks and special abilities
-
-## Troubleshooting
-
-**Location not working?**
-- Check permissions are granted
-- Verify device location services are on
-- Test with real device if possible
-
-**Encounters not triggering?**
-- Walk/simulate movement for 50+ meters
-- Check encounter status: `EncounterService.getEncounterStatus()`
-- Reduce `MIN_ENCOUNTER_DISTANCE` for testing
-
-**Build errors?**
-- Clear cache: `yarn start -- --reset-cache`
-- Reinstall: `rm -rf node_modules && yarn install`
-- iOS: `cd ios && pod install && cd ..`
-
-## Need Help?
-
-- Check `README.md` for overview
-- See `ARCHITECTURE.md` for technical details
-- Review `SETUP.md` for detailed setup instructions
-
+See also: [SETUP.md](SETUP.md) (detailed) · [ANDROID_SETUP.md](ANDROID_SETUP.md) (Android specifics) · [ARCHITECTURE.md](ARCHITECTURE.md) (design).

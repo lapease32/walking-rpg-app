@@ -1,252 +1,81 @@
 # Architecture Overview
 
-This document explains the architecture and design decisions for the Walking RPG app.
+How StrideQuest is structured and the key design decisions behind it.
 
-## System Architecture
+## High-level shape
+
+A single primary screen (`HomeScreen`) owns very little logic itself — it composes behavior from focused **custom hooks**, which operate on plain **TypeScript models** and singleton **services**. State lives in the hooks (via refs/state), not a global store; for a single-screen game loop that's simpler than Zustand/Redux.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     React Native App                     │
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │   HomeScreen │  │  Components  │  │   Services   │ │
-│  │              │  │              │  │              │ │
-│  │ - UI State   │  │ - Display    │  │ - Location   │ │
-│  │ - Navigation │  │ - Modals     │  │ - Encounter  │ │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │
-│         │                  │                  │         │
-│         └──────────────────┼──────────────────┘         │
-│                            │                            │
-│                   ┌────────┴────────┐                  │
-│                   │   Data Models   │                  │
-│                   │                 │                  │
-│                   │ - Player        │                  │
-│                   │ - Creature      │                  │
-│                   │ - Encounter     │                  │
-│                   └─────────────────┘                  │
-│                            │                            │
-│                   ┌────────┴────────┐                  │
-│                   │   Local Storage │                  │
-│                   │   (AsyncStorage)│                  │
-│                   └─────────────────┘                  │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            │
-┌───────────────────────────┴───────────────────────────┐
-│              Platform Services                         │
-│                                                         │
-│  ┌──────────────┐          ┌──────────────┐          │
-│  │  Geolocation │          │  Permissions │          │
-│  │     API      │          │     API      │          │
-│  └──────────────┘          └──────────────┘          │
-└───────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  HomeScreen (composition + layout)                            │
+│                                                              │
+│  hooks/                                                      │
+│   useAuth · usePlayer · useEncounter · useLocation ·         │
+│   useAppLifecycle                                           │
+│        │                                                    │
+│        ▼                                                    │
+│  models/ (plain TS)        services/ (singletons)           │
+│   Player, Archetype,        Location, Encounter, Loot,      │
+│   Ability, Creature,        Auth, CloudSync, Firebase,      │
+│   Encounter, Item(s),       Analytics, Crashlytics,         │
+│   DamageType                Notification                    │
+└──────────────────────────────────────────────────────────────┘
+        │                                   │
+        ▼                                   ▼
+  AsyncStorage (local-first)        Cloud Firestore (reconcile)
+        │                                   │
+        └──────────── Firebase (Auth · Firestore · Crashlytics · Analytics)
+                       Native: Geolocation · Notifications
 ```
 
-## Core Components
+Runs on the React Native **New Architecture** (Fabric + TurboModules) with **Hermes** on both platforms.
 
-### 1. Location Service (`LocationService.ts`)
+## Layers
 
-**Purpose**: Handles all GPS-related functionality
+### Hooks (`src/hooks/`)
+The HomeScreen logic is split into single-responsibility hooks:
+- **`useAuth`** — Firebase auth lifecycle (anonymous on first launch; link to Google/Apple); exposes the current user and sign-in/out.
+- **`usePlayer`** — loads/holds the `Player`, applies progression, and owns persistence. Paints from local storage first, then reconciles with the cloud (see *Persistence*).
+- **`useEncounter`** — encounter/combat orchestration: generating encounters, running turn-based combat, applying ability/resource/resistance rules, awarding loot/XP.
+- **`useLocation`** — GPS tracking and distance accrual.
+- **`useAppLifecycle`** — foreground/background transitions and related housekeeping.
 
-**Key Features**:
-- Continuous location tracking using `watchPosition`
-- Distance calculation using Haversine formula
-- Movement speed detection
-- Distance filtering to avoid GPS jumps
-- TypeScript interfaces for type safety
+### Models (`src/models/`)
+Plain TypeScript, no framework coupling, unit-tested:
+- **`Player`** — stats, level/XP, equipment, inventory, archetype, derived combat stats.
+- **`Archetype`** — enum (`martial`/`agile`/`mage`, stable IDs persisted in saves) + `ARCHETYPE_CONFIGS` (display name, resource, biased base stats per level). Display names: Warrior / Rogue / Mage.
+- **`Ability`** / `constants/abilities.ts` — abilities are data over a small set of primitives (direct damage, damage-over-time, buff/debuff, defensive) resolved by a shared `resolveAbility`.
+- **`Creature`**, **`Encounter`** — enemy templates/state and an active encounter.
+- **`Item`** / `items.ts`, **`DamageType`** — affix-based items, equipment slots, damage types + resistances.
 
-**How It Works**:
-1. Starts watching position with configurable accuracy
-2. Calculates incremental distance between position updates
-3. Filters out invalid GPS readings (> 1km jumps)
-4. Calls callbacks for location and distance updates
+### Services (`src/services/`)
+Singletons (one GPS watcher, one Firebase connection, etc.):
+- **`LocationService`** — `watchPosition`, Haversine distance, GPS-jump filtering, and **adaptive accuracy**: drops to low-power network location when stationary and back to high-accuracy GPS when moving, cutting battery draw.
+- **`EncounterService`** — distance/probability/cooldown logic for spawning encounters.
+- **`LootService`** — procedural affix-based item generation.
+- **`AuthService`** — anonymous + Google + Apple sign-in; account linking.
+- **`CloudSyncService`** / **`FirebaseService`** — Firestore read/write of player data; Firebase init.
+- **`AnalyticsService`**, **`CrashlyticsService`**, **`NotificationService`** — Firebase Analytics/Crashlytics and local notifications.
 
-**Configuration**:
-- `distanceFilter`: Minimum 5 meters before update triggers
-- `enableHighAccuracy`: True for precise tracking
-- Filters GPS jumps > 1000m
+## Persistence — local-first with cloud reconcile
 
-### 2. Encounter Service (`EncounterService.ts`)
+The first paint **never blocks on the network**. `usePlayer` reads a local snapshot from AsyncStorage and renders immediately; a *post-commit* `useEffect` then reconciles against Cloud Firestore (re-reading the current local timestamp after the cloud fetch so progress earned during the read isn't clobbered). This avoids a class of cold-start stalls where a synchronous native Firestore read on the JS thread froze the first frame. Net result: instant local paint, eventual cloud consistency, and a reinstall flow that recovers cloud progress before creating a new character.
 
-**Purpose**: Manages random encounter generation
+## Build-time environment gating
 
-**Key Features**:
-- Distance-based encounter triggering
-- Probability calculation
-- Time-based cooldowns
-- Creature selection from templates
-- TypeScript types for encounter data
+`constants/environment.ts` derives the environment from a build-time `APP_ENV` (inlined by Babel). It **fails safe to production** (debug panel OFF) when `APP_ENV` is unset, so production builds can't ship debug controls. E2E builds opt in with `APP_ENV=testing`.
 
-**How It Works**:
-1. Tracks distance since last encounter
-2. After minimum distance (50m), calculates encounter probability
-3. Probability increases with distance traveled
-4. Respects minimum time between encounters (30s)
-5. Generates random creature from templates
+## Testing
 
-**Encounter Algorithm**:
-```
-IF distance_since_last >= 50m AND time_since_last >= 30s:
-    probability = min(1, (distance_since_last - 50) * 0.001)
-    IF random() < probability:
-        generate_encounter()
-```
+- **Unit (Jest)** — models and service logic (progression, ability resolution, loot generation, storage serialization, distance/probability math).
+- **End-to-end (Maestro)** — a golden-path flow (launch → archetype select → force encounter → combat → loot) runs on **both iOS and Android** in CI against the **Firebase Local Emulator Suite**, with network isolation so tests never touch production.
+- **CI** — GitHub Actions runs build, typecheck, lint, unit tests, E2E (both platforms), CodeQL, and dependency review on every PR.
 
-### 3. Data Models (TypeScript Classes)
+## Key design decisions
 
-#### Player (`Player.ts`)
-- TypeScript class with typed interfaces
-- Tracks level, experience, attack, defense, statistics
-- Calculates experience needed for level ups
-- Manages player progression and combat stats
-- Serializable for local storage
-- Combat damage calculation methods
-
-#### Creature (`Creature.ts`)
-- TypeScript class with typed interfaces
-- Defines creature properties (HP, attack, defense, speed)
-- Rarity system (common to legendary) with TypeScript union types
-- Level-based stat scaling
-- Experience reward calculation
-- Damage handling methods
-
-#### Encounter (`Encounter.ts`)
-- TypeScript class with typed interfaces
-- Represents an active encounter
-- Links creature to location
-- Manages encounter state (active, defeated, fled)
-
-### 4. Storage System (`storage.ts`)
-
-**Purpose**: Persist player data locally
-
-**Features**:
-- AsyncStorage for local persistence
-- Player data serialization/deserialization
-- Settings storage
-- Data cleanup utilities
-
-## Data Flow
-
-### Starting a Walk
-
-1. User taps "Start Walking"
-2. `HomeScreen` calls `LocationService.startTracking()`
-3. Location service requests GPS permissions
-4. GPS starts providing position updates
-5. Each update triggers distance calculation
-6. Distance updates trigger encounter checks
-
-### Encounter Generation
-
-1. `LocationService` calculates distance increment
-2. Calls `handleDistanceUpdate()` callback
-3. `HomeScreen` forwards to `EncounterService.processDistanceUpdate()`
-4. Service checks if encounter conditions are met
-5. If conditions met, generates random encounter
-6. Encounter passed to `HomeScreen` via callback
-7. Modal displays encounter
-
-### Encounter Resolution
-
-1. User chooses action (Fight/Flee)
-2. `HomeScreen` updates player state
-3. Player data saved to AsyncStorage
-4. Experience added, level-ups handled
-5. Modal dismissed
-
-## Design Decisions
-
-### Why React Native?
-
-- **Cross-platform**: Single codebase for iOS and Android
-- **Mature ecosystem**: Well-supported location libraries
-- **Performance**: Native modules for critical features
-- **Rapid development**: Hot reload, excellent tooling
-
-### Singleton Services
-
-Location and Encounter services are singletons because:
-- Only one instance needed globally
-- Simplifies state management
-- Easy to access from anywhere
-- Prevents multiple GPS watchers
-
-### Local-Only Storage
-
-Currently uses AsyncStorage (local only) because:
-- No backend required for MVP
-- Faster development
-- Works offline
-- Privacy-friendly
-
-Future: Can add cloud sync later
-
-### Distance Calculation
-
-Uses Haversine formula for:
-- Accurate distance over Earth's surface
-- Handles latitude/longitude properly
-- Lightweight computation
-- Standard for GPS applications
-
-### Encounter Probability
-
-Progressive probability system:
-- Prevents encounters too frequently
-- Rewards longer walks
-- Feels more natural than fixed intervals
-- Configurable difficulty
-
-## Performance Considerations
-
-1. **GPS Updates**: Filtered to 5m minimum (reduces battery drain)
-2. **State Updates**: Batched where possible
-3. **Storage**: Async to avoid blocking UI
-4. **Memory**: Models are lightweight, minimal state
-
-## Security & Privacy
-
-- Location data stored locally only
-- No data transmitted externally
-- User controls location permissions
-- Can be extended with privacy controls
-
-## Extension Points
-
-### Easy to Add
-
-1. **More Creatures**: Add to `CREATURE_TEMPLATES` array
-2. **Biome System**: Filter creatures by location type
-3. **Combat System**: Extend `Encounter` class
-4. **Items/Inventory**: Extend `Player.inventory`
-5. **Quests**: New service similar to `EncounterService`
-
-### Requires More Work
-
-1. **Backend Integration**: Replace AsyncStorage with API calls
-2. **Multiplayer**: Real-time location sharing
-3. **Map View**: Integrate map library (e.g., react-native-maps)
-4. **AR Features**: Camera integration for AR encounters
-
-## Testing Strategy
-
-### Unit Tests (Future)
-
-- Model logic (Player leveling, Creature stats)
-- Service calculations (distance, probability)
-- Storage serialization
-
-### Integration Tests (Future)
-
-- Location → Distance → Encounter flow
-- Player state persistence
-- Encounter resolution
-
-### Manual Testing
-
-- Real device GPS tracking
-- Encounter triggering at various distances
-- Level progression
-- Data persistence across app restarts
-
+- **Custom hooks over a global store** — the game is effectively one screen; hooks that own their own refs are simpler than Zustand/Redux here. New features are written as hooks from day one.
+- **Data-driven abilities** — abilities are configuration over a few primitives rather than bespoke code per ability, so new abilities are mostly data.
+- **Stable archetype IDs, fluid display names** — enum values (`martial`/`agile`/`mage`) are persisted in saves and used as E2E testIDs, so they never change; only display names do.
+- **Singletons for hardware/connection-bound services** — one GPS watcher and one Firebase connection avoid duplicate watchers and races.
+- **Local-first** — responsiveness and offline play first; the cloud is a backup/sync layer, not the source of truth for the first frame.

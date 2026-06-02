@@ -1,12 +1,6 @@
 # Android Setup & Testing Guide
 
-## Current Status
-
-✅ **Android Configuration Complete:**
-- Location permissions added to AndroidManifest.xml
-- App name matches iOS (WalkingRPGTemp)
-- MainActivity correctly references component name
-- Build configuration verified
+Android-specific setup, emulator config, and testing the GPS loop.
 
 ## Android-Specific Configuration
 
@@ -17,10 +11,11 @@
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 ```
 
-### App Name Consistency
-- **Package**: `com.walkingrpgtemp`
-- **Component Name**: `WalkingRPGTemp` (matches iOS)
-- **App Name**: `WalkingRPGTemp` (in strings.xml)
+### App identity
+- **Application ID** (package on the store / device): `com.lancepease.walkingrpg`
+- **Kotlin namespace** (internal, intentionally unchanged): `com.walkingrpgtemp`
+- **RN component name**: `WalkingRPGTemp` (matches iOS; internal — registered in `index.ts` / `MainActivity`)
+- **Display name** (`strings.xml` → `app_name`): `StrideQuest`
 
 ## Setting Up Android Emulator
 
@@ -153,7 +148,7 @@ cd android
 
 ### Location Permissions
 - Android 6.0+ (API 23+) requires **runtime permission requests**
-- `@react-native-community/geolocation` handles this automatically
+- `react-native-geolocation-service` handles this automatically
 - User will see permission dialog on first location access
 
 ### Testing Location on Emulator
@@ -182,17 +177,9 @@ adb emu geo fix -122.4194 37.7750  # moved ~10 meters north
 adb emu geo fix -122.4194 37.7751  # moved another ~10 meters
 ```
 
-**Method 3: Using Debug Mode in App**
-- The debug mode we added works great on emulator!
-- Click "Simulate Location Update" to fake GPS movement
-- Click "Simulate 100m Movement" to add distance
-- Much easier than manually setting coordinates!
-
-### Debug Features
-The debug mode added to HomeScreen works on Android too:
-- "Simulate Location Update" - Simulates GPS movement
-- "Simulate 100m Movement" - Adds distance
-- "Force Encounter" - Triggers encounter immediately
+**Method 3: In-app debug panel (dev/testing builds only)**
+- The debug panel is **build-time gated**: available in development and in E2E builds (`APP_ENV=testing`), and **OFF in production** builds (`APP_ENV` unset → fails safe). See `src/constants/environment.ts`.
+- When available, it offers shortcuts like forcing an encounter and instantly resolving combat — handy on an emulator without simulating GPS.
 
 ## Common Android Issues
 
@@ -208,7 +195,7 @@ The debug mode added to HomeScreen works on Android too:
 
 ### Permission Issues
 If location doesn't work:
-1. Check device Settings → Apps → WalkingRPGTemp → Permissions
+1. Check device Settings → Apps → StrideQuest → Permissions
 2. Ensure "Location" permission is granted
 3. For Android 10+, may need "Allow all the time" for background tracking
 
@@ -224,7 +211,7 @@ If location doesn't work:
 | Feature | iOS | Android |
 |---------|-----|---------|
 | Permission Request | Info.plist + Runtime | AndroidManifest.xml + Runtime |
-| Location Library | Same (`@react-native-community/geolocation`) | Same |
+| Location Library | Same (`react-native-geolocation-service`) | Same |
 | Debug Mode | Works | Works |
 | Component Name | WalkingRPGTemp | WalkingRPGTemp ✅ |
 

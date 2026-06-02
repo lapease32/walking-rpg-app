@@ -1,139 +1,93 @@
-# Walking RPG App
+# StrideQuest
 
-A location-based RPG mobile app that generates random creature encounters as you walk, making your daily walks more engaging and entertaining.
+A walking RPG for iOS and Android. You level up a character by walking in the real world — GPS-tracked movement triggers turn-based creature encounters where you fight, earn procedurally generated loot, and equip gear to grow stronger.
 
-## Concept
+> **Status:** in active development, approaching a first closed beta (TestFlight / Firebase App Distribution). "StrideQuest" is a working title.
 
-This app:
-- Tracks your location and distance traveled using GPS
-- Generates random creature encounters based on distance traveled
-- Provides RPG-style combat and interaction mechanics
-- Encourages physical activity through gamification
+## Features
+
+- **Walk-to-play loop** — real-world distance (measured via GPS) accrues and triggers creature encounters; tracking continues in the background so walks aren't interrupted.
+- **Archetype + ability combat** — three archetypes (Warrior, Rogue, Mage) with biased base stats, per-class resources (rage / energy / mana), and a small ability engine built on a few reusable primitives (direct damage, damage-over-time, buffs/debuffs, defensives).
+- **Procedural loot & equipment** — affix-based item generation with rarities; equip gear across slots to shape your stats.
+- **Progression** — levels, experience, and archetype- and gear-derived combat stats (attack, defense, HP, resistances, damage types).
+- **Accounts & cloud save** — an anonymous account is created automatically; optional Sign in with Google / Apple links it so progress can be restored on reinstall or a new device. Saves are local-first and reconciled to Cloud Firestore.
+- **Production tooling** — Firebase Crashlytics + Analytics, an in-app error boundary, and a build-time-gated debug panel (off in production).
+
+## Tech stack
+
+- **React Native 0.85** (New Architecture / Fabric + TurboModules) with **Hermes**
+- **TypeScript**
+- **Firebase** via `@react-native-firebase` — Authentication, Cloud Firestore, Crashlytics, Analytics
+- Native location (`react-native-geolocation-service`), notifications (`notifee`)
+- **Jest** (unit) + **Maestro** (E2E) with the Firebase Local Emulator Suite
+- **GitHub Actions** CI: build, typecheck, lint, unit tests, E2E (iOS + Android), CodeQL
 
 ## Architecture
 
-Built with **TypeScript** and **React Native** for type safety and better developer experience.
+A single primary screen composes behavior from focused custom hooks, which sit on top of plain TypeScript models and singleton services. Persistence is **local-first** (AsyncStorage paints immediately) with a post-commit reconcile against Cloud Firestore. See [`docs/setup/ARCHITECTURE.md`](docs/setup/ARCHITECTURE.md) for detail.
 
-### Core Components
+```
+HomeScreen
+  └─ hooks/   useAuth · usePlayer · useEncounter · useLocation · useAppLifecycle
+       └─ models/    Player · Archetype · Ability · Creature · Encounter · Item · DamageType
+       └─ services/  Location · Encounter · Loot · Auth · CloudSync · Firebase · Analytics · Crashlytics · Notification
+            └─ AsyncStorage (local-first)  +  Cloud Firestore (reconcile)
+```
 
-1. **Location Tracking Service** (`src/services/LocationService.ts`)
-   - Continuously tracks user's GPS position
-   - Calculates distance traveled using Haversine formula
-   - Monitors movement speed
+## Project structure
 
-2. **Encounter System** (`src/services/EncounterService.ts`)
-   - Generates random encounters based on distance thresholds
-   - Manages encounter probability and timing
-   - Handles creature selection logic
+```
+src/
+├── models/        # Domain models: Player, Archetype, Ability, Creature, Encounter, Item(s), DamageType
+├── services/      # Location, Encounter, Loot, Auth, CloudSync, Firebase, Analytics, Crashlytics, Notification
+├── hooks/         # useAuth, usePlayer, useEncounter, useLocation, useAppLifecycle
+├── components/    # Combat, encounter, inventory, equipment, archetype-select, settings, error boundary, …
+├── screens/       # HomeScreen
+├── constants/     # abilities, config, environment (build-time env gating)
+├── utils/         # storage (local + cloud reconcile)
+└── __tests__/     # Jest unit tests
+e2e/maestro/       # Maestro E2E flows
+docs/              # setup + architecture docs
+```
 
-3. **Data Models** (TypeScript classes)
-   - `Creature` (`src/models/Creature.ts`): Defines creature types, stats, rarity, and properties
-   - `Encounter` (`src/models/Encounter.ts`): Represents an active encounter with a creature
-   - `Player` (`src/models/Player.ts`): Tracks player stats, level, experience, attack, defense, and inventory
-
-4. **UI Components** (React Native with TypeScript)
-   - `HomeScreen` (`src/screens/HomeScreen.tsx`): Main screen with location tracking and encounter handling
-   - `EncounterModal` (`src/components/EncounterModal.tsx`): Modal for creature encounters
-   - `PlayerStats` (`src/components/PlayerStats.tsx`): Displays player statistics
-   - `DistanceDisplay` (`src/components/DistanceDisplay.tsx`): Shows distance traveled
-
-## Documentation
-
-📚 **All documentation has been organized into the [`docs/`](docs/) directory:**
-
-- **[Setup Guides](docs/setup/)** - Installation and configuration instructions
-- **[Troubleshooting](docs/troubleshooting/)** - Solutions to common issues
-- **[Quick Start](docs/setup/QUICK_START.md)** - Get up and running quickly
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- TypeScript knowledge (project is fully typed)
-- React Native development environment
-- iOS: Xcode (for iOS simulator/device)
-- Android: Android Studio (for Android emulator/device)
+- **Node.js 20+** (CI uses 22) and **Yarn**
+- **iOS:** Xcode + CocoaPods (Ruby/Bundler)
+- **Android:** Android Studio + JDK 17
 
-### Installation
+### Firebase config (required to build)
+
+The Firebase config files are intentionally **not committed**:
+
+- `android/app/google-services.json`
+- `ios/WalkingRPGTemp/GoogleService-Info.plist`
+
+CI injects them from secrets; for a local build you supply your own from a Firebase project. Without them the native build will fail.
+
+### Install & run
 
 ```bash
 yarn install
+cd ios && bundle exec pod install && cd ..   # iOS only
+
+yarn start          # Metro
+yarn ios            # build + run on iOS
+yarn android        # build + run on Android
 ```
 
-### Running the App
+## Testing
 
 ```bash
-# Start Metro bundler
-yarn start
-
-# Run on iOS
-yarn ios
-
-# Run on Android
-yarn android
+yarn test           # Jest unit tests
+yarn lint           # ESLint
+yarn tsc --noEmit   # type check
 ```
 
-For detailed setup instructions, see the [Setup Guide](docs/setup/SETUP.md).
-
-## Project Structure
-
-```
-walking-rpg-app/
-├── src/
-│   ├── models/          # TypeScript data models
-│   │   ├── Creature.ts
-│   │   ├── Encounter.ts
-│   │   └── Player.ts
-│   ├── services/        # Core services
-│   │   ├── LocationService.ts
-│   │   └── EncounterService.ts
-│   ├── components/      # Reusable UI components
-│   │   ├── DistanceDisplay.tsx
-│   │   ├── EncounterModal.tsx
-│   │   └── PlayerStats.tsx
-│   ├── screens/         # Screen components
-│   │   └── HomeScreen.tsx
-│   ├── utils/           # Utility functions
-│   │   └── storage.ts
-│   └── constants/       # App constants and configuration
-│       └── config.ts
-├── App.tsx              # Main app entry point (TypeScript)
-├── tsconfig.json        # TypeScript configuration
-└── package.json
-```
-
-## Features (Implemented)
-
-- ✅ Location tracking with distance calculation (Haversine formula)
-- ✅ Random encounter generation system based on distance traveled
-- ✅ Creature data models with stats, rarity levels, and level scaling
-- ✅ Player progression system (leveling, experience, stats)
-- ✅ Player combat stats (attack, defense) that scale with level
-- ✅ Creature defeat rewards with experience points
-- ✅ Local data persistence using AsyncStorage
-- ✅ Encounter modal with creature details and combat options
-- ✅ Player stats display with combat stats
-
-## Future Enhancements
-
-- [ ] Different encounter types based on location/biome
-- [ ] Enhanced combat with creature attacks and special abilities
-- [ ] Social features (friends, leaderboards)
-- [ ] Daily challenges and quests
-- [ ] Visual map with nearby encounters
-- [ ] Item system and equipment
-- [ ] Multiple creature types per encounter
-
-## Permissions
-
-This app requires the following permissions:
-- **Location (Always)**: To track your movement and calculate distance
-- **Location (When in Use)**: For basic location features
-
-Location data is stored locally on your device and is not transmitted to external servers.
+End-to-end flows live in `e2e/maestro/` (Maestro) and run against the Firebase Local Emulator Suite in CI on both platforms.
 
 ## License
 
-MIT
-
+**Proprietary — All Rights Reserved.** The source is publicly viewable for portfolio and evaluation only; it may not be copied, modified, distributed, or used commercially without written permission. See [`LICENSE`](LICENSE).
