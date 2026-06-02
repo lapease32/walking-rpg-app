@@ -1,183 +1,59 @@
 # Setup Guide
 
-This guide will help you set up and run the Walking RPG app on your development machine.
+Detailed setup for building and running StrideQuest locally. For a high-level overview see the [README](../../README.md); for design, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Prerequisites
 
-1. **Node.js** (v16 or higher)
-   - Download from [nodejs.org](https://nodejs.org/)
+- **Node.js 20+** (CI uses 22) and **Yarn**
+- **iOS:** macOS, Xcode, and CocoaPods (via Bundler: `gem install bundler`)
+- **Android:** Android Studio, the Android SDK, and **JDK 17**
 
-2. **React Native CLI**
-   ```bash
-   yarn global add react-native-cli
-   ```
+## 1. Firebase config (required — not committed)
 
-3. **For iOS Development:**
-   - macOS (required)
-   - Xcode (from Mac App Store)
-   - CocoaPods: `sudo gem install cocoapods`
+The app initializes Firebase natively, so the build needs these two files, which are **gitignored**:
 
-4. **For Android Development:**
-   - Android Studio
-   - Android SDK
-   - Java Development Kit (JDK)
+- `android/app/google-services.json`
+- `ios/WalkingRPGTemp/GoogleService-Info.plist`
 
-## Installation Steps
+Provide your own from a Firebase project (Project Settings → Your apps → download), or, in CI, they're injected from base64 secrets. Without them, the native build fails.
 
-### 1. Install Dependencies
+## 2. Install dependencies
 
 ```bash
 yarn install
+cd ios && bundle install && bundle exec pod install && cd ..   # iOS only
 ```
 
-### 2. iOS Setup (macOS only)
+## 3. Run
 
 ```bash
-cd ios
-pod install
-cd ..
+yarn start          # Metro bundler
+yarn ios            # build + run on iOS
+yarn android        # build + run on Android
 ```
 
-### 3. Configure Permissions
+Or open `ios/WalkingRPGTemp.xcworkspace` in Xcode (the **workspace**, not the `.xcodeproj`) and run from there.
 
-#### iOS (Info.plist)
+> Location permissions are already declared — `ios/WalkingRPGTemp/Info.plist` (the `NSLocation*` keys) and `android/app/src/main/AndroidManifest.xml`. No manual editing needed.
 
-Add location permissions to `ios/WalkingRPG/Info.plist`:
+## Testing the walk loop without walking
 
-```xml
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>This app needs location access to track your walks and generate encounters.</string>
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>This app needs location access to track your walks and generate encounters.</string>
-<key>NSLocationAlwaysUsageDescription</key>
-<string>This app needs location access to track your walks and generate encounters.</string>
-```
+Encounters trigger from GPS distance, so to test indoors you simulate movement:
 
-#### Android (AndroidManifest.xml)
+- **iOS Simulator:** Features → Location → pick a route/location (or a custom coordinate, changed over time).
+- **Android Emulator:** Extended Controls (•••) → Location → set points or play a GPX/KML route.
 
-Add location permissions to `android/app/src/main/AndroidManifest.xml`:
+A real device walking outdoors is still the most representative test.
 
-```xml
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-```
-
-## Running the App
-
-### Start Metro Bundler
+## Common build resets
 
 ```bash
-yarn start
+yarn start --reset-cache                      # Metro cache
+cd ios && bundle exec pod install && cd ..     # iOS pods
+cd android && ./gradlew clean && cd ..          # Android build
 ```
 
-### Run on iOS
+## See also
 
-```bash
-yarn ios
-```
-
-Or open `ios/WalkingRPG.xcworkspace` in Xcode and run from there.
-
-### Run on Android
-
-```bash
-yarn android
-```
-
-Make sure you have an Android emulator running or a device connected.
-
-## Testing Location Features
-
-Since location tracking requires actual GPS data:
-
-1. **Physical Device**: Test on a real device for best results
-2. **Simulator/Emulator**: 
-   - iOS: Use Xcode's location simulator
-   - Android: Use Android Studio's location emulator
-
-### iOS Simulator Location
-
-In Xcode Simulator: Features → Location → Choose a location or custom location
-
-### Android Emulator Location
-
-In Android Studio Emulator: Use the Extended Controls (three dots) → Location tab
-
-## Project Structure
-
-```
-walking-rpg-app/
-├── src/
-│   ├── models/          # TypeScript data models
-│   │   ├── Creature.ts
-│   │   ├── Encounter.ts
-│   │   └── Player.ts
-│   ├── services/        # Core services
-│   │   ├── LocationService.ts
-│   │   └── EncounterService.ts
-│   ├── components/      # UI components (TypeScript/TSX)
-│   │   ├── DistanceDisplay.tsx
-│   │   ├── EncounterModal.tsx
-│   │   └── PlayerStats.tsx
-│   ├── screens/         # Screen components
-│   │   └── HomeScreen.tsx
-│   ├── utils/           # Utilities
-│   │   └── storage.ts
-│   └── constants/       # Configuration
-│       └── config.ts
-├── App.tsx              # Main entry point (TypeScript)
-├── tsconfig.json        # TypeScript configuration
-└── package.json
-```
-
-## Key Features Implemented
-
-- ✅ GPS location tracking with TypeScript type safety
-- ✅ Distance calculation using Haversine formula
-- ✅ Random encounter generation based on distance
-- ✅ **Combat system** with turn-based fighting mechanics
-- ✅ Player progression system (level, XP, attack, defense)
-- ✅ Creature models with stats, rarity, and level scaling
-- ✅ Local data persistence using AsyncStorage
-- ✅ Encounter modal with combat options
-- ✅ Player stats display with combat stats
-
-## Next Steps
-
-1. **Creature Collection**: Build an inventory/collection system
-2. **Location-based Encounters**: Different creatures based on real-world location
-3. **Visual Map**: Add map view showing nearby encounters
-4. **Biome System**: Different encounter rates/types based on location type
-5. **Enhanced Combat**: Creature attacks and special abilities
-6. **Offline Mode**: Ensure encounters work without internet
-7. **Backend Integration**: Optional cloud sync for multi-device support
-
-## Troubleshooting
-
-### Location Not Working
-
-- Ensure permissions are properly configured
-- Check that location services are enabled on device
-- For iOS: Make sure Info.plist has correct keys
-- For Android: Verify AndroidManifest.xml permissions
-
-### Encounters Not Triggering
-
-- Make sure you're moving (simulated location updates help in emulator)
-- Check that minimum distance threshold is met
-- Verify encounter service is properly initialized
-
-### Build Issues
-
-- Clear cache: `yarn start -- --reset-cache`
-- Clean build folders and reinstall dependencies
-- For iOS: `cd ios && pod install && cd ..`
-- For Android: Clean build in Android Studio
-
-## Development Tips
-
-- Use React Native Debugger for debugging
-- Enable remote debugging in development menu
-- Test location features on real devices for accuracy
-- Adjust encounter rates in `src/constants/config.ts`
-
+- [ANDROID_SETUP.md](ANDROID_SETUP.md) — Android SDK / emulator specifics
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the app is structured
