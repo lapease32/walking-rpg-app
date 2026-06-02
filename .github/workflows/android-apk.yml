@@ -61,9 +61,21 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: cd android && ./gradlew assembleRelease --no-daemon
 
+      # Upload the artifact FIRST so a successfully built APK is always preserved, even
+      # if the distribution step below fails (expected until the one-time Firebase setup
+      # — tester group + SA "App Distribution Admin" role — is done).
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stridequest-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
       # Pushes to the "friends" tester group in Firebase App Distribution. Requires the
       # group to exist and the FIREBASE_SERVICE_ACCOUNT_KEY service account to have the
-      # "Firebase App Distribution Admin" role.
+      # "Firebase App Distribution Admin" role. A failure here surfaces as a red run
+      # (so you know distribution didn't happen) but the artifact above is already saved.
       - name: Distribute to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
@@ -72,11 +84,3 @@ jobs:
           groups: friends
           file: android/app/build/outputs/apk/release/app-release.apk
           releaseNotes: 'Automated StrideQuest build from main (workflow_dispatch).'
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: stridequest-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-          retention-days: 30
