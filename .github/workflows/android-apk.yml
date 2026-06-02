@@ -83,4 +83,4 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           groups: friends
           file: android/app/build/outputs/apk/release/app-release.apk
-          releaseNotes: 'Automated StrideQuest build from main (workflow_dispatch).'
+          releaseNotes: 'Automated StrideQuest build from ${{ github.ref_name }} (workflow_dispatch).'
