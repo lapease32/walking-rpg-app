@@ -1,14 +1,14 @@
 name: Android Release APK
 
-# On-demand only (Run workflow button). Produces a self-contained, production
-# release APK for sideloading / Firebase App Distribution to a tester's real
-# device — no Play Console needed. Not a PR gate, so it never slows checks.
+# On-demand only (Run workflow button). Builds a SIGNED production release APK
+# and pushes it to Firebase App Distribution (tester group "friends"), and also
+# uploads it as a downloadable artifact. Not a PR gate, so it never slows checks.
 on:
   workflow_dispatch:
 
 jobs:
   build-apk:
-    name: Build release APK
+    name: Build + distribute release APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,11 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
 
+      - name: Decode upload keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/stridequest-upload.jks"
+
       - name: Set Android SDK path
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
@@ -43,16 +48,22 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
-      # Production build: APP_ENV is intentionally unset → getAppEnvironment() fails
-      # safe to 'production' → debug panel OFF. That's what a tester should evaluate.
-      # Plain assembleRelease uses the default reactNativeArchitectures
-      # (armeabi-v7a,arm64-v8a,x86,x86_64) → one universal app-release.apk that runs
-      # on real ARM phones. Signed with the debug keystore for now: fine for a one-off
-      # smoke test; a real upload keystore is a separate prerequisite before ongoing
-      # distribution (see task backlog).
-      - name: Assemble release APK
+      # Production build: APP_ENV is intentionally unset → getAppEnvironment() fails safe
+      # to 'production' → debug panel OFF. Plain assembleRelease uses the default
+      # reactNativeArchitectures (armeabi-v7a,arm64-v8a,x86,x86_64) → one universal
+      # app-release.apk that runs on real ARM phones. Signed with the real upload key
+      # (ANDROID_KEYSTORE_FILE set below → build.gradle uses signingConfigs.release).
+      - name: Assemble release APK (signed)
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/stridequest-upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: cd android && ./gradlew assembleRelease --no-daemon
 
+      # Upload the artifact FIRST so a successfully built APK is always preserved, even
+      # if the distribution step below fails (expected until the one-time Firebase setup
+      # — tester group + SA "App Distribution Admin" role — is done).
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,3 +71,16 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      # Pushes to the "friends" tester group in Firebase App Distribution. Requires the
+      # group to exist and the FIREBASE_SERVICE_ACCOUNT_KEY service account to have the
+      # "Firebase App Distribution Admin" role. A failure here surfaces as a red run
+      # (so you know distribution didn't happen) but the artifact above is already saved.
+      - name: Distribute to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: '1:127260614524:android:667b36e8529e6f39bacef9'
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          groups: friends
+          file: android/app/build/outputs/apk/release/app-release.apk
+          releaseNotes: 'Automated StrideQuest build from ${{ github.ref_name }} (workflow_dispatch).'
