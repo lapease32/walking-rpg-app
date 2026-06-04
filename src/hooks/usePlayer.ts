@@ -17,50 +17,66 @@ import {
 // signInAnonymously a no-op), so the initial setPlayer call is the one that
 // gets dropped. Defer the setter until AppState is 'active' to make the
 // initial paint deterministic.
+// Hard cap on how long commitWhenActive will wait for an 'active' AppState
+// before committing anyway. A cold-start race can leave us waiting forever for
+// an 'active' CHANGE event that already fired before our listener armed (and the
+// setTimeout(0) currentState read below can come back stale), which stranded the
+// new-user archetype screen on "Loading…" indefinitely — the long-standing
+// E2E-Android flake. By this point the activity is effectively foregrounded and
+// local-first paint means there is no pre-commit native work to block, so a
+// commit is safe; if Fabric still drops it, the belt-and-suspenders 'active'
+// effect re-commits once a real 'active' transition arrives.
+const ACTIVE_COMMIT_FALLBACK_MS = 1500;
+
 function commitWhenActive(commit: () => void): () => void {
   let fired = false;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let yieldTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let sub: ReturnType<typeof AppState.addEventListener> | null = null;
 
-  // Arm the listener first — no synchronous AppState read before this, so
-  // there is no TOCTOU window where an 'active' event could slip past.
-  const sub = AppState.addEventListener('change', state => {
-    if (state === 'active' && !fired) {
-      fired = true;
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      sub.remove();
-      commit();
+  const cleanup = () => {
+    if (yieldTimeoutId !== null) {
+      clearTimeout(yieldTimeoutId);
+      yieldTimeoutId = null;
     }
+    if (fallbackTimeoutId !== null) {
+      clearTimeout(fallbackTimeoutId);
+      fallbackTimeoutId = null;
+    }
+    sub?.remove();
+    sub = null;
+  };
+
+  // Idempotent: whichever of (active event / active currentState / fallback)
+  // wins fires the commit exactly once.
+  const fire = () => {
+    if (fired) return;
+    fired = true;
+    cleanup();
+    commit();
+  };
+
+  // Arm the listener first — no synchronous AppState read before this, so there
+  // is no TOCTOU window where an 'active' event could slip past.
+  sub = AppState.addEventListener('change', state => {
+    if (state === 'active') fire();
   });
 
   // Yield the event loop via setTimeout(0) before reading AppState.currentState.
-  // commitWhenActive is called from Promise continuations (microtasks); any
-  // pending native AppState change notifications are macrotasks queued BEFORE
-  // our setTimeout, so they run first and update AppState.currentState to the
-  // true value. Without this yield the synchronous read can return 'active'
-  // while the activity is already paused (the 'background' macrotask is still
-  // pending), causing setPlayer to fire inside the Fabric drop window and the
-  // home-screen render to be silently discarded.
-  timeoutId = setTimeout(() => {
-    timeoutId = null;
-    if (!fired && AppState.currentState === 'active') {
-      fired = true;
-      sub.remove();
-      commit();
-    }
+  // Any pending native AppState change notifications are macrotasks queued BEFORE
+  // this setTimeout, so they run first and update currentState to the true value.
+  yieldTimeoutId = setTimeout(() => {
+    yieldTimeoutId = null;
+    if (AppState.currentState === 'active') fire();
   }, 0);
 
+  // Hard fallback so a missed 'active' event can never hang the first paint.
+  fallbackTimeoutId = setTimeout(fire, ACTIVE_COMMIT_FALLBACK_MS);
+
   return () => {
-    if (!fired) {
-      fired = true;
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
-      }
-      sub.remove();
-    }
+    if (fired) return;
+    fired = true;
+    cleanup();
   };
 }
 
