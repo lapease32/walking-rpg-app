@@ -209,19 +209,23 @@ export default function HomeScreen() {
   };
 
   // Request notification permission only AFTER the first real screen has painted.
-  // Gated on `player`, so a new user is asked once they've picked an archetype and
-  // landed on the home screen — never during cold-start. InteractionManager defers
-  // until UI interactions settle; the ref makes it fire exactly once.
+  // Gated on player PRESENCE (not the player object): a new user is asked once they've
+  // picked an archetype and landed on the home screen — never during cold-start.
+  // Depending on `hasPlayer` rather than `player` is deliberate — `player` is replaced
+  // on every distance save (setPlayerAndSave), and depending on it would cancel and
+  // reschedule the InteractionManager task on every GPS update during a tracking resume,
+  // starving the prompt. `hasPlayer` only flips false→true once. InteractionManager
+  // defers until UI interactions settle; the ref makes it fire exactly once.
   const notifPermissionRequestedRef = useRef(false);
+  const hasPlayer = player !== null;
   useEffect(() => {
-    if (notifPermissionRequestedRef.current || !player) {
+    if (notifPermissionRequestedRef.current || !hasPlayer) {
       return;
     }
     const task = InteractionManager.runAfterInteractions(() => {
-      // Set the guard inside the callback (not before scheduling): if `player`
-      // changes again before interactions settle (e.g. the cloud reconcile adopts
-      // a cloud character), the cleanup cancels this task and the re-run reschedules
-      // it — so the request is never silently lost.
+      // Set the guard inside the callback (not before scheduling): if the effect
+      // re-runs before interactions settle, the cleanup cancels this task and the
+      // re-run reschedules it — so the request is never silently lost.
       if (notifPermissionRequestedRef.current) {
         return;
       }
@@ -235,7 +239,7 @@ export default function HomeScreen() {
         .catch(error => console.error('Error requesting notification permissions:', error));
     });
     return () => task.cancel();
-  }, [player]);
+  }, [hasPlayer]);
 
   // Handle distance updates — player distance/milestones here, encounter logic delegated to useEncounter
   const handleDistanceUpdate = async (distanceData: DistanceData): Promise<void> => {
