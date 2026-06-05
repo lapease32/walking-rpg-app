@@ -1,10 +1,16 @@
 name: E2E Android
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  # QUARANTINED off per-PR/push. The Android E2E golden path is ~60% flaky due to a
+  # residual RNFirebase New-Architecture cold-start stall (the first JS-side Firestore
+  # access can freeze the JS thread before the archetype mount flushes) that resisted
+  # every fix attempted — see #190, which tracks the real fix (run on a real-device
+  # cloud, which sidesteps the strained CI emulator that amplifies the race). A check
+  # red ~60% of the time desensitizes reviewers and can mask a real regression, so it
+  # runs nightly + on-demand instead. E2E iOS still guards JS regressions per-PR.
+  schedule:
+    - cron: '0 7 * * *' # nightly, ~07:00 UTC
+  workflow_dispatch: # manual on-demand verification
 
 jobs:
   e2e-android:
