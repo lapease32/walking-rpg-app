@@ -109,6 +109,16 @@ jobs:
             adb shell settings put global firebase_emulator_host 10.0.2.2
             bash e2e/scripts/check-android-emulator-connectivity.sh
             adb install android/app/build/outputs/apk/release/app-release.apk
+            # Pre-grant runtime permissions so no system permission dialog can steal
+            # foreground during the test. The real flake fix is in the app (the
+            # notification-permission request is deferred until after first paint, so a
+            # cold-start dialog can no longer pause MainActivity and drop the archetype
+            # screen's Fabric commit); this pre-grant is belt-and-suspenders for CI
+            # determinism — it makes that deferred request a silent no-op rather than
+            # depending on Maestro's dialog auto-answer timing.
+            adb shell pm grant com.lancepease.walkingrpg android.permission.POST_NOTIFICATIONS || true
+            adb shell pm grant com.lancepease.walkingrpg android.permission.ACCESS_FINE_LOCATION || true
+            adb shell pm grant com.lancepease.walkingrpg android.permission.ACCESS_COARSE_LOCATION || true
             # Capture logcat: verbose from app/Firebase, info from MainApplication (prewarm
             # success/timeout markers), plus all warnings/errors for crash traces.
             adb logcat -v time ReactNativeJS:V Firebase:V Firestore:V FirebaseAuth:V MainApplication:I *:W > /tmp/logcat.txt &

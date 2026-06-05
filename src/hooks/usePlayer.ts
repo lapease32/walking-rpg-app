@@ -67,13 +67,15 @@ function commitWhenActive(commit: () => void): () => void {
 export function usePlayer() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [needsArchetypeSelection, setNeedsArchetypeSelection] = useState(false);
-  // Incremented by the belt-and-suspenders on every 'active' transition so
-  // that React always schedules a re-render, even when playerRef.current
-  // and the current player state share the same object reference (which
-  // would otherwise cause React to bail via Object.is equality). HomeScreen
-  // re-renders, sees player !== null, and Fabric re-commits the native tree
-  // — recovering from any commit dropped by Fabric during a pause window.
-  const [, setRepaintToken] = useState(0);
+  // Incremented by the belt-and-suspenders on every 'active' transition. Two
+  // recovery roles after a Fabric commit was dropped during a pause window:
+  // 1. Returning player: forces a re-render even when playerRef.current and the
+  //    current player state share the same object reference (React would otherwise
+  //    bail via Object.is), so Fabric re-commits the home-screen tree.
+  // 2. New user: HomeScreen uses this value as the ArchetypeSelectionScreen `key`,
+  //    so each bump REMOUNTS that screen — re-issuing the dropped native mount
+  //    instructions. A plain re-render of an unchanged subtree would not.
+  const [repaintToken, setRepaintToken] = useState(0);
   const playerRef = useRef<Player | null>(null);
   const pendingCommitUnsubRef = useRef<(() => void) | null>(null);
   // Monotonic token identifying the most-recently-started initializePlayer (or
@@ -91,6 +93,14 @@ export function usePlayer() {
   // The init generation whose post-paint reconcile has already been started, so
   // the reconcile effect fires exactly once per initializePlayer.
   const reconciledGenerationRef = useRef(-1);
+  // Mirrors needsArchetypeSelection for the belt-and-suspenders 'active' handler,
+  // whose AppState listener closure can't read live React state. Synced via an
+  // effect, so it tracks the committed React state even when Fabric drops the
+  // native mount — letting a stranded new-user archetype screen be recovered.
+  const needsArchetypeRef = useRef(false);
+  useEffect(() => {
+    needsArchetypeRef.current = needsArchetypeSelection;
+  }, [needsArchetypeSelection]);
 
   // Cancel any pending deferred commit if the component unmounts so the
   // listener doesn't fire after teardown.
@@ -115,6 +125,13 @@ export function usePlayer() {
           // If a dropped Fabric commit left needsArchetypeSelection=true
           // but the player was already committed to playerRef, clear the flag.
           setNeedsArchetypeSelection(false);
+        } else if (needsArchetypeRef.current) {
+          // New user with no committed player: a Fabric commit dropped during a
+          // cold-start pause (e.g. a permission dialog stealing focus) can lose the
+          // archetype screen's native mount while React still believes it's mounted.
+          // Re-assert the state; the setRepaintToken bump below remounts the screen
+          // (HomeScreen keys it on repaintToken), re-issuing the dropped native mount.
+          setNeedsArchetypeSelection(true);
         }
         setRepaintToken(t => t + 1);
       }
@@ -303,5 +320,6 @@ export function usePlayer() {
     initializePlayer,
     needsArchetypeSelection,
     handleArchetypeSelected,
+    repaintToken,
   };
 }
