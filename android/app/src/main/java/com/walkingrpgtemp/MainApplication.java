@@ -66,26 +66,24 @@ public class MainApplication extends Application implements ReactApplication {
     ReactNativeApplicationEntryPoint.loadReactNative(this);
   }
 
-  // Configure the Firebase Auth + Firestore emulators, then pre-warm AUTH only
-  // before the JS bundle loads.
+  // Configure Firebase Auth and Firestore emulators, then pre-warm both before
+  // the JS bundle loads. Two sources of deadlock exist under New Architecture:
   //
-  // Auth prewarm (kept): signInAnonymously() from JS can race against Auth SDK
-  // init or a slow emulator HTTP startup and hang with no timeout in the JS path.
-  // Signing in here means JS sees currentUser != null and skips its own
-  // signInAnonymously() entirely, eliminating that race. The Auth SDK opens no
-  // persistent connection, so this is cheap and contention-free.
+  // 1. Firestore gRPC: loadReactNative() starts before the Firebase Background
+  //    Thread finishes gRPC + LevelDB init. JS then calls getDoc() via JSI and
+  //    hits the init lock — the JS thread blocks forever.
   //
-  // Firestore prewarm (REMOVED): a prior `_prewarm` read here was meant to warm
-  // gRPC + LevelDB before JS runs, but it left the native Firestore "started"
-  // with its Firebase Background Thread holding the init lock. The first JS-side
-  // Firestore access (the post-paint cloud reconcile) then contended on that lock
-  // and stalled the JS thread >30s — dropping the new-user archetype screen's
-  // Fabric mount before it flushed (the long-standing E2E-Android cold-start
-  // flake; cf. "Long monitor contention with owner Firebase Background Thread" in
-  // logcat). Local-first paint (usePlayer) already keeps the cloud read off the
-  // critical first-paint path, so warming Firestore here is unnecessary AND
-  // harmful. The emulator host is still configured below so the JS-side read
-  // targets the emulator.
+  // 2. Firebase Auth: signInAnonymously() from JS can race against Auth SDK
+  //    initialization or a slow emulator HTTP startup. The Auth SDK makes no
+  //    persistent connection (unlike Firestore's gRPC), but if the emulator's
+  //    HTTP server hasn't finished starting when signInAnonymously() fires, the
+  //    request hangs indefinitely with no timeout in the JS path.
+  //
+  // Blocking here on a CountDownLatch(2) pre-warms both services concurrently
+  // and ensures both are fully initialized before any JS code runs. If the
+  // Auth prewarm succeeds, JS sees currentUser != null and skips signInAnonymously
+  // entirely — eliminating the race. If it times out, Auth SDK init is still
+  // complete so the subsequent JS call is safe.
   private void configureFirebaseEmulators() {
     try {
       String host = Settings.Global.getString(getContentResolver(), "firebase_emulator_host");
@@ -96,7 +94,7 @@ public class MainApplication extends Application implements ReactApplication {
         db.useEmulator(host, 8080);
         Log.i("MainApplication", "Firebase emulators configured: " + host);
 
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch latch = new CountDownLatch(2);
 
         // Auth prewarm: sign in anonymously so JS sees currentUser != null and
         // skips its own signInAnonymously() call, eliminating the timing race.
@@ -106,6 +104,20 @@ public class MainApplication extends Application implements ReactApplication {
             .addOnCompleteListener(cmd -> new Thread(cmd).start(), task -> {
               try {
                 Log.i("MainApplication", "Auth prewarm: " +
+                    (task.isSuccessful() ? "ok" :
+                        task.getException() != null ? task.getException().getMessage() : "done"));
+              } finally {
+                latch.countDown();
+              }
+            });
+
+        // Firestore prewarm: force gRPC + LevelDB init to complete before JS runs.
+        // The read fails with PERMISSION_DENIED (no auth yet on the Firestore rules
+        // side — the Auth prewarm runs concurrently) but that is harmless.
+        db.collection("_prewarm").document("_prewarm").get()
+            .addOnCompleteListener(cmd -> new Thread(cmd).start(), task -> {
+              try {
+                Log.i("MainApplication", "Firestore prewarm: " +
                     (task.isSuccessful() ? "ok" :
                         task.getException() != null ? task.getException().getMessage() : "done"));
               } finally {
