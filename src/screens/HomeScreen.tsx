@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   Platform,
+  InteractionManager,
 } from 'react-native';
 import LocationService, { DistanceData } from '../services/LocationService';
 import NotificationService from '../services/NotificationService';
@@ -46,6 +47,7 @@ export default function HomeScreen() {
     initializePlayer,
     needsArchetypeSelection,
     handleArchetypeSelected,
+    repaintToken,
   } = usePlayer();
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -190,18 +192,54 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState]);
 
-  // Initialize notification service (channel creation and permissions)
+  // Cold-start: create the notification CHANNEL only — do NOT request permission here.
+  // notifee.requestPermission() launches the system permission dialog, which steals
+  // foreground and pauses MainActivity mid-cold-start; on Android New Arch that can
+  // drop the first screen's Fabric commit and strand a new user on "Loading…" (the
+  // long-standing E2E-Android flake, and a real Android 13+ first-launch risk). The
+  // permission is requested after first paint instead (the player-gated effect below).
+  // The channel must still exist now so startForegroundService can post to it on a
+  // cold-start tracking resume.
   const initializeNotifications = async (): Promise<void> => {
     try {
       await NotificationService.initialize();
-      const hasPermission = await NotificationService.requestPermissions();
-      if (!hasPermission) {
-        console.warn('Notification permissions not granted');
-      }
     } catch (error) {
       console.error('Error initializing notifications:', error);
     }
   };
+
+  // Request notification permission only AFTER the first real screen has painted.
+  // Gated on player PRESENCE (not the player object): a new user is asked once they've
+  // picked an archetype and landed on the home screen — never during cold-start.
+  // Depending on `hasPlayer` rather than `player` is deliberate — `player` is replaced
+  // on every distance save (setPlayerAndSave), and depending on it would cancel and
+  // reschedule the InteractionManager task on every GPS update during a tracking resume,
+  // starving the prompt. `hasPlayer` only flips false→true once. InteractionManager
+  // defers until UI interactions settle; the ref makes it fire exactly once.
+  const notifPermissionRequestedRef = useRef(false);
+  const hasPlayer = player !== null;
+  useEffect(() => {
+    if (notifPermissionRequestedRef.current || !hasPlayer) {
+      return;
+    }
+    const task = InteractionManager.runAfterInteractions(() => {
+      // Set the guard inside the callback (not before scheduling): if the effect
+      // re-runs before interactions settle, the cleanup cancels this task and the
+      // re-run reschedules it — so the request is never silently lost.
+      if (notifPermissionRequestedRef.current) {
+        return;
+      }
+      notifPermissionRequestedRef.current = true;
+      NotificationService.requestPermissions()
+        .then(granted => {
+          if (!granted) {
+            console.warn('Notification permissions not granted');
+          }
+        })
+        .catch(error => console.error('Error requesting notification permissions:', error));
+    });
+    return () => task.cancel();
+  }, [hasPlayer]);
 
   // Handle distance updates — player distance/milestones here, encounter logic delegated to useEncounter
   const handleDistanceUpdate = async (distanceData: DistanceData): Promise<void> => {
@@ -232,7 +270,9 @@ export default function HomeScreen() {
   };
 
   if (needsArchetypeSelection) {
-    return <ArchetypeSelectionScreen onSelect={handleArchetypeSelected} />;
+    // Key on repaintToken so an 'active' transition remounts this screen, recovering
+    // a Fabric mount dropped during a cold-start pause (see usePlayer belt-and-suspenders).
+    return <ArchetypeSelectionScreen key={repaintToken} onSelect={handleArchetypeSelected} />;
   }
 
   if (!player) {
