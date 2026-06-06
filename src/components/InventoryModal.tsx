@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Item, canEquipInSlot, getItemSlot } from '../models/Item';
-import { Rarity } from '../models/Creature';
+import { getRarityColor } from '../constants/rarity';
 import { Player, EquipmentSlot } from '../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
 
@@ -86,18 +86,6 @@ export default function InventoryModal({
       }
     }
   }, [inventory, selectedItemIndex, selectedItem]);
-
-  const rarityColors: Record<Rarity, string> = {
-    common: '#9E9E9E',
-    uncommon: '#4CAF50',
-    rare: '#2196F3',
-    epic: '#9C27B0',
-    legendary: '#FF9800',
-  };
-
-  const getRarityColor = (rarity: Rarity): string => {
-    return rarityColors[rarity] || '#9E9E9E';
-  };
 
   const getItemIcon = (item: Item): string => {
     const iconMap: Record<Item['type'], string> = {

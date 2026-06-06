@@ -35,6 +35,18 @@ const AnalyticsService = {
     });
   },
 
+  // Fires only when an item actually drops. Pairs with combat_victory (which logs
+  // item_dropped:boolean) to give drop% AND the rarity/slot/level distribution —
+  // i.e. "how often does a legendary actually drop" vs. the configured weights.
+  itemDropped(rarity: string, slot: string, itemLevel: number, playerLevel: number) {
+    log('item_dropped', {
+      rarity,
+      slot,
+      item_level: itemLevel,
+      player_level: playerLevel,
+    });
+  },
+
   combatDefeated(creatureName: string, playerLevel: number) {
     log('combat_defeat', { creature_name: creatureName, player_level: playerLevel });
   },

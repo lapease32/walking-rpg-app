@@ -8,6 +8,8 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { dropItem } from '../services/LootService';
+import { getItemSlot } from '../models/Item';
+import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
   clearPendingEncounter,
@@ -52,6 +54,7 @@ export function useEncounter({
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false);
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
+  const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
   // Authoritative refs — always current, used for synchronous reads inside handlers.
   // playerCombatStateRef replaces the old playerResourceRef pattern and extends it to
   // the full state so every handler sees post-last-ability values, not stale closures.
@@ -199,14 +202,24 @@ export function useEncounter({
     const levelsGained = updatedPlayer.addExperience(expGain);
 
     const droppedItem = dropItem(forceItemDrop, updatedPlayer.level);
-    let lootMessage = '';
+    let inventoryFull = false;
+    let isUpgrade = false;
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
-      if (inventoryIndex === -1) {
-        lootMessage = `\n\n⚠️ Received ${droppedItem.name} but inventory is full!`;
-      } else {
-        lootMessage = `\n\n✨ Received ${droppedItem.name}!`;
-      }
+      inventoryFull = inventoryIndex === -1;
+      // Simple upgrade hint for the reveal badge: higher combined primary stats than
+      // whatever is currently equipped in the item's slot (or an empty slot).
+      const equipped = updatedPlayer.equipment[getItemSlot(droppedItem)];
+      const statTotal = (
+        it: { attack?: number; defense?: number; maxHp?: number; hp?: number } | null,
+      ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0) + (it?.hp ?? 0);
+      isUpgrade = statTotal(droppedItem) > statTotal(equipped);
+      AnalyticsService.itemDropped(
+        droppedItem.rarity,
+        droppedItem.type,
+        droppedItem.level,
+        updatedPlayer.level,
+      );
     }
 
     updatedPlayer.fullHeal();
@@ -233,16 +246,16 @@ export function useEncounter({
     );
     if (levelsGained > 0) {
       AnalyticsService.levelUp(updatedPlayer.level);
-      Alert.alert(
-        'Victory & Level Up!',
-        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`,
-      );
-    } else {
-      Alert.alert(
-        'Victory!',
-        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`,
-      );
     }
+    setRewardReveal({
+      creatureName: currentEncounterState.creature.name,
+      xpGained: expGain,
+      leveledUp: levelsGained > 0,
+      newLevel: updatedPlayer.level,
+      item: droppedItem ?? null,
+      isUpgrade,
+      inventoryFull,
+    });
   };
 
   const handleFlee = (): void => {
@@ -710,6 +723,8 @@ export function useEncounter({
     }
   };
 
+  const dismissReward = (): void => setRewardReveal(null);
+
   return {
     currentEncounter,
     showEncounterModal,
@@ -728,6 +743,8 @@ export function useEncounter({
     setForceItemDrop,
     playerCombatState,
     playerCombatStateRef,
+    rewardReveal,
+    dismissReward,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
