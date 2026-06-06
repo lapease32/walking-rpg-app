@@ -8,7 +8,6 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { dropItem } from '../services/LootService';
-import { getItemSlot } from '../models/Item';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
@@ -210,22 +209,16 @@ export function useEncounter({
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
       inventoryFull = inventoryIndex === -1;
-      // Upgrade hint for the reveal badge: higher combined primary stats than the item
-      // it would actually replace. An EMPTY slot is a fresh equip ("NEW"), not an
-      // "upgrade". Accessories can occupy either of two slots, so compare against the
-      // weaker equipped accessory (the one that would be swapped) — and only when both
-      // accessory slots are full (an empty accessory slot is also just "NEW").
+      // Upgrade hint for the reveal badge: compare against the item that would ACTUALLY
+      // be replaced if equipped (an empty target slot → fresh equip → "NEW", not an
+      // upgrade). Uses Player.getEquipTargetSlot — the same routing equipItem uses — as
+      // the single source of truth, so the badge can never disagree with the real swap
+      // (including the accessory1-empty-else-accessory2 routing).
       const statTotal = (
         it: { attack?: number; defense?: number; maxHp?: number; hp?: number } | null,
       ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0) + (it?.hp ?? 0);
-      if (droppedItem.type === 'accessory') {
-        const a1 = updatedPlayer.equipment.accessory1;
-        const a2 = updatedPlayer.equipment.accessory2;
-        isUpgrade = !!a1 && !!a2 && statTotal(droppedItem) > Math.min(statTotal(a1), statTotal(a2));
-      } else {
-        const equipped = updatedPlayer.equipment[getItemSlot(droppedItem)];
-        isUpgrade = !!equipped && statTotal(droppedItem) > statTotal(equipped);
-      }
+      const replaced = updatedPlayer.equipment[updatedPlayer.getEquipTargetSlot(droppedItem)];
+      isUpgrade = !!replaced && statTotal(droppedItem) > statTotal(replaced);
       AnalyticsService.itemDropped(
         droppedItem.rarity,
         droppedItem.type,

@@ -343,6 +343,19 @@ export class Player {
     return this.getEmptyInventorySlots() === 0;
   }
 
+  /**
+   * The equipment slot an item would occupy if equipped now. Non-accessories map to
+   * their fixed slot; an accessory fills accessory1 if it's empty, otherwise replaces
+   * accessory2. Single source of truth shared by equipItem and the loot-reveal upgrade
+   * badge, so the badge can never disagree with where the item actually lands.
+   */
+  getEquipTargetSlot(item: Item): EquipmentSlot {
+    if (item.type === 'accessory') {
+      return this.equipment.accessory1 === null ? 'accessory1' : 'accessory2';
+    }
+    return item.slot;
+  }
+
   equipItem(inventoryIndex: number): boolean {
     if (inventoryIndex < 0 || inventoryIndex >= this.inventory.length) {
       return false;
@@ -355,12 +368,7 @@ export class Player {
       return false;
     }
 
-    let targetSlot: EquipmentSlot;
-    if (item.type === 'accessory') {
-      targetSlot = this.equipment.accessory1 === null ? 'accessory1' : 'accessory2';
-    } else {
-      targetSlot = item.slot;
-    }
+    const targetSlot = this.getEquipTargetSlot(item);
 
     this.inventory[inventoryIndex] = null;
 
