@@ -214,9 +214,11 @@ export function useEncounter({
       // upgrade). Uses Player.getEquipTargetSlot — the same routing equipItem uses — as
       // the single source of truth, so the badge can never disagree with the real swap
       // (including the accessory1-empty-else-accessory2 routing).
+      // maxHp is the canonical HP-bonus field (items mirror hp === maxHp, and combat +
+      // the reveal display use maxHp) — counting both would double-weight HP items.
       const statTotal = (
-        it: { attack?: number; defense?: number; maxHp?: number; hp?: number } | null,
-      ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0) + (it?.hp ?? 0);
+        it: { attack?: number; defense?: number; maxHp?: number } | null,
+      ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0);
       const replaced = updatedPlayer.equipment[updatedPlayer.getEquipTargetSlot(droppedItem)];
       isUpgrade = !!replaced && statTotal(droppedItem) > statTotal(replaced);
       AnalyticsService.itemDropped(
