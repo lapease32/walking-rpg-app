@@ -210,13 +210,22 @@ export function useEncounter({
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
       inventoryFull = inventoryIndex === -1;
-      // Simple upgrade hint for the reveal badge: higher combined primary stats than
-      // whatever is currently equipped in the item's slot (or an empty slot).
-      const equipped = updatedPlayer.equipment[getItemSlot(droppedItem)];
+      // Upgrade hint for the reveal badge: higher combined primary stats than the item
+      // it would actually replace. An EMPTY slot is a fresh equip ("NEW"), not an
+      // "upgrade". Accessories can occupy either of two slots, so compare against the
+      // weaker equipped accessory (the one that would be swapped) — and only when both
+      // accessory slots are full (an empty accessory slot is also just "NEW").
       const statTotal = (
         it: { attack?: number; defense?: number; maxHp?: number; hp?: number } | null,
       ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0) + (it?.hp ?? 0);
-      isUpgrade = statTotal(droppedItem) > statTotal(equipped);
+      if (droppedItem.type === 'accessory') {
+        const a1 = updatedPlayer.equipment.accessory1;
+        const a2 = updatedPlayer.equipment.accessory2;
+        isUpgrade = !!a1 && !!a2 && statTotal(droppedItem) > Math.min(statTotal(a1), statTotal(a2));
+      } else {
+        const equipped = updatedPlayer.equipment[getItemSlot(droppedItem)];
+        isUpgrade = !!equipped && statTotal(droppedItem) > statTotal(equipped);
+      }
       AnalyticsService.itemDropped(
         droppedItem.rarity,
         droppedItem.type,
