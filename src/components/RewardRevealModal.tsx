@@ -206,7 +206,9 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
                   <Text style={styles.newBadge}>NEW</Text>
                 )}
                 {reveal.inventoryFull && (
-                  <Text style={styles.warning}>⚠️ Inventory full — sell or drop to keep it</Text>
+                  <Text style={styles.warning}>
+                    ⚠️ Inventory full — this drop was lost. Clear space to keep future finds.
+                  </Text>
                 )}
               </>
             ) : (

@@ -124,6 +124,9 @@ export function useEncounter({
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
+    // Clear any in-flight victory reveal too, so a previous account's reward can't
+    // linger over the new session after an account switch (clearEncounter runs then).
+    setRewardReveal(null);
   };
 
   const checkPendingEncounter = async (): Promise<void> => {
