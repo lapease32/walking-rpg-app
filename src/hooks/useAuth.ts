@@ -4,6 +4,7 @@ import AuthService, { AccountConflictError, AuthUser } from '../services/AuthSer
 import CloudSyncService from '../services/CloudSyncService';
 import AnalyticsService from '../services/AnalyticsService';
 import {
+  clearAllUserData,
   clearLocalPlayerData,
   clearPendingConflict,
   readLocalPlayerSnapshot,
@@ -344,10 +345,11 @@ export function useAuth({
     // anonymous session, and reload as a brand-new player. A failed re-auth here is
     // non-fatal: the account is already gone and the app re-anons on the next launch.
     try {
-      await clearLocalPlayerData();
-      // Also wipe account-conflict state — a stale CONFLICT_PENDING / conflictState would
-      // otherwise reopen a conflict modal or skip the reload path on a later sign-in.
-      await clearPendingConflict();
+      // Wipe ALL per-user local data (player, pending encounter, tracking, conflict) so
+      // nothing from the deleted account survives into the fresh session.
+      await clearAllUserData();
+      // Also reset the in-memory/ref conflict state so a stale conflict can't reopen a
+      // modal or skip the reload path on the re-anon sign-in.
       setConflictState(null);
       conflictResolutionPendingRef.current = false;
       conflictResolvingRef.current = false;
@@ -356,9 +358,16 @@ export function useAuth({
       setAuthUser(AuthService.getCurrentUser());
       await onAccountChangeRef.current();
     } catch (error) {
+      // Deletion already succeeded; the reset (re-anon/reload) failed. Tell the user to
+      // restart rather than leaving them on a silent half-reset state — a fresh launch
+      // re-anons cleanly.
       console.error(
-        'Post-deletion reset failed (account is deleted; recovers on next launch):',
+        'Post-deletion reset failed (account is deleted; recovers on relaunch):',
         error,
+      );
+      Alert.alert(
+        'Account deleted',
+        'Your account and data were deleted. Please restart the app to continue.',
       );
     } finally {
       setAuthLoading(false);
