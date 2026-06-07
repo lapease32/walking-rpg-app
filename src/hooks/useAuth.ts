@@ -345,6 +345,12 @@ export function useAuth({
     // non-fatal: the account is already gone and the app re-anons on the next launch.
     try {
       await clearLocalPlayerData();
+      // Also wipe account-conflict state — a stale CONFLICT_PENDING / conflictState would
+      // otherwise reopen a conflict modal or skip the reload path on a later sign-in.
+      await clearPendingConflict();
+      setConflictState(null);
+      conflictResolutionPendingRef.current = false;
+      conflictResolvingRef.current = false;
       AnalyticsService.accountDeleted();
       await AuthService.initialize();
       setAuthUser(AuthService.getCurrentUser());
