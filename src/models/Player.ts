@@ -356,6 +356,23 @@ export class Player {
     return item.slot;
   }
 
+  /**
+   * Whether `item` would be a stat upgrade over the gear it would actually replace if
+   * equipped now — combined attack + defense + maxHp vs. the item in its target slot.
+   * An empty target slot is a fresh equip, NOT an "upgrade" (returns false). maxHp is
+   * the canonical HP-bonus field (items mirror hp === maxHp), counted once so HP gear
+   * isn't double-weighted. Uses getEquipTargetSlot so the result always matches where
+   * equipItem would place it (incl. the accessory1-empty-else-accessory2 routing).
+   */
+  wouldUpgrade(item: Item): boolean {
+    const replaced = this.equipment[this.getEquipTargetSlot(item)];
+    if (!replaced) {
+      return false;
+    }
+    const statTotal = (it: Item): number => (it.attack ?? 0) + (it.defense ?? 0) + (it.maxHp ?? 0);
+    return statTotal(item) > statTotal(replaced);
+  }
+
   equipItem(inventoryIndex: number): boolean {
     if (inventoryIndex < 0 || inventoryIndex >= this.inventory.length) {
       return false;

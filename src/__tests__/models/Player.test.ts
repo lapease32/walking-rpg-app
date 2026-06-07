@@ -402,6 +402,47 @@ describe('Player', () => {
     });
   });
 
+  describe('wouldUpgrade', () => {
+    it('is true when the drop beats the gear in its target slot', () => {
+      const player = new Player({ level: 10 });
+      player.inventory[0] = makeWeapon({ id: 'w1', attack: 5 });
+      player.equipItem(0);
+      expect(player.wouldUpgrade(makeWeapon({ attack: 20 }))).toBe(true);
+    });
+
+    it('is false when the drop is worse than the equipped gear', () => {
+      const player = new Player({ level: 10 });
+      player.inventory[0] = makeWeapon({ id: 'w1', attack: 20 });
+      player.equipItem(0);
+      expect(player.wouldUpgrade(makeWeapon({ attack: 5 }))).toBe(false);
+    });
+
+    it('is false for an empty target slot (fresh equip is NEW, not an upgrade)', () => {
+      const player = new Player({ level: 10 });
+      expect(player.wouldUpgrade(makeWeapon({ attack: 20 }))).toBe(false);
+    });
+
+    it('compares an accessory against the slot it would actually replace (accessory2)', () => {
+      const player = new Player({ level: 10 });
+      player.inventory[0] = makeAccessory({ id: 'a1', attack: 50 }); // → accessory1
+      player.inventory[1] = makeAccessory({ id: 'a2', attack: 5 }); // → accessory2
+      player.equipItem(0);
+      player.equipItem(1);
+      // A new accessory replaces accessory2 (attack 5), so 10 > 5 is an upgrade — even
+      // though it's worse than accessory1 (50). Matches real equip routing.
+      expect(player.wouldUpgrade(makeAccessory({ attack: 10 }))).toBe(true);
+    });
+
+    it('counts maxHp once, not hp + maxHp (no double-weighting)', () => {
+      const player = new Player({ level: 10 });
+      player.inventory[0] = makeWeapon({ attack: 25 });
+      player.equipItem(0);
+      // Drop gives +20 maxHp (items mirror hp === maxHp); stat-total = 20 (maxHp once),
+      // not > 25. Double-counting hp + maxHp (40) would wrongly read as an upgrade.
+      expect(player.wouldUpgrade(makeWeapon({ attack: 0, hp: 20, maxHp: 20 }))).toBe(false);
+    });
+  });
+
   describe('toJSON / fromJSON', () => {
     it('round-trips player data without loss', () => {
       const player = new Player({ name: 'Hero', level: 5, experience: 42 });
