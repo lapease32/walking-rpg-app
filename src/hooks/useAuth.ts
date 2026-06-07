@@ -325,8 +325,13 @@ export function useAuth({
     // stranded "Loading…" screen, and wipe nothing.
     try {
       onAccountSwitchRef.current();
+      // Block cloud writes so an in-flight or late fire-and-forget save can't recreate
+      // players/{uid} after deletion (which would defeat erasure).
+      CloudSyncService.suspendWrites();
       await AuthService.deleteAccount();
     } catch (error: any) {
+      // Deletion aborted — the account is intact, so resume saves.
+      CloudSyncService.resumeWrites();
       Alert.alert(
         'Couldn’t delete account',
         error?.message ?? 'Something went wrong. Please try again.',
@@ -355,9 +360,13 @@ export function useAuth({
       conflictResolvingRef.current = false;
       AnalyticsService.accountDeleted();
       await AuthService.initialize();
+      // Fresh anonymous session established — the new account may write again.
+      CloudSyncService.resumeWrites();
       setAuthUser(AuthService.getCurrentUser());
       await onAccountChangeRef.current();
     } catch (error) {
+      // Ensure writes aren't left suspended if the reset failed.
+      CloudSyncService.resumeWrites();
       // Deletion already succeeded; the reset (re-anon/reload) failed. Tell the user to
       // restart rather than leaving them on a silent half-reset state — a fresh launch
       // re-anons cleanly.

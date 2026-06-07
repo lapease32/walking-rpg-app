@@ -13,8 +13,23 @@ class CloudSyncService {
   // Firestore update rule requires strict-greater and this makes that invariant
   // impossible to violate regardless of clock resolution.
   private lastSyncTimestamp: number = 0;
+  // When true, savePlayerData is a no-op. Set during account deletion so an in-flight or
+  // late fire-and-forget save can't recreate players/{uid} after the doc + auth user are
+  // deleted (which would defeat erasure). Reset once a fresh session is established.
+  private writesSuspended: boolean = false;
+
+  suspendWrites(): void {
+    this.writesSuspended = true;
+  }
+
+  resumeWrites(): void {
+    this.writesSuspended = false;
+  }
 
   async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
+    if (this.writesSuspended) {
+      return;
+    }
     const user = getAuth().currentUser;
     if (!user) {
       return;
