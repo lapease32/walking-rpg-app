@@ -291,8 +291,9 @@ export async function clearLocalPlayerData(): Promise<void> {
  */
 export async function clearAllUserData(): Promise<void> {
   // Intentionally does NOT swallow errors (unlike clearLocalPlayerData): account deletion
-  // runs this BEFORE the irreversible auth deletion and aborts if it throws, rather than
-  // deleting the account but silently leaving the deleted user's data on-device.
+  // runs this after a successful auth deletion and retries on failure rather than silently
+  // continuing as if erasure succeeded — leftover local data would resurrect under the next
+  // session. The caller (handleDeleteAccount) owns the retry; this just surfaces the error.
   await AsyncStorage.multiRemove([
     STORAGE_KEYS.PLAYER_DATA,
     STORAGE_KEYS.PLAYER_SAVED_AT,

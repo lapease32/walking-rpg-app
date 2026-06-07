@@ -319,19 +319,21 @@ export function useAuth({
 
   const handleDeleteAccount = async () => {
     setAuthLoading(true);
-    // Stop in-flight saves/GPS (account-switch guard) and block cloud writes so a late
-    // fire-and-forget save can't recreate players/{uid} after deletion.
+    // Stop in-flight saves/GPS (account-switch guard) and block NEW cloud writes. Then DRAIN
+    // any save already awaiting setDoc so it can't land on players/{uid} after deletion and
+    // resurrect the doc (suspendWrites alone only blocks new calls, not in-flight ones).
+    // The drain is bounded so a hung offline-queued write can't block deletion forever.
     onAccountSwitchRef.current();
     CloudSyncService.suspendWrites();
+    await CloudSyncService.drainPendingWrites();
 
-    // REVERSIBLE phase — do everything that can fail safely BEFORE the irreversible auth
-    // deletion. Wipe ALL per-user local data first (clearAllUserData throws on failure),
-    // then delete the auth account. If either throws, nothing irreversible happened: the
-    // account + cloud data are intact, so we abort, resume writes, and reload the player.
-    // (Doing the local wipe AFTER deleting the account could strand the deleted user's data
-    // on-device — device-global local data would then load into the next session.)
+    // Delete the auth account FIRST — the only irreversible step. If it throws (cancelled
+    // re-auth, network error, no user), the account, cloud doc, AND local data are all still
+    // intact, so we resume writes and reload: local still holds the real character, so no
+    // empty archetype screen appears and nothing can race-overwrite the live cloud record.
+    // (Wiping local BEFORE deleting would, on a cancelled delete, leave an empty local state
+    // that paints archetype selection and can overwrite the still-live cloud save.)
     try {
-      await clearAllUserData();
       await AuthService.deleteAccount();
     } catch (error: any) {
       CloudSyncService.resumeWrites();
@@ -350,9 +352,24 @@ export function useAuth({
       return;
     }
 
-    // Deletion succeeded (irreversible). Reset in-memory conflict state, re-establish a
-    // fresh anonymous session, and reload as a brand-new player. A failed re-anon here is
-    // non-fatal: the account is already gone and the app re-anons on the next launch.
+    // Deletion succeeded (irreversible). Wipe ALL per-user local data so nothing from the
+    // deleted account survives into the fresh session. clearAllUserData throws on failure;
+    // retry once (a local multiRemove failing twice means storage is unusable anyway). This
+    // runs AFTER deletion, so there is no live cloud record for a stale read to race.
+    try {
+      await clearAllUserData();
+    } catch (wipeError) {
+      console.error('Local data wipe failed after account deletion; retrying once:', wipeError);
+      try {
+        await clearAllUserData();
+      } catch (retryError) {
+        console.error('Local data wipe failed again after account deletion:', retryError);
+      }
+    }
+
+    // Reset in-memory conflict state, re-establish a fresh anonymous session, and reload as a
+    // brand-new player. A failed re-anon here is non-fatal: the account is already gone and
+    // the app re-anons on the next launch.
     setConflictState(null);
     conflictResolutionPendingRef.current = false;
     conflictResolvingRef.current = false;

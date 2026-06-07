@@ -13,10 +13,16 @@ class CloudSyncService {
   // Firestore update rule requires strict-greater and this makes that invariant
   // impossible to violate regardless of clock resolution.
   private lastSyncTimestamp: number = 0;
-  // When true, savePlayerData is a no-op. Set during account deletion so an in-flight or
-  // late fire-and-forget save can't recreate players/{uid} after the doc + auth user are
-  // deleted (which would defeat erasure). Reset once a fresh session is established.
+  // When true, savePlayerData is a no-op. Set during account deletion so a NEW fire-and-forget
+  // save can't recreate players/{uid} after the doc + auth user are deleted (which would defeat
+  // erasure). Blocks new calls only — in-flight writes are handled by drainPendingWrites.
+  // Reset once a fresh session is established.
   private writesSuspended: boolean = false;
+  // The most recent in-flight setDoc, chained so concurrent saves are all awaited. Account
+  // deletion calls drainPendingWrites() after suspendWrites() to let a save already awaiting
+  // setDoc finish BEFORE players/{uid} is deleted — otherwise that late write resurrects the
+  // doc. Each segment self-catches so the chain never rejects or stays pending on failure.
+  private pendingWrite: Promise<void> = Promise.resolve();
 
   suspendWrites(): void {
     this.writesSuspended = true;
@@ -24,6 +30,27 @@ class CloudSyncService {
 
   resumeWrites(): void {
     this.writesSuspended = false;
+  }
+
+  /**
+   * Await any in-flight cloud write, bounded by a timeout. Called during account deletion
+   * AFTER suspendWrites() so a save already awaiting setDoc completes before players/{uid}
+   * is deleted (preventing a late write from resurrecting the doc). Bounded because setDoc
+   * has no timeout of its own and can sit in the offline queue indefinitely — we must not
+   * block the user's deletion on it.
+   */
+  async drainPendingWrites(timeoutMs: number = 3000): Promise<void> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>(resolve => {
+      timeoutHandle = setTimeout(resolve, timeoutMs);
+    });
+    try {
+      await Promise.race([this.pendingWrite, timeout]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
@@ -34,20 +61,24 @@ class CloudSyncService {
     if (!user) {
       return;
     }
-    try {
-      const syncTimestamp = Math.max(lastSavedAt, this.lastSyncTimestamp + 1);
-      this.lastSyncTimestamp = syncTimestamp;
-      // setDoc() instead of runTransaction so Firestore's offline persistence can queue
-      // the write locally and flush when connectivity returns. Out-of-order write
-      // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
-      await setDoc(doc(collection(getFirestore(), 'players'), user.uid), {
-        playerData,
-        lastSavedAt: syncTimestamp,
+    const syncTimestamp = Math.max(lastSavedAt, this.lastSyncTimestamp + 1);
+    this.lastSyncTimestamp = syncTimestamp;
+    // setDoc() instead of runTransaction so Firestore's offline persistence can queue
+    // the write locally and flush when connectivity returns. Out-of-order write
+    // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
+    const write = setDoc(doc(collection(getFirestore(), 'players'), user.uid), {
+      playerData,
+      lastSavedAt: syncTimestamp,
+    })
+      .then(() => {})
+      .catch(error => {
+        console.error('CloudSyncService: failed to save player data:', error);
+        // Non-fatal — local save already succeeded; offline persistence will retry
       });
-    } catch (error) {
-      console.error('CloudSyncService: failed to save player data:', error);
-      // Non-fatal — local save already succeeded; offline persistence will retry
-    }
+    // Track for drainPendingWrites. Chain onto the prior write so concurrent saves are all
+    // awaited; each segment self-catches above so the chain never rejects.
+    this.pendingWrite = this.pendingWrite.then(() => write);
+    await write;
   }
 
   async loadPlayerData(): Promise<CloudPlayerRecord | null> {

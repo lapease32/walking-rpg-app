@@ -14,10 +14,12 @@ import {
   isValidEncounterData,
   saveTrackingState,
   loadTrackingState,
+  clearAllUserData,
 } from '../../utils/storage';
 
 const mockSetItem = AsyncStorage.setItem as jest.Mock;
 const mockGetItem = AsyncStorage.getItem as jest.Mock;
+const mockMultiRemove = AsyncStorage.multiRemove as jest.Mock;
 
 const validPlayerData = () => ({
   id: 'player1',
@@ -192,5 +194,36 @@ describe('loadTrackingState', () => {
   it('returns false when AsyncStorage throws', async () => {
     mockGetItem.mockRejectedValue(new Error('storage error'));
     expect(await loadTrackingState()).toBe(false);
+  });
+});
+
+describe('clearAllUserData', () => {
+  beforeEach(() => {
+    mockMultiRemove.mockReset();
+  });
+
+  it('removes every per-user key (player, encounter, tracking, conflict) in one call', async () => {
+    mockMultiRemove.mockResolvedValue(undefined);
+    await clearAllUserData();
+    expect(mockMultiRemove).toHaveBeenCalledTimes(1);
+    const keys = mockMultiRemove.mock.calls[0][0] as string[];
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        '@walking_rpg:player_data',
+        '@walking_rpg:player_saved_at',
+        '@walking_rpg:pending_encounter',
+        '@walking_rpg:tracking_state',
+        '@walking_rpg:conflict_pending',
+      ]),
+    );
+    // SETTINGS is device-level, not account data — it must NOT be wiped on account deletion.
+    expect(keys).not.toContain('@walking_rpg:settings');
+  });
+
+  it('propagates storage errors rather than swallowing them', async () => {
+    // Erasure contract: account deletion must be able to detect a failed wipe and retry.
+    // If this regresses to swallowing errors, leftover data could resurrect post-deletion.
+    mockMultiRemove.mockRejectedValue(new Error('storage error'));
+    await expect(clearAllUserData()).rejects.toThrow('storage error');
   });
 });
