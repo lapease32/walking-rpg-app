@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import { AuthUser } from '../services/AuthService';
 
@@ -23,6 +24,7 @@ interface SettingsModalProps {
   onGoogleSignIn: () => void;
   onAppleSignIn: () => void;
   onSignOut: () => void;
+  onDeleteAccount: () => void;
 }
 
 export default function SettingsModal({
@@ -33,9 +35,21 @@ export default function SettingsModal({
   onGoogleSignIn,
   onAppleSignIn,
   onSignOut,
+  onDeleteAccount,
 }: SettingsModalProps) {
   const isSignedIn = authUser && !authUser.isAnonymous;
   const displayName = authUser?.displayName ?? authUser?.email ?? 'Signed in';
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete account & data?',
+      'This permanently deletes your account and all progress — on this device and in the cloud. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDeleteAccount },
+      ],
+    );
+  };
 
   return (
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
@@ -78,6 +92,12 @@ export default function SettingsModal({
                     </TouchableOpacity>
                   )}
                 </View>
+              )}
+
+              {!authLoading && (
+                <TouchableOpacity style={styles.deleteAccountButton} onPress={confirmDelete}>
+                  <Text style={styles.deleteAccountButtonText}>Delete account & data</Text>
+                </TouchableOpacity>
               )}
             </View>
 
@@ -198,5 +218,16 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 16,
     color: '#2196F3',
+  },
+  deleteAccountButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  deleteAccountButtonText: {
+    color: '#C62828',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

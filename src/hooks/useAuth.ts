@@ -316,6 +316,29 @@ export function useAuth({
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setAuthLoading(true);
+    try {
+      // Stop in-flight saves / GPS callbacks and clear cross-domain state before tearing
+      // the account down (same guard the account-switch flow uses).
+      onAccountSwitchRef.current();
+      await AuthService.deleteAccount();
+      await clearLocalPlayerData();
+      AnalyticsService.accountDeleted();
+      // AuthService re-signed-in anonymously; refresh state and load the fresh (empty)
+      // player so the user lands on archetype selection as a brand-new account.
+      setAuthUser(AuthService.getCurrentUser());
+      await onAccountChangeRef.current();
+    } catch (error: any) {
+      Alert.alert(
+        'Couldn’t delete account',
+        error?.message ?? 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   return {
     authUser,
     authLoading,
@@ -325,5 +348,6 @@ export function useAuth({
     handleGoogleSignIn,
     handleAppleSignIn,
     handleSignOut,
+    handleDeleteAccount,
   };
 }

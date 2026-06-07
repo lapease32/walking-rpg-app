@@ -108,6 +108,7 @@ export default function HomeScreen() {
     handleGoogleSignIn,
     handleAppleSignIn,
     handleSignOut,
+    handleDeleteAccount,
   } = useAuth({
     onAccountChange: initializePlayer,
     onAccountSwitch: () => {
@@ -499,6 +500,7 @@ export default function HomeScreen() {
         onGoogleSignIn={handleGoogleSignIn}
         onAppleSignIn={handleAppleSignIn}
         onSignOut={handleSignOut}
+        onDeleteAccount={handleDeleteAccount}
       />
       {conflictState && (
         <AccountConflictModal conflictState={conflictState} onResolve={resolveConflict} />
