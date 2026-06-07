@@ -1,5 +1,11 @@
 name: E2E iOS
 
+# Cancel superseded runs: a new push to the same ref aborts the in-flight run instead
+# of queuing a duplicate (saves macOS minutes — billed 10× — + returns the latest result faster).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches: [main]
