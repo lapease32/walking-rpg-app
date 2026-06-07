@@ -71,15 +71,16 @@ appId: com.lancepease.walkingrpg
 - tapOn:
     id: "debug-instant-defeat"
 
-# Victory alert: wait for it to appear, verify not a defeat, dismiss
+# Victory reveal: the animated reward reveal appears on a win (replaces the old
+# victory Alert). Its presence confirms a victory — a player defeat still shows a
+# system alert, not this modal — so waiting for it doubles as the not-defeated check.
+# Tap anywhere on it to dismiss and return to the home screen.
 - extendedWaitUntil:
     visible:
-      text: "OK"
+      id: "reward-reveal"
     timeout: 10000
-- assertNotVisible:
-    text: "Defeated!"
 - tapOn:
-    text: "OK"
+    id: "reward-reveal"
 
 # Back on home screen
 - extendedWaitUntil:

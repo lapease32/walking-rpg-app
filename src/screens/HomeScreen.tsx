@@ -25,6 +25,7 @@ import PlayerStats from '../components/PlayerStats';
 import EquipmentDisplay from '../components/Equipment';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
+import RewardRevealModal from '../components/RewardRevealModal';
 import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
@@ -82,6 +83,8 @@ export default function HomeScreen() {
     setForceItemDrop,
     playerCombatState,
     playerCombatStateRef,
+    rewardReveal,
+    dismissReward,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
@@ -449,6 +452,7 @@ export default function HomeScreen() {
         playerCombatState={playerCombatState}
         playerCombatStateRef={playerCombatStateRef}
       />
+      <RewardRevealModal reveal={rewardReveal} onDismiss={dismissReward} />
       <InventoryModal
         inventory={player?.inventory || []}
         player={player}

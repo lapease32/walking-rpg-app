@@ -8,6 +8,7 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { dropItem } from '../services/LootService';
+import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
   clearPendingEncounter,
@@ -52,6 +53,7 @@ export function useEncounter({
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false);
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
+  const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
   // Authoritative refs — always current, used for synchronous reads inside handlers.
   // playerCombatStateRef replaces the old playerResourceRef pattern and extends it to
   // the full state so every handler sees post-last-ability values, not stale closures.
@@ -121,6 +123,9 @@ export function useEncounter({
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
+    // Clear any in-flight victory reveal too, so a previous account's reward can't
+    // linger over the new session after an account switch (clearEncounter runs then).
+    setRewardReveal(null);
   };
 
   const checkPendingEncounter = async (): Promise<void> => {
@@ -199,14 +204,29 @@ export function useEncounter({
     const levelsGained = updatedPlayer.addExperience(expGain);
 
     const droppedItem = dropItem(forceItemDrop, updatedPlayer.level);
-    let lootMessage = '';
+    let inventoryFull = false;
+    let isUpgrade = false;
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
-      if (inventoryIndex === -1) {
-        lootMessage = `\n\n⚠️ Received ${droppedItem.name} but inventory is full!`;
-      } else {
-        lootMessage = `\n\n✨ Received ${droppedItem.name}!`;
-      }
+      inventoryFull = inventoryIndex === -1;
+      // Upgrade hint for the reveal badge: compare against the item that would ACTUALLY
+      // be replaced if equipped (an empty target slot → fresh equip → "NEW", not an
+      // upgrade). Uses Player.getEquipTargetSlot — the same routing equipItem uses — as
+      // the single source of truth, so the badge can never disagree with the real swap
+      // (including the accessory1-empty-else-accessory2 routing).
+      // maxHp is the canonical HP-bonus field (items mirror hp === maxHp, and combat +
+      // the reveal display use maxHp) — counting both would double-weight HP items.
+      const statTotal = (
+        it: { attack?: number; defense?: number; maxHp?: number } | null,
+      ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0);
+      const replaced = updatedPlayer.equipment[updatedPlayer.getEquipTargetSlot(droppedItem)];
+      isUpgrade = !!replaced && statTotal(droppedItem) > statTotal(replaced);
+      AnalyticsService.itemDropped(
+        droppedItem.rarity,
+        droppedItem.type,
+        droppedItem.level,
+        updatedPlayer.level,
+      );
     }
 
     updatedPlayer.fullHeal();
@@ -233,16 +253,16 @@ export function useEncounter({
     );
     if (levelsGained > 0) {
       AnalyticsService.levelUp(updatedPlayer.level);
-      Alert.alert(
-        'Victory & Level Up!',
-        `You defeated ${currentEncounterState.creature.name}!\nGained ${expGain} XP\nReached level ${updatedPlayer.level}!${lootMessage}`,
-      );
-    } else {
-      Alert.alert(
-        'Victory!',
-        `You defeated ${currentEncounterState.creature.name} and gained ${expGain} XP!${lootMessage}`,
-      );
     }
+    setRewardReveal({
+      creatureName: currentEncounterState.creature.name,
+      xpGained: expGain,
+      leveledUp: levelsGained > 0,
+      newLevel: updatedPlayer.level,
+      item: droppedItem ?? null,
+      isUpgrade,
+      inventoryFull,
+    });
   };
 
   const handleFlee = (): void => {
@@ -710,6 +730,8 @@ export function useEncounter({
     }
   };
 
+  const dismissReward = (): void => setRewardReveal(null);
+
   return {
     currentEncounter,
     showEncounterModal,
@@ -728,6 +750,8 @@ export function useEncounter({
     setForceItemDrop,
     playerCombatState,
     playerCombatStateRef,
+    rewardReveal,
+    dismissReward,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,

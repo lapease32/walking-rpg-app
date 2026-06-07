@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Item, AffixStat } from '../models/Item';
-import { Rarity } from '../models/Creature';
+import { getRarityColor } from '../constants/rarity';
 import { Player } from '../models/Player';
 
 interface ItemDetailsModalProps {
@@ -35,18 +35,6 @@ export default function ItemDetailsModal({
   if (!item) {
     return null;
   }
-
-  const rarityColors: Record<Rarity, string> = {
-    common: '#9E9E9E',
-    uncommon: '#4CAF50',
-    rare: '#2196F3',
-    epic: '#9C27B0',
-    legendary: '#FF9800',
-  };
-
-  const getRarityColor = (rarity: Rarity): string => {
-    return rarityColors[rarity] || '#9E9E9E';
-  };
 
   const getItemIcon = (targetItem: Item): string => {
     const iconMap: Record<Item['type'], string> = {

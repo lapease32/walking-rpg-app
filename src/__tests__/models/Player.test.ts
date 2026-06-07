@@ -374,6 +374,34 @@ describe('Player', () => {
     });
   });
 
+  describe('getEquipTargetSlot', () => {
+    it('returns the fixed slot for a non-accessory item', () => {
+      const player = new Player({ level: 1 });
+      expect(player.getEquipTargetSlot(makeWeapon())).toBe('weapon');
+    });
+
+    it('targets accessory1 when both accessory slots are empty', () => {
+      const player = new Player({ level: 1 });
+      expect(player.getEquipTargetSlot(makeAccessory())).toBe('accessory1');
+    });
+
+    it('targets accessory2 once accessory1 is filled', () => {
+      const player = new Player({ level: 1 });
+      player.inventory[0] = makeAccessory({ id: 'acc1' });
+      player.equipItem(0);
+      expect(player.getEquipTargetSlot(makeAccessory({ id: 'acc2' }))).toBe('accessory2');
+    });
+
+    it('targets accessory2 (the replaced slot) when both are filled', () => {
+      const player = new Player({ level: 1 });
+      player.inventory[0] = makeAccessory({ id: 'acc1' });
+      player.inventory[1] = makeAccessory({ id: 'acc2' });
+      player.equipItem(0);
+      player.equipItem(1);
+      expect(player.getEquipTargetSlot(makeAccessory({ id: 'acc3' }))).toBe('accessory2');
+    });
+  });
+
   describe('toJSON / fromJSON', () => {
     it('round-trips player data without loss', () => {
       const player = new Player({ name: 'Hero', level: 5, experience: 42 });
