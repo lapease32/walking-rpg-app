@@ -319,18 +319,21 @@ export function useAuth({
 
   const handleDeleteAccount = async () => {
     setAuthLoading(true);
-    // Phase 1 — delete the account. Stop in-flight saves/GPS first (account-switch guard).
-    // If deletion throws (no user, re-auth cancelled, network), the account AND local data
-    // are still intact: reload the player so the user returns to their game instead of a
-    // stranded "Loading…" screen, and wipe nothing.
+    // Stop in-flight saves/GPS (account-switch guard) and block cloud writes so a late
+    // fire-and-forget save can't recreate players/{uid} after deletion.
+    onAccountSwitchRef.current();
+    CloudSyncService.suspendWrites();
+
+    // REVERSIBLE phase — do everything that can fail safely BEFORE the irreversible auth
+    // deletion. Wipe ALL per-user local data first (clearAllUserData throws on failure),
+    // then delete the auth account. If either throws, nothing irreversible happened: the
+    // account + cloud data are intact, so we abort, resume writes, and reload the player.
+    // (Doing the local wipe AFTER deleting the account could strand the deleted user's data
+    // on-device — device-global local data would then load into the next session.)
     try {
-      onAccountSwitchRef.current();
-      // Block cloud writes so an in-flight or late fire-and-forget save can't recreate
-      // players/{uid} after deletion (which would defeat erasure).
-      CloudSyncService.suspendWrites();
+      await clearAllUserData();
       await AuthService.deleteAccount();
     } catch (error: any) {
-      // Deletion aborted — the account is intact, so resume saves.
       CloudSyncService.resumeWrites();
       Alert.alert(
         'Couldn’t delete account',
@@ -346,30 +349,21 @@ export function useAuth({
       }
       return;
     }
-    // Phase 2 — deletion succeeded (irreversible). Wipe local, record, re-establish a fresh
-    // anonymous session, and reload as a brand-new player. A failed re-auth here is
+
+    // Deletion succeeded (irreversible). Reset in-memory conflict state, re-establish a
+    // fresh anonymous session, and reload as a brand-new player. A failed re-anon here is
     // non-fatal: the account is already gone and the app re-anons on the next launch.
+    setConflictState(null);
+    conflictResolutionPendingRef.current = false;
+    conflictResolvingRef.current = false;
+    AnalyticsService.accountDeleted();
     try {
-      // Wipe ALL per-user local data (player, pending encounter, tracking, conflict) so
-      // nothing from the deleted account survives into the fresh session.
-      await clearAllUserData();
-      // Also reset the in-memory/ref conflict state so a stale conflict can't reopen a
-      // modal or skip the reload path on the re-anon sign-in.
-      setConflictState(null);
-      conflictResolutionPendingRef.current = false;
-      conflictResolvingRef.current = false;
-      AnalyticsService.accountDeleted();
       await AuthService.initialize();
-      // Fresh anonymous session established — the new account may write again.
       CloudSyncService.resumeWrites();
       setAuthUser(AuthService.getCurrentUser());
       await onAccountChangeRef.current();
     } catch (error) {
-      // Ensure writes aren't left suspended if the reset failed.
       CloudSyncService.resumeWrites();
-      // Deletion already succeeded; the reset (re-anon/reload) failed. Tell the user to
-      // restart rather than leaving them on a silent half-reset state — a fresh launch
-      // re-anons cleanly.
       console.error(
         'Post-deletion reset failed (account is deleted; recovers on relaunch):',
         error,

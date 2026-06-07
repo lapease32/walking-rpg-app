@@ -290,17 +290,16 @@ export async function clearLocalPlayerData(): Promise<void> {
  * is intentionally excluded — it's device-level app preferences, not account data.
  */
 export async function clearAllUserData(): Promise<void> {
-  try {
-    await AsyncStorage.multiRemove([
-      STORAGE_KEYS.PLAYER_DATA,
-      STORAGE_KEYS.PLAYER_SAVED_AT,
-      STORAGE_KEYS.PENDING_ENCOUNTER,
-      STORAGE_KEYS.TRACKING_STATE,
-      STORAGE_KEYS.CONFLICT_PENDING,
-    ]);
-  } catch (error) {
-    console.error('clearAllUserData: storage error during account deletion:', error);
-  }
+  // Intentionally does NOT swallow errors (unlike clearLocalPlayerData): account deletion
+  // runs this BEFORE the irreversible auth deletion and aborts if it throws, rather than
+  // deleting the account but silently leaving the deleted user's data on-device.
+  await AsyncStorage.multiRemove([
+    STORAGE_KEYS.PLAYER_DATA,
+    STORAGE_KEYS.PLAYER_SAVED_AT,
+    STORAGE_KEYS.PENDING_ENCOUNTER,
+    STORAGE_KEYS.TRACKING_STATE,
+    STORAGE_KEYS.CONFLICT_PENDING,
+  ]);
 }
 
 export async function writePendingConflict(record: PendingConflictRecord): Promise<void> {
