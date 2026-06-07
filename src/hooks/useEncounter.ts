@@ -209,18 +209,9 @@ export function useEncounter({
     if (droppedItem) {
       const inventoryIndex = updatedPlayer.addItemToInventory(droppedItem);
       inventoryFull = inventoryIndex === -1;
-      // Upgrade hint for the reveal badge: compare against the item that would ACTUALLY
-      // be replaced if equipped (an empty target slot → fresh equip → "NEW", not an
-      // upgrade). Uses Player.getEquipTargetSlot — the same routing equipItem uses — as
-      // the single source of truth, so the badge can never disagree with the real swap
-      // (including the accessory1-empty-else-accessory2 routing).
-      // maxHp is the canonical HP-bonus field (items mirror hp === maxHp, and combat +
-      // the reveal display use maxHp) — counting both would double-weight HP items.
-      const statTotal = (
-        it: { attack?: number; defense?: number; maxHp?: number } | null,
-      ): number => (it?.attack ?? 0) + (it?.defense ?? 0) + (it?.maxHp ?? 0);
-      const replaced = updatedPlayer.equipment[updatedPlayer.getEquipTargetSlot(droppedItem)];
-      isUpgrade = !!replaced && statTotal(droppedItem) > statTotal(replaced);
+      // Upgrade hint for the reveal badge — single source of truth on the model, so it
+      // always matches where equipItem would place the drop (see Player.wouldUpgrade).
+      isUpgrade = updatedPlayer.wouldUpgrade(droppedItem);
       AnalyticsService.itemDropped(
         droppedItem.rarity,
         droppedItem.type,
