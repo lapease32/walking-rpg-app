@@ -334,6 +334,15 @@ export function useAuth({
         'Couldn’t delete account',
         error?.message ?? 'Something went wrong. Please try again.',
       );
+      // Deletion aborted (e.g. re-auth cancelled): the account and local data are still
+      // intact, but onAccountSwitch already cleared the in-memory player. Reload it so the
+      // user returns to their game instead of being stranded on the "Loading…" screen.
+      try {
+        setAuthUser(AuthService.getCurrentUser());
+        await onAccountChangeRef.current();
+      } catch (reloadError) {
+        console.error('Failed to reload player after aborted account deletion:', reloadError);
+      }
     } finally {
       setAuthLoading(false);
     }
