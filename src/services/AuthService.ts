@@ -132,11 +132,14 @@ class AuthService {
   }
 
   /**
-   * Permanently delete the current user's Firebase Auth account, then re-establish a
-   * fresh anonymous session so the app keeps working. The server-side `onUserDeleted`
-   * Cloud Function cascades the Firestore data cleanup (GDPR / Apple 5.1.1(v)). Firebase
-   * requires a recent login for deletion; if a non-anonymous session is stale, re-auth
-   * with the provider and retry once. Anonymous users delete directly.
+   * Permanently delete the current user's Firebase Auth account (GDPR / Apple 5.1.1(v)).
+   * The caller (useAuth.handleDeleteAccount) erases the user's Firestore data FIRST, via
+   * CloudSyncService.deletePlayerData while still authenticated — that is the primary cloud
+   * cleanup and works without any Cloud Function deployed. The server-side `onUserDeleted`
+   * trigger is a backstop for the case the client can't finish. Firebase requires a recent
+   * login for deletion; if a non-anonymous session is stale, re-auth with the provider and
+   * retry once. Anonymous users delete directly. Re-establishing a fresh anonymous session
+   * afterward is the caller's responsibility (kept separate — see below).
    */
   async deleteAccount(): Promise<void> {
     let user = getAuth().currentUser;

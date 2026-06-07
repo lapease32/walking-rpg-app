@@ -327,15 +327,10 @@ export function useAuth({
     CloudSyncService.suspendWrites();
     await CloudSyncService.drainPendingWrites();
 
-    // Delete the auth account FIRST — the only irreversible step. If it throws (cancelled
-    // re-auth, network error, no user), the account, cloud doc, AND local data are all still
-    // intact, so we resume writes and reload: local still holds the real character, so no
-    // empty archetype screen appears and nothing can race-overwrite the live cloud record.
-    // (Wiping local BEFORE deleting would, on a cancelled delete, leave an empty local state
-    // that paints archetype selection and can overwrite the still-live cloud save.)
-    try {
-      await AuthService.deleteAccount();
-    } catch (error: any) {
+    // Shared abort path for any failure BEFORE the irreversible auth deletion. Nothing
+    // unrecoverable has happened: resume writes, tell the user, and reload the player (local
+    // still holds the real character, so no empty archetype screen and no overwrite race).
+    const abortDeletion = async (error: any) => {
       CloudSyncService.resumeWrites();
       Alert.alert(
         'Couldn’t delete account',
@@ -349,6 +344,30 @@ export function useAuth({
       } finally {
         setAuthLoading(false);
       }
+    };
+
+    // Erase cloud data FIRST, while still authenticated — Firestore rules only let a client
+    // delete its OWN players/{uid} doc, so this must happen before the auth account is gone.
+    // This is the PRIMARY cloud-erasure path: it works without the onUserDeleted Cloud
+    // Function deployed (the function is a server-side backstop). If it fails we abort before
+    // the irreversible auth deletion, so we never delete the account while orphaning its
+    // cloud data — which the confirmation copy promises is gone.
+    try {
+      await CloudSyncService.deletePlayerData();
+    } catch (error: any) {
+      await abortDeletion(error);
+      return;
+    }
+
+    // Delete the auth account (irreversible). If it throws (cancelled re-auth, network), the
+    // account and local data are intact, so we abort and reload. The cloud doc was already
+    // deleted above; local is still the source of truth, so the next save re-creates the
+    // cloud record from local — no data is lost. (Wiping local BEFORE this would, on a
+    // cancelled delete, leave an empty local state that paints archetype selection.)
+    try {
+      await AuthService.deleteAccount();
+    } catch (error: any) {
+      await abortDeletion(error);
       return;
     }
 

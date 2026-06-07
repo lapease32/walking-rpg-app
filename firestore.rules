@@ -11,6 +11,10 @@ service cloud.firestore {
       allow create: if isOwner(uid) && isValidPlayerDoc(request.resource.data);
       allow update: if isOwner(uid) && isValidPlayerDoc(request.resource.data)
                        && request.resource.data.lastSavedAt > resource.data.lastSavedAt;
+      // Owners may delete their own record — the primary account-deletion erasure path
+      // (CloudSyncService.deletePlayerData), run client-side while still authenticated.
+      // The onUserDeleted Cloud Function is a server-side backstop, not the sole mechanism.
+      allow delete: if isOwner(uid);
     }
 
     function isOwner(uid) {

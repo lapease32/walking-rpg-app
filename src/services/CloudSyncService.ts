@@ -1,5 +1,12 @@
 import { getAuth } from '@react-native-firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc } from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  deleteDoc,
+} from '@react-native-firebase/firestore';
 import { PlayerData } from '../models/Player';
 
 export interface CloudPlayerRecord {
@@ -46,6 +53,45 @@ class CloudSyncService {
     });
     try {
       await Promise.race([this.pendingWrite, timeout]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  }
+
+  /**
+   * Permanently delete the current user's players/{uid} document — the PRIMARY cloud-erasure
+   * path for account deletion. Run client-side while the user is still authenticated (the
+   * Firestore rules only allow a client to delete its own doc, request.auth.uid == uid), so
+   * the caller must invoke this BEFORE deleting the auth account. This makes cloud erasure
+   * work without the onUserDeleted Cloud Function deployed; the function is a server-side
+   * backstop for the rare case the app dies between this and the auth deletion.
+   *
+   * Bounded by a timeout and throws on failure (or timeout) so the caller aborts the auth
+   * deletion rather than deleting the account and orphaning the cloud doc. Deleting a
+   * non-existent doc is a successful no-op (covers anonymous / never-synced users).
+   */
+  async deletePlayerData(timeoutMs: number = 10000): Promise<void> {
+    const user = getAuth().currentUser;
+    if (!user) {
+      // No signed-in user → nothing this client could delete (and no rights to). The auth
+      // layer handles the no-user case; treat as a no-op here.
+      return;
+    }
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error('Cloud data deletion timed out')),
+        timeoutMs,
+      );
+    });
+    const deletePromise = deleteDoc(doc(collection(getFirestore(), 'players'), user.uid));
+    // Swallow a late rejection so it isn't surfaced as an unhandled rejection if the
+    // timeout wins the race; the awaited race still rejects via `timeout`.
+    deletePromise.catch(() => {});
+    try {
+      await Promise.race([deletePromise, timeout]);
     } finally {
       if (timeoutHandle !== undefined) {
         clearTimeout(timeoutHandle);
