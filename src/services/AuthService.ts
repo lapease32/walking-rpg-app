@@ -139,9 +139,11 @@ class AuthService {
    * with the provider and retry once. Anonymous users delete directly.
    */
   async deleteAccount(): Promise<void> {
-    const user = getAuth().currentUser;
+    let user = getAuth().currentUser;
     if (!user) {
-      return;
+      // No account to delete — throw so the caller doesn't wipe local data as if a
+      // deletion succeeded.
+      throw new Error('No account is signed in to delete.');
     }
     const wasAnonymous = user.isAnonymous;
     if (!wasAnonymous) {
@@ -156,17 +158,18 @@ class AuthService {
     } catch (error: any) {
       if (error?.code === 'auth/requires-recent-login' && !wasAnonymous) {
         await this.reauthenticate();
-        await getAuth().currentUser?.delete();
+        user = getAuth().currentUser;
+        if (!user) {
+          throw new Error('Re-authentication did not restore a user to delete.');
+        }
+        await user.delete();
       } else {
         throw error;
       }
     }
-    // Re-establish an anonymous session so the app continues to function post-deletion.
-    try {
-      await signInAnonymously(getAuth());
-    } catch (error) {
-      console.error('AuthService: anonymous sign-in after account deletion failed:', error);
-    }
+    // Re-establishing an anonymous session is the CALLER's responsibility
+    // (useAuth.handleDeleteAccount) — kept separate so a failed re-auth/sign-in isn't
+    // mistaken for a failed deletion (the deletion above already succeeded).
   }
 
   // Refresh the current non-anonymous user's credentials via their sign-in provider —

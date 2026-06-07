@@ -318,31 +318,42 @@ export function useAuth({
 
   const handleDeleteAccount = async () => {
     setAuthLoading(true);
+    // Phase 1 — delete the account. Stop in-flight saves/GPS first (account-switch guard).
+    // If deletion throws (no user, re-auth cancelled, network), the account AND local data
+    // are still intact: reload the player so the user returns to their game instead of a
+    // stranded "Loading…" screen, and wipe nothing.
     try {
-      // Stop in-flight saves / GPS callbacks and clear cross-domain state before tearing
-      // the account down (same guard the account-switch flow uses).
       onAccountSwitchRef.current();
       await AuthService.deleteAccount();
-      await clearLocalPlayerData();
-      AnalyticsService.accountDeleted();
-      // AuthService re-signed-in anonymously; refresh state and load the fresh (empty)
-      // player so the user lands on archetype selection as a brand-new account.
-      setAuthUser(AuthService.getCurrentUser());
-      await onAccountChangeRef.current();
     } catch (error: any) {
       Alert.alert(
         'Couldn’t delete account',
         error?.message ?? 'Something went wrong. Please try again.',
       );
-      // Deletion aborted (e.g. re-auth cancelled): the account and local data are still
-      // intact, but onAccountSwitch already cleared the in-memory player. Reload it so the
-      // user returns to their game instead of being stranded on the "Loading…" screen.
       try {
         setAuthUser(AuthService.getCurrentUser());
         await onAccountChangeRef.current();
       } catch (reloadError) {
         console.error('Failed to reload player after aborted account deletion:', reloadError);
+      } finally {
+        setAuthLoading(false);
       }
+      return;
+    }
+    // Phase 2 — deletion succeeded (irreversible). Wipe local, record, re-establish a fresh
+    // anonymous session, and reload as a brand-new player. A failed re-auth here is
+    // non-fatal: the account is already gone and the app re-anons on the next launch.
+    try {
+      await clearLocalPlayerData();
+      AnalyticsService.accountDeleted();
+      await AuthService.initialize();
+      setAuthUser(AuthService.getCurrentUser());
+      await onAccountChangeRef.current();
+    } catch (error) {
+      console.error(
+        'Post-deletion reset failed (account is deleted; recovers on next launch):',
+        error,
+      );
     } finally {
       setAuthLoading(false);
     }
