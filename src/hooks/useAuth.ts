@@ -4,6 +4,7 @@ import AuthService, { AccountConflictError, AuthUser } from '../services/AuthSer
 import CloudSyncService from '../services/CloudSyncService';
 import AnalyticsService from '../services/AnalyticsService';
 import {
+  clearAllUserData,
   clearLocalPlayerData,
   clearPendingConflict,
   readLocalPlayerSnapshot,
@@ -316,6 +317,102 @@ export function useAuth({
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setAuthLoading(true);
+    // Stop in-flight saves/GPS (account-switch guard) and block NEW cloud writes. Then DRAIN
+    // any save already awaiting setDoc so it can't land on players/{uid} after deletion and
+    // resurrect the doc (suspendWrites alone only blocks new calls, not in-flight ones).
+    // The drain is bounded so a hung offline-queued write can't block deletion forever.
+    onAccountSwitchRef.current();
+    CloudSyncService.suspendWrites();
+    await CloudSyncService.drainPendingWrites();
+
+    // Shared abort path for any failure BEFORE the irreversible auth deletion. Nothing
+    // unrecoverable has happened: resume writes, tell the user, and reload the player (local
+    // still holds the real character, so no empty archetype screen and no overwrite race).
+    const abortDeletion = async (error: any) => {
+      CloudSyncService.resumeWrites();
+      Alert.alert(
+        'Couldn’t delete account',
+        error?.message ?? 'Something went wrong. Please try again.',
+      );
+      try {
+        setAuthUser(AuthService.getCurrentUser());
+        await onAccountChangeRef.current();
+      } catch (reloadError) {
+        console.error('Failed to reload player after aborted account deletion:', reloadError);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    // Erase cloud data FIRST, while still authenticated — Firestore rules only let a client
+    // delete its OWN players/{uid} doc, so this must happen before the auth account is gone.
+    // This is the PRIMARY cloud-erasure path: it works without the onUserDeleted Cloud
+    // Function deployed (the function is a server-side backstop). If it fails we abort before
+    // the irreversible auth deletion, so we never delete the account while orphaning its
+    // cloud data — which the confirmation copy promises is gone.
+    try {
+      await CloudSyncService.deletePlayerData();
+    } catch (error: any) {
+      await abortDeletion(error);
+      return;
+    }
+
+    // Delete the auth account (irreversible). If it throws (cancelled re-auth, network), the
+    // account and local data are intact, so we abort and reload. The cloud doc was already
+    // deleted above; local is still the source of truth, so the next save re-creates the
+    // cloud record from local — no data is lost. (Wiping local BEFORE this would, on a
+    // cancelled delete, leave an empty local state that paints archetype selection.)
+    try {
+      await AuthService.deleteAccount();
+    } catch (error: any) {
+      await abortDeletion(error);
+      return;
+    }
+
+    // Deletion succeeded (irreversible). Wipe ALL per-user local data so nothing from the
+    // deleted account survives into the fresh session. clearAllUserData throws on failure;
+    // retry once (a local multiRemove failing twice means storage is unusable anyway). This
+    // runs AFTER deletion, so there is no live cloud record for a stale read to race.
+    try {
+      await clearAllUserData();
+    } catch (wipeError) {
+      console.error('Local data wipe failed after account deletion; retrying once:', wipeError);
+      try {
+        await clearAllUserData();
+      } catch (retryError) {
+        console.error('Local data wipe failed again after account deletion:', retryError);
+      }
+    }
+
+    // Reset in-memory conflict state, re-establish a fresh anonymous session, and reload as a
+    // brand-new player. A failed re-anon here is non-fatal: the account is already gone and
+    // the app re-anons on the next launch.
+    setConflictState(null);
+    conflictResolutionPendingRef.current = false;
+    conflictResolvingRef.current = false;
+    AnalyticsService.accountDeleted();
+    try {
+      await AuthService.initialize();
+      CloudSyncService.resumeWrites();
+      setAuthUser(AuthService.getCurrentUser());
+      await onAccountChangeRef.current();
+    } catch (error) {
+      CloudSyncService.resumeWrites();
+      console.error(
+        'Post-deletion reset failed (account is deleted; recovers on relaunch):',
+        error,
+      );
+      Alert.alert(
+        'Account deleted',
+        'Your account and data were deleted. Please restart the app to continue.',
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   return {
     authUser,
     authLoading,
@@ -325,5 +422,6 @@ export function useAuth({
     handleGoogleSignIn,
     handleAppleSignIn,
     handleSignOut,
+    handleDeleteAccount,
   };
 }

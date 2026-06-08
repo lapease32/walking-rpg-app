@@ -88,6 +88,10 @@ const AnalyticsService = {
   signOut() {
     log('sign_out');
   },
+
+  accountDeleted() {
+    log('account_deleted');
+  },
 };
 
 export default AnalyticsService;

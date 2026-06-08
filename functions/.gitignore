@@ -1,0 +1,7 @@
+node_modules/
+lib/
+*.log
+
+# The root .gitignore ignores package-lock.json repo-wide (the app uses yarn). The
+# functions sub-project uses npm, so re-include ITS lockfile for reproducible `npm ci`.
+!package-lock.json

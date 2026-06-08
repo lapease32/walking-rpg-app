@@ -283,6 +283,26 @@ export async function clearLocalPlayerData(): Promise<void> {
   }
 }
 
+/**
+ * Wipe ALL per-user local data — used by account deletion (GDPR / Apple 5.1.1(v)) so no
+ * trace of the deleted account survives into the next (fresh anonymous) session. Single
+ * source of truth for "everything tied to the user"; add new per-user keys here. SETTINGS
+ * is intentionally excluded — it's device-level app preferences, not account data.
+ */
+export async function clearAllUserData(): Promise<void> {
+  // Intentionally does NOT swallow errors (unlike clearLocalPlayerData): account deletion
+  // runs this after a successful auth deletion and retries on failure rather than silently
+  // continuing as if erasure succeeded — leftover local data would resurrect under the next
+  // session. The caller (handleDeleteAccount) owns the retry; this just surfaces the error.
+  await AsyncStorage.multiRemove([
+    STORAGE_KEYS.PLAYER_DATA,
+    STORAGE_KEYS.PLAYER_SAVED_AT,
+    STORAGE_KEYS.PENDING_ENCOUNTER,
+    STORAGE_KEYS.TRACKING_STATE,
+    STORAGE_KEYS.CONFLICT_PENDING,
+  ]);
+}
+
 export async function writePendingConflict(record: PendingConflictRecord): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.CONFLICT_PENDING, JSON.stringify(record));

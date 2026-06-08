@@ -1,5 +1,12 @@
 import { getAuth } from '@react-native-firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc } from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  deleteDoc,
+} from '@react-native-firebase/firestore';
 import { PlayerData } from '../models/Player';
 
 export interface CloudPlayerRecord {
@@ -13,26 +20,111 @@ class CloudSyncService {
   // Firestore update rule requires strict-greater and this makes that invariant
   // impossible to violate regardless of clock resolution.
   private lastSyncTimestamp: number = 0;
+  // When true, savePlayerData is a no-op. Set during account deletion so a NEW fire-and-forget
+  // save can't recreate players/{uid} after the doc + auth user are deleted (which would defeat
+  // erasure). Blocks new calls only — in-flight writes are handled by drainPendingWrites.
+  // Reset once a fresh session is established.
+  private writesSuspended: boolean = false;
+  // The most recent in-flight setDoc, chained so concurrent saves are all awaited. Account
+  // deletion calls drainPendingWrites() after suspendWrites() to let a save already awaiting
+  // setDoc finish BEFORE players/{uid} is deleted — otherwise that late write resurrects the
+  // doc. Each segment self-catches so the chain never rejects or stays pending on failure.
+  private pendingWrite: Promise<void> = Promise.resolve();
+
+  suspendWrites(): void {
+    this.writesSuspended = true;
+  }
+
+  resumeWrites(): void {
+    this.writesSuspended = false;
+  }
+
+  /**
+   * Await any in-flight cloud write, bounded by a timeout. Called during account deletion
+   * AFTER suspendWrites() so a save already awaiting setDoc completes before players/{uid}
+   * is deleted (preventing a late write from resurrecting the doc). Bounded because setDoc
+   * has no timeout of its own and can sit in the offline queue indefinitely — we must not
+   * block the user's deletion on it.
+   */
+  async drainPendingWrites(timeoutMs: number = 3000): Promise<void> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>(resolve => {
+      timeoutHandle = setTimeout(resolve, timeoutMs);
+    });
+    try {
+      await Promise.race([this.pendingWrite, timeout]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  }
+
+  /**
+   * Permanently delete the current user's players/{uid} document — the PRIMARY cloud-erasure
+   * path for account deletion. Run client-side while the user is still authenticated (the
+   * Firestore rules only allow a client to delete its own doc, request.auth.uid == uid), so
+   * the caller must invoke this BEFORE deleting the auth account. This makes cloud erasure
+   * work without the onUserDeleted Cloud Function deployed; the function is a server-side
+   * backstop for the rare case the app dies between this and the auth deletion.
+   *
+   * Bounded by a timeout and throws on failure (or timeout) so the caller aborts the auth
+   * deletion rather than deleting the account and orphaning the cloud doc. Deleting a
+   * non-existent doc is a successful no-op (covers anonymous / never-synced users).
+   */
+  async deletePlayerData(timeoutMs: number = 10000): Promise<void> {
+    const user = getAuth().currentUser;
+    if (!user) {
+      // No signed-in user → nothing this client could delete (and no rights to). The auth
+      // layer handles the no-user case; treat as a no-op here.
+      return;
+    }
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error('Cloud data deletion timed out')),
+        timeoutMs,
+      );
+    });
+    const deletePromise = deleteDoc(doc(collection(getFirestore(), 'players'), user.uid));
+    // Swallow a late rejection so it isn't surfaced as an unhandled rejection if the
+    // timeout wins the race; the awaited race still rejects via `timeout`.
+    deletePromise.catch(() => {});
+    try {
+      await Promise.race([deletePromise, timeout]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  }
 
   async savePlayerData(playerData: PlayerData, lastSavedAt: number): Promise<void> {
+    if (this.writesSuspended) {
+      return;
+    }
     const user = getAuth().currentUser;
     if (!user) {
       return;
     }
-    try {
-      const syncTimestamp = Math.max(lastSavedAt, this.lastSyncTimestamp + 1);
-      this.lastSyncTimestamp = syncTimestamp;
-      // setDoc() instead of runTransaction so Firestore's offline persistence can queue
-      // the write locally and flush when connectivity returns. Out-of-order write
-      // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
-      await setDoc(doc(collection(getFirestore(), 'players'), user.uid), {
-        playerData,
-        lastSavedAt: syncTimestamp,
+    const syncTimestamp = Math.max(lastSavedAt, this.lastSyncTimestamp + 1);
+    this.lastSyncTimestamp = syncTimestamp;
+    // setDoc() instead of runTransaction so Firestore's offline persistence can queue
+    // the write locally and flush when connectivity returns. Out-of-order write
+    // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
+    const write = setDoc(doc(collection(getFirestore(), 'players'), user.uid), {
+      playerData,
+      lastSavedAt: syncTimestamp,
+    })
+      .then(() => {})
+      .catch(error => {
+        console.error('CloudSyncService: failed to save player data:', error);
+        // Non-fatal — local save already succeeded; offline persistence will retry
       });
-    } catch (error) {
-      console.error('CloudSyncService: failed to save player data:', error);
-      // Non-fatal — local save already succeeded; offline persistence will retry
-    }
+    // Track for drainPendingWrites. Chain onto the prior write so concurrent saves are all
+    // awaited; each segment self-catches above so the chain never rejects.
+    this.pendingWrite = this.pendingWrite.then(() => write);
+    await write;
   }
 
   async loadPlayerData(): Promise<CloudPlayerRecord | null> {

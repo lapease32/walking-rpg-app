@@ -131,6 +131,89 @@ class AuthService {
     }
   }
 
+  /**
+   * Permanently delete the current user's Firebase Auth account (GDPR / Apple 5.1.1(v)).
+   * The caller (useAuth.handleDeleteAccount) erases the user's Firestore data FIRST, via
+   * CloudSyncService.deletePlayerData while still authenticated — that is the primary cloud
+   * cleanup and works without any Cloud Function deployed. The server-side `onUserDeleted`
+   * trigger is a backstop for the case the client can't finish. Firebase requires a recent
+   * login for deletion; if a non-anonymous session is stale, re-auth with the provider and
+   * retry once. Anonymous users delete directly. Re-establishing a fresh anonymous session
+   * afterward is the caller's responsibility (kept separate — see below).
+   */
+  async deleteAccount(): Promise<void> {
+    let user = getAuth().currentUser;
+    if (!user) {
+      // No account to delete — throw so the caller doesn't wipe local data as if a
+      // deletion succeeded.
+      throw new Error('No account is signed in to delete.');
+    }
+    const wasAnonymous = user.isAnonymous;
+    if (!wasAnonymous) {
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Not signed in via Google — ignore.
+      }
+    }
+    try {
+      await user.delete();
+    } catch (error: any) {
+      if (error?.code === 'auth/requires-recent-login' && !wasAnonymous) {
+        await this.reauthenticate();
+        user = getAuth().currentUser;
+        if (!user) {
+          throw new Error('Re-authentication did not restore a user to delete.');
+        }
+        await user.delete();
+      } else {
+        throw error;
+      }
+    }
+    // Re-establishing an anonymous session is the CALLER's responsibility
+    // (useAuth.handleDeleteAccount) — kept separate so a failed re-auth/sign-in isn't
+    // mistaken for a failed deletion (the deletion above already succeeded).
+  }
+
+  // Refresh the current non-anonymous user's credentials via their sign-in provider —
+  // required by Firebase before sensitive operations (account deletion) when the
+  // session is stale (auth/requires-recent-login).
+  private async reauthenticate(): Promise<void> {
+    const user = getAuth().currentUser;
+    if (!user) {
+      throw new Error('No user to re-authenticate');
+    }
+    const providerId = user.providerData[0]?.providerId;
+    if (providerId === 'google.com') {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
+      if (response.type !== 'success') {
+        throw new Error('Re-authentication cancelled');
+      }
+      const { idToken } = await GoogleSignin.getTokens();
+      if (!idToken) {
+        throw new Error('Re-authentication failed: no ID token returned');
+      }
+      await user.reauthenticateWithCredential(GoogleAuthProvider.credential(idToken));
+    } else if (providerId === 'apple.com') {
+      if (Platform.OS !== 'ios') {
+        throw new Error('Apple re-authentication is only available on iOS');
+      }
+      const appleAuth = require('@invertase/react-native-apple-authentication').default;
+      const appleResponse = await appleAuth.performRequest({
+        requestedOperation: appleAuth.Operation.LOGIN,
+        requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+      });
+      const { identityToken, nonce } = appleResponse;
+      if (!identityToken) {
+        throw new Error('Re-authentication failed: no identity token returned');
+      }
+      await user.reauthenticateWithCredential(AppleAuthProvider.credential(identityToken, nonce));
+    } else {
+      throw new Error(`Cannot re-authenticate unsupported provider: ${providerId ?? 'unknown'}`);
+    }
+  }
+
   // Signs in directly with a credential that is already linked to an existing account.
   // Only call this after the user has resolved the save conflict via AccountConflictError.
   async signInWithExistingCredential(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
