@@ -99,16 +99,22 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       opacity: new Animated.Value(0),
     })),
   ).current;
+  // Identity of the reveal whose start-state we've already applied — see reset below.
+  const shownRevealRef = useRef<RewardReveal | null>(null);
 
   const rarity: Rarity | null = reveal?.item?.rarity ?? null;
   const fx = rarity ? RARITY_FX[rarity] : null;
   const color = rarity ? getRarityColor(rarity) : '#FFD54F';
 
-  useEffect(() => {
-    if (!reveal) {
-      return;
-    }
-    // Reset every value so a re-show always plays cleanly.
+  // Re-show fix: the Animated values persist across reveals (useRef), so a NEW reveal would
+  // first PAINT with the PREVIOUS reveal's end-state (card already fully visible) for a frame
+  // before the useEffect below resets + replays — making the card flash in, vanish behind the
+  // burst, then resolve again. Reset to the hidden start-state synchronously here, during
+  // render, so the very first paint of each new reveal is already hidden. (A reset in
+  // useEffect runs AFTER paint — too late.) setValue on these refs doesn't trigger a re-render,
+  // and the ref guard means an in-flight animation (same reveal re-rendering) is never reset.
+  if (reveal && reveal !== shownRevealRef.current) {
+    shownRevealRef.current = reveal;
     backdrop.setValue(0);
     cardScale.setValue(0.6);
     cardOpacity.setValue(0);
@@ -120,7 +126,14 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       p.scale.setValue(0);
       p.opacity.setValue(0);
     });
+  }
 
+  useEffect(() => {
+    if (!reveal) {
+      return;
+    }
+    // The hidden start-state is applied synchronously during render (the reset block above), so
+    // the first paint is already hidden; here we only PLAY the animation.
     Animated.timing(backdrop, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 
     if (fx) {
