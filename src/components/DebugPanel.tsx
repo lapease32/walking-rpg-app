@@ -1,50 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { MutableRefObject } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Player } from '../models/Player';
-import { LocationData, DistanceData } from '../services/LocationService';
-import CrashlyticsService from '../services/CrashlyticsService';
+import { DebugController } from '../hooks/useDebugActions';
 import { ENV_CONFIG } from '../constants/environment';
 
 interface Props {
   debugMode: boolean;
   onToggleDebug: (enabled: boolean) => void;
   player: Player;
-  playerRef: MutableRefObject<Player | null>;
-  setPlayerAndSave: (player: Player) => void;
-  currentDistance: number;
-  currentLocationRef: MutableRefObject<LocationData | null>;
-  handleDistanceUpdate: (data: DistanceData) => Promise<void>;
-  encounterChance: number;
-  lastEncounterChance: number | null;
-  isTimeBlocking: boolean;
-  timeRemaining: number;
-  bypassTimeConstraint: boolean;
-  setBypassTimeConstraint: (value: boolean) => void;
-  forceItemDrop: boolean;
-  setForceItemDrop: (value: boolean) => void;
-  forceEncounter: () => void;
+  /** Debug logic + grouped config from useDebugActions; this component only renders it. */
+  debug: DebugController;
 }
 
-export default function DebugPanel({
-  debugMode,
-  onToggleDebug,
-  player,
-  playerRef,
-  setPlayerAndSave,
-  currentDistance,
-  currentLocationRef,
-  handleDistanceUpdate,
-  encounterChance,
-  lastEncounterChance,
-  isTimeBlocking,
-  timeRemaining,
-  bypassTimeConstraint,
-  setBypassTimeConstraint,
-  forceItemDrop,
-  setForceItemDrop,
-  forceEncounter,
-}: Props) {
+export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: Props) {
   // Hard gate: in a production build (enableDebugMode=false) the debug panel must
   // not render at all — including the "Show Debug Mode" toggle, which would
   // otherwise let a user re-enable force-encounter / instant-defeat in a shipped
@@ -54,130 +22,7 @@ export default function DebugPanel({
     return null;
   }
 
-  const simulateMovement = (): void => {
-    const fakeDistance = 100;
-    const baseLat = currentLocationRef.current?.latitude || 37.7749;
-    const baseLon = currentLocationRef.current?.longitude || -122.4194;
-    const latOffset = fakeDistance / 111000;
-    const newLocation: LocationData = {
-      latitude: baseLat + latOffset,
-      longitude: baseLon,
-      accuracy: 10,
-      altitude: 0,
-      heading: 0,
-      speed: 0,
-      timestamp: Date.now(),
-    };
-    handleDistanceUpdate({
-      incremental: fakeDistance,
-      total: currentDistance + fakeDistance,
-      location: newLocation,
-    });
-  };
-
-  const simulateLocationUpdate = (): void => {
-    const baseLat = currentLocationRef.current?.latitude || 37.7749;
-    const baseLon = currentLocationRef.current?.longitude || -122.4194;
-    // Fixed offsets (~7m NE) — direction doesn't matter for debug purposes
-    const newLocation: LocationData = {
-      latitude: baseLat + 0.00005,
-      longitude: baseLon + 0.00005,
-      accuracy: 10,
-      altitude: 0,
-      heading: 45,
-      speed: 1.5,
-      timestamp: Date.now(),
-    };
-    handleDistanceUpdate({
-      incremental: 10,
-      total: currentDistance + 10,
-      location: newLocation,
-    });
-  };
-
-  const forceLevelUp = (): void => {
-    const currentPlayer = playerRef.current;
-    if (!currentPlayer) return;
-    const updatedPlayer = new Player(currentPlayer.toJSON());
-    updatedPlayer.forceLevelUp();
-    setPlayerAndSave(updatedPlayer);
-    Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
-  };
-
-  const addManualXP = (amount: number): void => {
-    const currentPlayer = playerRef.current;
-    if (!currentPlayer) return;
-    const updatedPlayer = new Player(currentPlayer.toJSON());
-    const levelsGained = updatedPlayer.addExperience(amount);
-    setPlayerAndSave(updatedPlayer);
-    if (levelsGained > 0) {
-      Alert.alert(
-        'XP Added & Level Up!',
-        `Added ${amount} XP!\nGained ${levelsGained} level(s)!\nYou are now level ${updatedPlayer.level}!`,
-      );
-    } else {
-      Alert.alert(
-        'XP Added',
-        `Added ${amount} XP!\nCurrent XP: ${updatedPlayer.experience}/${updatedPlayer.getExperienceForNextLevel()}`,
-      );
-    }
-  };
-
-  const resetLevel = (): void => {
-    const currentPlayer = playerRef.current;
-    if (!currentPlayer) return;
-    Alert.alert(
-      'Reset Level',
-      'Are you sure you want to reset to level 1? This will reset your level, XP, and combat stats.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            const currentPlayerAtConfirm = playerRef.current;
-            if (!currentPlayerAtConfirm) return;
-            const updatedPlayer = new Player(currentPlayerAtConfirm.toJSON());
-            updatedPlayer.resetLevel();
-            setPlayerAndSave(updatedPlayer);
-            Alert.alert('Level Reset', 'You have been reset to level 1.');
-          },
-        },
-      ],
-    );
-  };
-
-  const handleTestCrash = (): void => {
-    Alert.alert(
-      '⚠️ Test Crash',
-      'This will crash the app immediately to test Crashlytics reporting. The crash report will appear in Firebase Console within a few minutes.\n\nAre you sure you want to proceed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Crash App',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (!CrashlyticsService.isInitialized()) {
-                await CrashlyticsService.initialize();
-              }
-              await CrashlyticsService.setCollectionEnabled(true);
-              CrashlyticsService.setAttribute('test_crash', 'true');
-              CrashlyticsService.setAttribute('player_level', player?.level || 0);
-              CrashlyticsService.log('User initiated test crash from debug menu');
-              await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
-              await CrashlyticsService.crash();
-            } catch (error) {
-              Alert.alert(
-                'Error',
-                `Failed to prepare crash test: ${error instanceof Error ? error.message : String(error)}`,
-              );
-            }
-          },
-        },
-      ],
-    );
-  };
+  const { readouts, settings, actions } = debug;
 
   if (!debugMode) {
     return (
@@ -204,73 +49,83 @@ export default function DebugPanel({
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
         <View style={styles.encounterChanceValueContainer}>
-          <Text style={styles.encounterChanceValue}>{(encounterChance * 100).toFixed(2)}%</Text>
-          {isTimeBlocking && (
-            <Text style={styles.timeBlockingText}>(Blocked: {timeRemaining}s)</Text>
+          <Text style={styles.encounterChanceValue}>
+            {(readouts.encounterChance * 100).toFixed(2)}%
+          </Text>
+          {readouts.isTimeBlocking && (
+            <Text style={styles.timeBlockingText}>(Blocked: {readouts.timeRemaining}s)</Text>
           )}
         </View>
       </View>
-      {lastEncounterChance !== null && (
+      {readouts.lastEncounterChance !== null && (
         <View style={styles.encounterChanceContainer}>
           <Text style={styles.encounterChanceLabel}>Last Encounter @:</Text>
-          <Text style={styles.encounterChanceValue}>{(lastEncounterChance * 100).toFixed(2)}%</Text>
+          <Text style={styles.encounterChanceValue}>
+            {(readouts.lastEncounterChance * 100).toFixed(2)}%
+          </Text>
         </View>
       )}
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Bypass Time Constraint:</Text>
         <TouchableOpacity
-          style={[styles.toggleButton, bypassTimeConstraint && styles.toggleButtonActive]}
-          onPress={() => setBypassTimeConstraint(!bypassTimeConstraint)}>
-          <Text style={styles.toggleButtonText}>{bypassTimeConstraint ? 'ON' : 'OFF'}</Text>
+          style={[styles.toggleButton, settings.bypassTimeConstraint && styles.toggleButtonActive]}
+          onPress={() => settings.setBypassTimeConstraint(!settings.bypassTimeConstraint)}>
+          <Text style={styles.toggleButtonText}>
+            {settings.bypassTimeConstraint ? 'ON' : 'OFF'}
+          </Text>
         </TouchableOpacity>
       </View>
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Force Item Drop:</Text>
         <TouchableOpacity
-          style={[styles.toggleButton, forceItemDrop && styles.toggleButtonActive]}
-          onPress={() => setForceItemDrop(!forceItemDrop)}>
-          <Text style={styles.toggleButtonText}>{forceItemDrop ? 'ON' : 'OFF'}</Text>
+          style={[styles.toggleButton, settings.forceItemDrop && styles.toggleButtonActive]}
+          onPress={() => settings.setForceItemDrop(!settings.forceItemDrop)}>
+          <Text style={styles.toggleButtonText}>{settings.forceItemDrop ? 'ON' : 'OFF'}</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.debugButton} onPress={simulateLocationUpdate}>
+      <TouchableOpacity style={styles.debugButton} onPress={actions.simulateLocationUpdate}>
         <Text style={styles.debugButtonText}>Simulate Location Update</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.debugButton} onPress={simulateMovement}>
+      <TouchableOpacity style={styles.debugButton} onPress={actions.simulateMovement}>
         <Text style={styles.debugButtonText}>Simulate 100m Movement</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.debugButton, styles.forceEncounterButton]}
-        onPress={forceEncounter}
+        onPress={actions.forceEncounter}
         testID="debug-force-encounter">
         <Text style={styles.debugButtonText}>Force Encounter</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.debugButton, styles.levelControlButton]}
-        onPress={forceLevelUp}>
+        onPress={actions.forceLevelUp}>
         <Text style={styles.debugButtonText}>Force Level Up</Text>
       </TouchableOpacity>
       <View style={styles.xpButtonContainer}>
         <Text style={styles.xpButtonLabel}>Add XP:</Text>
         <TouchableOpacity
           style={[styles.debugButton, styles.xpButton]}
-          onPress={() => addManualXP(100)}>
+          onPress={() => actions.addXP(100)}>
           <Text style={styles.debugButtonText}>+100 XP</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.debugButton, styles.xpButton]}
-          onPress={() => addManualXP(500)}>
+          onPress={() => actions.addXP(500)}>
           <Text style={styles.debugButtonText}>+500 XP</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.debugButton, styles.xpButton]}
-          onPress={() => addManualXP(1000)}>
+          onPress={() => actions.addXP(1000)}>
           <Text style={styles.debugButtonText}>+1000 XP</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={[styles.debugButton, styles.resetButton]} onPress={resetLevel}>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.resetButton]}
+        onPress={actions.resetLevel}>
         <Text style={styles.debugButtonText}>Reset Level</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.debugButton, styles.crashButton]} onPress={handleTestCrash}>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.crashButton]}
+        onPress={actions.testCrash}>
         <Text style={styles.crashButtonText}>💥 Test Crashlytics Crash</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.debugToggle} onPress={() => onToggleDebug(false)}>

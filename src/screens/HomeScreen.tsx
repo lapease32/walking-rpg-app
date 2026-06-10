@@ -17,6 +17,7 @@ import { useAppLifecycle } from '../hooks/useAppLifecycle';
 import { usePlayer } from '../hooks/usePlayer';
 import { useEncounter } from '../hooks/useEncounter';
 import { useLocation } from '../hooks/useLocation';
+import { useDebugActions } from '../hooks/useDebugActions';
 import notifee, { EventType } from '@notifee/react-native';
 import { Player } from '../models/Player';
 import { loadTrackingState } from '../utils/storage';
@@ -273,6 +274,26 @@ export default function HomeScreen() {
     await onDistanceEncounterUpdate(distanceData, currentPlayer);
   };
 
+  // Debug-mode controller — owns the debug action logic + re-groups encounter-domain debug
+  // config so DebugPanel stays presentational. Called before the early returns below to keep
+  // hook order stable; the work it returns is only rendered when ENV_CONFIG.enableDebugMode.
+  const debug = useDebugActions({
+    playerRef,
+    setPlayerAndSave,
+    currentDistance,
+    currentLocationRef,
+    handleDistanceUpdate,
+    encounterChance,
+    lastEncounterChance,
+    isTimeBlocking,
+    timeRemaining,
+    bypassTimeConstraint,
+    setBypassTimeConstraint,
+    forceItemDrop,
+    setForceItemDrop,
+    forceEncounter,
+  });
+
   if (needsArchetypeSelection) {
     // Key on repaintToken so an 'active' transition remounts this screen, recovering
     // a Fabric mount dropped during a cold-start pause (see usePlayer belt-and-suspenders).
@@ -413,20 +434,7 @@ export default function HomeScreen() {
             debugMode={debugMode}
             onToggleDebug={setDebugMode}
             player={player}
-            playerRef={playerRef}
-            setPlayerAndSave={setPlayerAndSave}
-            currentDistance={currentDistance}
-            currentLocationRef={currentLocationRef}
-            handleDistanceUpdate={handleDistanceUpdate}
-            encounterChance={encounterChance}
-            lastEncounterChance={lastEncounterChance}
-            isTimeBlocking={isTimeBlocking}
-            timeRemaining={timeRemaining}
-            bypassTimeConstraint={bypassTimeConstraint}
-            setBypassTimeConstraint={setBypassTimeConstraint}
-            forceItemDrop={forceItemDrop}
-            setForceItemDrop={setForceItemDrop}
-            forceEncounter={forceEncounter}
+            debug={debug}
           />
         </View>
       </ScrollView>
