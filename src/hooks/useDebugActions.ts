@@ -1,6 +1,7 @@
 import { MutableRefObject } from 'react';
 import { Alert } from 'react-native';
 import { Player } from '../models/Player';
+import { Rarity } from '../models/Creature';
 import { LocationData, DistanceData } from '../services/LocationService';
 import CrashlyticsService from '../services/CrashlyticsService';
 
@@ -9,6 +10,8 @@ export interface DebugReadouts {
   lastEncounterChance: number | null;
   isTimeBlocking: boolean;
   timeRemaining: number;
+  /** Latest GPS fix (state, not ref) so the panel re-renders as it updates. */
+  location: LocationData | null;
 }
 
 export interface DebugSettings {
@@ -16,6 +19,9 @@ export interface DebugSettings {
   setBypassTimeConstraint: (value: boolean) => void;
   forceItemDrop: boolean;
   setForceItemDrop: (value: boolean) => void;
+  /** null = roll rarity normally; otherwise force every drop to this rarity. */
+  forcedRarity: Rarity | null;
+  setForcedRarity: (value: Rarity | null) => void;
 }
 
 export interface DebugActions {
@@ -26,6 +32,9 @@ export interface DebugActions {
   addXP: (amount: number) => void;
   resetLevel: () => void;
   testCrash: () => void;
+  restoreHp: () => void;
+  /** Show the reward reveal for a synthetic drop at `rarity` (null = random); no combat. */
+  previewReveal: (rarity: Rarity | null) => void;
 }
 
 /** Everything DebugPanel needs, grouped so the panel can stay presentational. */
@@ -41,6 +50,7 @@ interface UseDebugActionsParams {
   setPlayerAndSave: (player: Player) => void;
   // Location domain (useLocation + HomeScreen.handleDistanceUpdate)
   currentDistance: number;
+  currentLocation: LocationData | null;
   currentLocationRef: MutableRefObject<LocationData | null>;
   handleDistanceUpdate: (data: DistanceData) => Promise<void>;
   // Encounter-domain debug surface (owned by useEncounter, re-grouped here for the panel)
@@ -52,7 +62,10 @@ interface UseDebugActionsParams {
   setBypassTimeConstraint: (value: boolean) => void;
   forceItemDrop: boolean;
   setForceItemDrop: (value: boolean) => void;
+  forcedRarity: Rarity | null;
+  setForcedRarity: (value: Rarity | null) => void;
   forceEncounter: () => void;
+  debugPreviewReveal: (rarity: Rarity | null) => void;
 }
 
 /**
@@ -71,6 +84,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     playerRef,
     setPlayerAndSave,
     currentDistance,
+    currentLocation,
     currentLocationRef,
     handleDistanceUpdate,
     encounterChance,
@@ -81,7 +95,10 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setBypassTimeConstraint,
     forceItemDrop,
     setForceItemDrop,
+    forcedRarity,
+    setForcedRarity,
     forceEncounter,
+    debugPreviewReveal,
   } = params;
 
   const simulateMovement = (): void => {
@@ -177,6 +194,14 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     );
   };
 
+  const restoreHp = (): void => {
+    const currentPlayer = playerRef.current;
+    if (!currentPlayer) return;
+    const updatedPlayer = new Player(currentPlayer.toJSON());
+    updatedPlayer.fullHeal();
+    setPlayerAndSave(updatedPlayer);
+  };
+
   const testCrash = (): void => {
     Alert.alert(
       '⚠️ Test Crash',
@@ -210,8 +235,21 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
   };
 
   return {
-    readouts: { encounterChance, lastEncounterChance, isTimeBlocking, timeRemaining },
-    settings: { bypassTimeConstraint, setBypassTimeConstraint, forceItemDrop, setForceItemDrop },
+    readouts: {
+      encounterChance,
+      lastEncounterChance,
+      isTimeBlocking,
+      timeRemaining,
+      location: currentLocation,
+    },
+    settings: {
+      bypassTimeConstraint,
+      setBypassTimeConstraint,
+      forceItemDrop,
+      setForceItemDrop,
+      forcedRarity,
+      setForcedRarity,
+    },
     actions: {
       simulateLocationUpdate,
       simulateMovement,
@@ -220,6 +258,8 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       addXP,
       resetLevel,
       testCrash,
+      restoreHp,
+      previewReveal: debugPreviewReveal,
     },
   };
 }

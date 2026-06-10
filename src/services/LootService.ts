@@ -123,9 +123,11 @@ function buildName(slot: ItemSlot, affixes: Affix[]): string {
   return `${pick(AFFIX_PREFIXES[dominant.stat])} ${base}`;
 }
 
-export function generateItem(playerLevel = 1): Item {
+export function generateItem(playerLevel = 1, rarityOverride?: Rarity): Item {
   const slot = pick(SLOTS);
-  const rarity = rollRarity(playerLevel);
+  // rarityOverride is a debug-only hook (DebugPanel "Drop Rarity" / "Preview Reveal"); normal
+  // play always rolls. Stats/affixes still derive from the resulting rarity either way.
+  const rarity = rarityOverride ?? rollRarity(playerLevel);
   const primaryStat = AFFIX_POOLS[slot][0];
   const baseRange = BASE_RANGES[rarity];
   const baseValue = randInt(baseRange.min, baseRange.max);
@@ -174,9 +176,13 @@ export function shouldDropItem(): boolean {
   return Math.random() < LOOT_CONFIG.BASE_DROP_CHANCE;
 }
 
-export function dropItem(forceDrop = false, playerLevel = 1): Item | null {
+export function dropItem(
+  forceDrop = false,
+  playerLevel = 1,
+  rarityOverride?: Rarity | null,
+): Item | null {
   if (forceDrop || shouldDropItem()) {
-    return generateItem(playerLevel);
+    return generateItem(playerLevel, rarityOverride ?? undefined);
   }
   return null;
 }

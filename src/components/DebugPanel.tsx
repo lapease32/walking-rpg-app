@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Player } from '../models/Player';
+import { Rarity } from '../models/Creature';
+import { getRarityColor } from '../constants/rarity';
 import { DebugController } from '../hooks/useDebugActions';
 import { ENV_CONFIG } from '../constants/environment';
 
@@ -11,6 +13,15 @@ interface Props {
   /** Debug logic + grouped config from useDebugActions; this component only renders it. */
   debug: DebugController;
 }
+
+const RARITY_OPTIONS: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+const RARITY_SHORT: Record<Rarity, string> = {
+  common: 'C',
+  uncommon: 'U',
+  rare: 'R',
+  epic: 'E',
+  legendary: 'L',
+};
 
 export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: Props) {
   // Hard gate: in a production build (enableDebugMode=false) the debug panel must
@@ -45,7 +56,24 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           ⭐ Lv {player.level}
           {'  '}XP: {player.experience} / {player.getExperienceForNextLevel()}
         </Text>
+        {readouts.location && (
+          <>
+            <Text style={styles.debugStatRow}>
+              📍 {readouts.location.latitude.toFixed(5)}, {readouts.location.longitude.toFixed(5)}
+            </Text>
+            <Text style={styles.debugStatRow}>
+              🎯 ±{readouts.location.accuracy.toFixed(0)}m{'  '}🏃{' '}
+              {readouts.location.speed.toFixed(1)} m/s{'  '}🧭{' '}
+              {(readouts.location.heading ?? 0).toFixed(0)}°
+            </Text>
+          </>
+        )}
       </View>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.levelControlButton]}
+        onPress={actions.restoreHp}>
+        <Text style={styles.debugButtonText}>Restore Full HP</Text>
+      </TouchableOpacity>
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
         <View style={styles.encounterChanceValueContainer}>
@@ -81,6 +109,52 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           style={[styles.toggleButton, settings.forceItemDrop && styles.toggleButtonActive]}
           onPress={() => settings.setForceItemDrop(!settings.forceItemDrop)}>
           <Text style={styles.toggleButtonText}>{settings.forceItemDrop ? 'ON' : 'OFF'}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.raritySelectorBlock}>
+        <Text style={styles.encounterChanceLabel}>
+          Drop Rarity (turn Force Item Drop ON to guarantee):
+        </Text>
+        <View style={styles.rarityRow}>
+          <TouchableOpacity
+            style={[
+              styles.rarityButton,
+              settings.forcedRarity === null && styles.rarityButtonActive,
+            ]}
+            onPress={() => settings.setForcedRarity(null)}>
+            <Text
+              style={[
+                styles.rarityButtonText,
+                settings.forcedRarity === null && styles.rarityButtonTextActive,
+              ]}>
+              Auto
+            </Text>
+          </TouchableOpacity>
+          {RARITY_OPTIONS.map(r => {
+            const selected = settings.forcedRarity === r;
+            const color = getRarityColor(r);
+            return (
+              <TouchableOpacity
+                key={r}
+                style={[
+                  styles.rarityButton,
+                  { borderColor: color },
+                  selected && { backgroundColor: color },
+                ]}
+                onPress={() => settings.setForcedRarity(r)}>
+                <Text style={[styles.rarityButtonText, selected && styles.rarityButtonTextActive]}>
+                  {RARITY_SHORT[r]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.previewButton]}
+          onPress={() => actions.previewReveal(settings.forcedRarity)}>
+          <Text style={styles.debugButtonText}>
+            Preview Reveal {settings.forcedRarity ? `(${settings.forcedRarity})` : '(random)'}
+          </Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.debugButton} onPress={actions.simulateLocationUpdate}>
@@ -209,6 +283,45 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  raritySelectorBlock: {
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+    gap: 8,
+  },
+  rarityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  rarityButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#9E9E9E',
+    minWidth: 40,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  rarityButtonActive: {
+    backgroundColor: '#856404',
+    borderColor: '#856404',
+  },
+  rarityButtonText: {
+    color: '#856404',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  rarityButtonTextActive: {
+    color: '#fff',
+  },
+  previewButton: {
+    backgroundColor: '#7E57C2',
   },
   debugButton: {
     padding: 12,

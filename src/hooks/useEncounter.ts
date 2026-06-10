@@ -2,12 +2,12 @@ import { useState, useRef, useEffect, MutableRefObject } from 'react';
 import { Alert, AppStateStatus } from 'react-native';
 import { Player } from '../models/Player';
 import { Encounter, Location } from '../models/Encounter';
-import { Creature } from '../models/Creature';
+import { Creature, Rarity } from '../models/Creature';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
-import { dropItem } from '../services/LootService';
+import { dropItem, generateItem } from '../services/LootService';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
@@ -52,6 +52,9 @@ export function useEncounter({
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [bypassTimeConstraint, setBypassTimeConstraint] = useState<boolean>(false);
   const [forceItemDrop, setForceItemDrop] = useState<boolean>(false);
+  // Debug-only: when set, forces the rarity of any drop (works alongside forceItemDrop to
+  // guarantee a drop of that rarity). null = roll normally. See DebugPanel "Drop Rarity".
+  const [forcedRarity, setForcedRarity] = useState<Rarity | null>(null);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
   const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
   // Authoritative refs — always current, used for synchronous reads inside handlers.
@@ -203,7 +206,7 @@ export function useEncounter({
     const expGain = currentEncounterState.creature.getExperienceReward();
     const levelsGained = updatedPlayer.addExperience(expGain);
 
-    const droppedItem = dropItem(forceItemDrop, updatedPlayer.level);
+    const droppedItem = dropItem(forceItemDrop, updatedPlayer.level, forcedRarity);
     let inventoryFull = false;
     let isUpgrade = false;
     if (droppedItem) {
@@ -723,6 +726,23 @@ export function useEncounter({
 
   const dismissReward = (): void => setRewardReveal(null);
 
+  // Debug-only: show the reward reveal for a synthetic drop at a chosen rarity (null = roll),
+  // with NO combat and NO inventory/player mutation — purely to iterate the reveal's feel. The
+  // upgrade badge is computed against the real player so the preview is representative.
+  const debugPreviewReveal = (rarity: Rarity | null): void => {
+    const level = playerRef.current?.level ?? 1;
+    const item = generateItem(level, rarity ?? undefined);
+    setRewardReveal({
+      creatureName: 'Preview',
+      xpGained: 0,
+      leveledUp: false,
+      newLevel: level,
+      item,
+      isUpgrade: playerRef.current?.wouldUpgrade(item) ?? false,
+      inventoryFull: false,
+    });
+  };
+
   return {
     currentEncounter,
     showEncounterModal,
@@ -739,6 +759,9 @@ export function useEncounter({
     setBypassTimeConstraint,
     forceItemDrop,
     setForceItemDrop,
+    forcedRarity,
+    setForcedRarity,
+    debugPreviewReveal,
     playerCombatState,
     playerCombatStateRef,
     rewardReveal,
