@@ -158,6 +158,16 @@ describe('LootService', () => {
         expect(hasStat).toBe(true);
       }
     });
+
+    it('forces the rarity when rarityOverride is provided (debug)', () => {
+      const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
+      for (const r of rarities) {
+        // Many samples: the override must win regardless of the (random) rarity roll.
+        for (let i = 0; i < 20; i++) {
+          expect(generateItem(1, r).rarity).toBe(r);
+        }
+      }
+    });
   });
 
   describe('dropItem', () => {
@@ -197,6 +207,19 @@ describe('LootService', () => {
         r => r === 'rare' || r === 'epic' || r === 'legendary',
       ).length;
       expect(highRareCount).toBeGreaterThan(lowRareCount);
+    });
+
+    it('applies rarityOverride to the drop when provided (debug)', () => {
+      // random high would normally roll low rarity; the override must still win.
+      jest.spyOn(Math, 'random').mockReturnValue(0.99);
+      const item = dropItem(true, 1, 'legendary');
+      expect(item?.rarity).toBe('legendary');
+    });
+
+    it('rolls rarity normally when rarityOverride is null', () => {
+      const item = dropItem(true, 1, null);
+      expect(item).not.toBeNull();
+      expect(['common', 'uncommon', 'rare', 'epic', 'legendary']).toContain(item!.rarity);
     });
   });
 });

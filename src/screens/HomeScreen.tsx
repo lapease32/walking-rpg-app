@@ -82,6 +82,9 @@ export default function HomeScreen() {
     setBypassTimeConstraint,
     forceItemDrop,
     setForceItemDrop,
+    forcedRarity,
+    setForcedRarity,
+    debugPreviewReveal,
     playerCombatState,
     playerCombatStateRef,
     rewardReveal,
@@ -281,6 +284,7 @@ export default function HomeScreen() {
     playerRef,
     setPlayerAndSave,
     currentDistance,
+    currentLocation,
     currentLocationRef,
     handleDistanceUpdate,
     encounterChance,
@@ -291,7 +295,10 @@ export default function HomeScreen() {
     setBypassTimeConstraint,
     forceItemDrop,
     setForceItemDrop,
+    forcedRarity,
+    setForcedRarity,
     forceEncounter,
+    debugPreviewReveal,
   });
 
   if (needsArchetypeSelection) {
