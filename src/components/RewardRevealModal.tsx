@@ -1,5 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View, Vibration } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  Vibration,
+} from 'react-native';
 import { Item } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { getRarityColor } from '../constants/rarity';
@@ -28,18 +37,34 @@ interface Props {
 // Particle "tell": count/size/spread + screen-shake + haptic escalate with rarity
 // so you can read the rarity from the burst colour before the item resolves.
 const POOL_SIZE = 30; // max particles we ever render (legendary)
+// cardDelay = how long the rarity-colored burst owns the screen BEFORE the item card
+// resolves — the "tell". It scales with rarity so legendaries get a satisfying anticipation
+// beat while frequent commons resolve fast (no fatigue on a walk). All else escalates too.
 const RARITY_FX: Record<
   Rarity,
-  { particles: number; size: number; spread: number; shake: number; haptic: number | number[] }
+  {
+    particles: number;
+    size: number;
+    spread: number;
+    shake: number;
+    haptic: number | number[];
+    cardDelay: number;
+  }
 > = {
-  common: { particles: 8, size: 6, spread: 130, shake: 0, haptic: 0 },
-  uncommon: { particles: 14, size: 7, spread: 160, shake: 0, haptic: 15 },
-  rare: { particles: 20, size: 8, spread: 190, shake: 4, haptic: 25 },
-  epic: { particles: 26, size: 9, spread: 220, shake: 8, haptic: [0, 30, 40, 30] },
-  legendary: { particles: 30, size: 11, spread: 250, shake: 12, haptic: [0, 50, 50, 90] },
+  common: { particles: 8, size: 6, spread: 130, shake: 0, haptic: 0, cardDelay: 300 },
+  uncommon: { particles: 14, size: 7, spread: 160, shake: 0, haptic: 15, cardDelay: 380 },
+  rare: { particles: 20, size: 8, spread: 190, shake: 4, haptic: 25, cardDelay: 480 },
+  epic: { particles: 26, size: 9, spread: 220, shake: 8, haptic: [0, 30, 40, 30], cardDelay: 580 },
+  legendary: {
+    particles: 30,
+    size: 11,
+    spread: 250,
+    shake: 12,
+    haptic: [0, 50, 50, 90],
+    cardDelay: 680,
+  },
 };
-const BURST_MS = 850; // particle flight duration
-const CARD_DELAY_MS = 230; // item resolves shortly AFTER the burst starts (anticipation)
+const BURST_MS = 900; // particle flight duration (gives the gravity arc room to land)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ITEM_ICON: Record<Item['type'], string> = {
@@ -102,22 +127,56 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       if (fx.haptic) {
         Vibration.vibrate(fx.haptic);
       }
-      // Particle burst from centre — random angle, biased slightly upward.
+      // Particle burst from centre. Horizontal spread comes from a random angle; vertical
+      // follows a gravity ARC (pop up to a peak, then fall back down past the origin), so the
+      // burst reads as loot that erupts and rains down rather than a flat linear scatter.
       for (let i = 0; i < fx.particles; i++) {
         const p = particles[i];
         const angle = Math.random() * Math.PI * 2;
         const dist = fx.spread * (0.45 + Math.random() * 0.55);
         const dx = Math.cos(angle) * dist;
-        const dy = Math.sin(angle) * dist - fx.spread * 0.25; // upward bias
+        const peakY = -(fx.spread * (0.3 + Math.random() * 0.3)); // up, varied per particle
+        const fallY = fx.spread * (0.55 + Math.random() * 0.5); // down past origin (gravity)
         p.tx.setValue(0);
         p.ty.setValue(0);
         p.scale.setValue(1);
         p.opacity.setValue(1);
         Animated.parallel([
-          Animated.timing(p.tx, { toValue: dx, duration: BURST_MS, useNativeDriver: true }),
-          Animated.timing(p.ty, { toValue: dy, duration: BURST_MS, useNativeDriver: true }),
-          Animated.timing(p.scale, { toValue: 0, duration: BURST_MS, useNativeDriver: true }),
-          Animated.timing(p.opacity, { toValue: 0, duration: BURST_MS, useNativeDriver: true }),
+          // Horizontal: fly out fast, decelerate.
+          Animated.timing(p.tx, {
+            toValue: dx,
+            duration: BURST_MS,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          // Vertical: up (decelerating) then down (accelerating) = gravity.
+          Animated.sequence([
+            Animated.timing(p.ty, {
+              toValue: peakY,
+              duration: BURST_MS * 0.35,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(p.ty, {
+              toValue: fallY,
+              duration: BURST_MS * 0.65,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.timing(p.scale, {
+            toValue: 0,
+            duration: BURST_MS,
+            easing: Easing.in(Easing.quad),
+            useNativeDriver: true,
+          }),
+          // Stay opaque through most of the flight, then fade as they fall.
+          Animated.timing(p.opacity, {
+            toValue: 0,
+            duration: BURST_MS,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }),
         ]).start();
       }
       if (fx.shake > 0) {
@@ -130,9 +189,10 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       }
     }
 
-    // Item/victory card resolves out of the burst, then the tap prompt.
+    // Item/victory card resolves out of the burst, then the tap prompt. The delay is the
+    // rarity "tell" window (fx.cardDelay); no-drop victories resolve almost immediately.
     Animated.sequence([
-      Animated.delay(fx ? CARD_DELAY_MS : 80),
+      Animated.delay(fx ? fx.cardDelay : 80),
       Animated.parallel([
         Animated.spring(cardScale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
