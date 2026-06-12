@@ -37,10 +37,12 @@ interface Props {
 // Particle "tell": count/size/spread + screen-shake + haptic escalate with rarity
 // so you can read the rarity from the burst colour before the item resolves.
 const POOL_SIZE = 30; // max particles we ever render (legendary)
-// cardDelay = how long the rarity-colored burst owns the screen BEFORE the item card resolves
-// (the "tell"). emitMs = the window over which particles keep SPAWNING — a staggered eruption
-// rather than one instantaneous pop. Both scale with rarity so legendaries get a longer, more
-// sustained burst that's hard to miss, while frequent commons stay snappy.
+// CARD_DELAY_BASE_MS = the shared anticipation FLOOR before the item card resolves — the single
+// knob to lengthen/shorten the "tell" across ALL rarities at once. cardDelayExtra adds the
+// per-rarity escalation on top (the relative spacing). emitMs = the window over which particles
+// keep SPAWNING — a staggered eruption, not one pop. Both escalate with rarity so legendaries
+// get a longer, more sustained burst that's hard to miss, while frequent commons stay snappier.
+const CARD_DELAY_BASE_MS = 600;
 const RARITY_FX: Record<
   Rarity,
   {
@@ -49,28 +51,44 @@ const RARITY_FX: Record<
     spread: number;
     shake: number;
     haptic: number | number[];
-    cardDelay: number;
+    cardDelayExtra: number;
     emitMs: number;
   }
 > = {
-  common: { particles: 8, size: 6, spread: 130, shake: 0, haptic: 0, cardDelay: 300, emitMs: 120 },
+  common: {
+    particles: 8,
+    size: 6,
+    spread: 130,
+    shake: 0,
+    haptic: 0,
+    cardDelayExtra: 0,
+    emitMs: 120,
+  },
   uncommon: {
     particles: 14,
     size: 7,
     spread: 160,
     shake: 0,
     haptic: 15,
-    cardDelay: 380,
+    cardDelayExtra: 80,
     emitMs: 260,
   },
-  rare: { particles: 20, size: 8, spread: 190, shake: 4, haptic: 25, cardDelay: 480, emitMs: 420 },
+  rare: {
+    particles: 20,
+    size: 8,
+    spread: 190,
+    shake: 4,
+    haptic: 25,
+    cardDelayExtra: 180,
+    emitMs: 420,
+  },
   epic: {
     particles: 26,
     size: 9,
     spread: 220,
     shake: 8,
     haptic: [0, 30, 40, 30],
-    cardDelay: 580,
+    cardDelayExtra: 280,
     emitMs: 600,
   },
   legendary: {
@@ -79,7 +97,7 @@ const RARITY_FX: Record<
     spread: 250,
     shake: 12,
     haptic: [0, 50, 50, 90],
-    cardDelay: 680,
+    cardDelayExtra: 380,
     emitMs: 780,
   },
 };
@@ -242,10 +260,10 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       }
     }
 
-    // Item/victory card resolves out of the burst, then the tap prompt. The delay is the
-    // rarity "tell" window (fx.cardDelay); no-drop victories resolve almost immediately.
+    // Item/victory card resolves out of the burst, then the tap prompt. The delay is the rarity
+    // "tell" window (base floor + per-rarity extra); no-drop victories resolve almost immediately.
     Animated.sequence([
-      Animated.delay(fx ? fx.cardDelay : 80),
+      Animated.delay(fx ? CARD_DELAY_BASE_MS + fx.cardDelayExtra : 80),
       Animated.parallel([
         Animated.spring(cardScale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
