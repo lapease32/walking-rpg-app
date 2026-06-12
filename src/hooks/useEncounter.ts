@@ -769,6 +769,12 @@ export function useEncounter({
   // with NO combat and NO inventory/player mutation — purely to iterate the reveal's feel. The
   // upgrade badge is computed against the real player so the preview is representative.
   const debugPreviewReveal = (rarity: Rarity | null): void => {
+    // Cancel any deferred victory reveal so it can't fire ~REWARD_REVEAL_DELAY_MS later and
+    // clobber this preview (e.g. previewing right after a real win).
+    if (rewardRevealTimerRef.current) {
+      clearTimeout(rewardRevealTimerRef.current);
+      rewardRevealTimerRef.current = null;
+    }
     const level = playerRef.current?.level ?? 1;
     const item = generateItem(level, rarity ?? undefined);
     setRewardReveal({
