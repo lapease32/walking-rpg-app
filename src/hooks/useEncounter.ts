@@ -36,6 +36,12 @@ interface UseEncounterParams {
   currentLocationRef: MutableRefObject<LocationData | null>;
 }
 
+// Delay between closing the combat/encounter modal and presenting the reward reveal. Two RN
+// Modals can't animate simultaneously (iOS presents only one at a time), and the particle
+// rarity "tell" must burst on a clear stage to be readable — so we wait for the combat modal's
+// dismiss animation before revealing. Tuned to the Modal fade/slide (~300ms) with headroom.
+const REWARD_REVEAL_DELAY_MS = 380;
+
 export function useEncounter({
   playerRef,
   setPlayerAndSave,
@@ -70,14 +76,31 @@ export function useEncounter({
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const showCombatModalRef = useRef<boolean>(false);
+  // Holds the pending deferred reward reveal (see REWARD_REVEAL_DELAY_MS / handleVictory).
+  const rewardRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
+    // A new encounter supersedes any pending post-victory reveal so it can't pop over the
+    // fresh encounter modal (which would re-create the two-Modals-at-once conflict).
+    if (currentEncounter && rewardRevealTimerRef.current) {
+      clearTimeout(rewardRevealTimerRef.current);
+      rewardRevealTimerRef.current = null;
+    }
   }, [currentEncounter]);
 
   useEffect(() => {
     isMinimizedRef.current = isEncounterModalMinimized;
   }, [isEncounterModalMinimized]);
+
+  // Clear any pending deferred reward reveal on unmount so its timer can't setState afterward.
+  useEffect(() => {
+    return () => {
+      if (rewardRevealTimerRef.current) {
+        clearTimeout(rewardRevealTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     showCombatModalRef.current = showCombatModal;
@@ -248,7 +271,11 @@ export function useEncounter({
     if (levelsGained > 0) {
       AnalyticsService.levelUp(updatedPlayer.level);
     }
-    setRewardReveal({
+    // Defer the reveal until the combat/encounter modal has finished dismissing (see
+    // REWARD_REVEAL_DELAY_MS): presenting the reward Modal while the combat Modal is still
+    // animating closed conflicts on iOS (two Modals at once) and buries the particle "tell"
+    // under the closing modal. Capture the reward now; show it on a clear stage shortly after.
+    const reveal: RewardReveal = {
       creatureName: currentEncounterState.creature.name,
       xpGained: expGain,
       leveledUp: levelsGained > 0,
@@ -256,7 +283,14 @@ export function useEncounter({
       item: droppedItem ?? null,
       isUpgrade,
       inventoryFull,
-    });
+    };
+    if (rewardRevealTimerRef.current) {
+      clearTimeout(rewardRevealTimerRef.current);
+    }
+    rewardRevealTimerRef.current = setTimeout(() => {
+      rewardRevealTimerRef.current = null;
+      setRewardReveal(reveal);
+    }, REWARD_REVEAL_DELAY_MS);
   };
 
   const handleFlee = (): void => {
