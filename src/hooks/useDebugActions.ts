@@ -33,6 +33,8 @@ export interface DebugActions {
   resetLevel: () => void;
   testCrash: () => void;
   restoreHp: () => void;
+  /** Empty the inventory (equipped items kept) — for testing repeated drops without filling up. */
+  clearInventory: () => void;
   /** Show the reward reveal for a synthetic drop at `rarity` (null = random); no combat. */
   previewReveal: (rarity: Rarity | null) => void;
 }
@@ -202,6 +204,14 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setPlayerAndSave(updatedPlayer);
   };
 
+  const clearInventory = (): void => {
+    const currentPlayer = playerRef.current;
+    if (!currentPlayer) return;
+    const updatedPlayer = new Player(currentPlayer.toJSON());
+    updatedPlayer.clearInventory();
+    setPlayerAndSave(updatedPlayer);
+  };
+
   const testCrash = (): void => {
     Alert.alert(
       '⚠️ Test Crash',
@@ -259,6 +269,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       resetLevel,
       testCrash,
       restoreHp,
+      clearInventory,
       previewReveal: debugPreviewReveal,
     },
   };

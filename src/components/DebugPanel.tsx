@@ -74,6 +74,11 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
         onPress={actions.restoreHp}>
         <Text style={styles.debugButtonText}>Restore Full HP</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.resetButton]}
+        onPress={actions.clearInventory}>
+        <Text style={styles.debugButtonText}>Clear Inventory</Text>
+      </TouchableOpacity>
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
         <View style={styles.encounterChanceValueContainer}>
