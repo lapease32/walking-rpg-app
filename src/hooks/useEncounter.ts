@@ -149,8 +149,13 @@ export function useEncounter({
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
-    // Clear any in-flight victory reveal too, so a previous account's reward can't
-    // linger over the new session after an account switch (clearEncounter runs then).
+    // Clear any in-flight victory reveal — both an already-shown one AND a still-pending
+    // deferred timer — so a previous account's reward can't fire/linger over the new session
+    // after an account switch (clearEncounter runs then), even within REWARD_REVEAL_DELAY_MS.
+    if (rewardRevealTimerRef.current) {
+      clearTimeout(rewardRevealTimerRef.current);
+      rewardRevealTimerRef.current = null;
+    }
     setRewardReveal(null);
   };
 
