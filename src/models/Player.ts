@@ -322,6 +322,11 @@ export class Player {
     return -1;
   }
 
+  /** Empty every inventory slot (equipped items are unaffected). Debug-only helper. */
+  clearInventory(): void {
+    this.inventory = createEmptyInventory();
+  }
+
   removeItemFromInventory(index: number): Item | null {
     if (index < 0 || index >= this.inventory.length) {
       return null;

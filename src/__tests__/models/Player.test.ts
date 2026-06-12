@@ -314,6 +314,22 @@ describe('Player', () => {
       }
       expect(player.isInventoryFull()).toBe(true);
     });
+
+    it('clearInventory empties every slot, keeping slot count and equipped items', () => {
+      const player = new Player();
+      const equipped = makeWeapon({ id: 'equipped' });
+      player.inventory[0] = equipped;
+      player.equipItem(0); // moves it into equipment.weapon, slot 0 cleared
+      player.inventory[0] = makeWeapon({ id: 'loot_a' });
+      player.inventory[3] = makeWeapon({ id: 'loot_b' });
+      expect(player.getUsedInventorySlots()).toBe(2);
+
+      player.clearInventory();
+
+      expect(player.getUsedInventorySlots()).toBe(0);
+      expect(player.inventory.length).toBe(50);
+      expect(player.equipment.weapon).toBe(equipped); // equipped item untouched
+    });
   });
 
   describe('equipItem', () => {
