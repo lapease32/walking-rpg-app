@@ -81,12 +81,6 @@ export function useEncounter({
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
-    // A new encounter supersedes any pending post-victory reveal so it can't pop over the
-    // fresh encounter modal (which would re-create the two-Modals-at-once conflict).
-    if (currentEncounter && rewardRevealTimerRef.current) {
-      clearTimeout(rewardRevealTimerRef.current);
-      rewardRevealTimerRef.current = null;
-    }
   }, [currentEncounter]);
 
   useEffect(() => {
