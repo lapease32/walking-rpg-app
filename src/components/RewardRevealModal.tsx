@@ -1,5 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View, Vibration } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  Vibration,
+} from 'react-native';
 import { Item } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { getRarityColor } from '../constants/rarity';
@@ -28,18 +37,53 @@ interface Props {
 // Particle "tell": count/size/spread + screen-shake + haptic escalate with rarity
 // so you can read the rarity from the burst colour before the item resolves.
 const POOL_SIZE = 30; // max particles we ever render (legendary)
+// cardDelay = how long the rarity-colored burst owns the screen BEFORE the item card resolves
+// (the "tell"). emitMs = the window over which particles keep SPAWNING — a staggered eruption
+// rather than one instantaneous pop. Both scale with rarity so legendaries get a longer, more
+// sustained burst that's hard to miss, while frequent commons stay snappy.
 const RARITY_FX: Record<
   Rarity,
-  { particles: number; size: number; spread: number; shake: number; haptic: number | number[] }
+  {
+    particles: number;
+    size: number;
+    spread: number;
+    shake: number;
+    haptic: number | number[];
+    cardDelay: number;
+    emitMs: number;
+  }
 > = {
-  common: { particles: 8, size: 6, spread: 130, shake: 0, haptic: 0 },
-  uncommon: { particles: 14, size: 7, spread: 160, shake: 0, haptic: 15 },
-  rare: { particles: 20, size: 8, spread: 190, shake: 4, haptic: 25 },
-  epic: { particles: 26, size: 9, spread: 220, shake: 8, haptic: [0, 30, 40, 30] },
-  legendary: { particles: 30, size: 11, spread: 250, shake: 12, haptic: [0, 50, 50, 90] },
+  common: { particles: 8, size: 6, spread: 130, shake: 0, haptic: 0, cardDelay: 300, emitMs: 120 },
+  uncommon: {
+    particles: 14,
+    size: 7,
+    spread: 160,
+    shake: 0,
+    haptic: 15,
+    cardDelay: 380,
+    emitMs: 260,
+  },
+  rare: { particles: 20, size: 8, spread: 190, shake: 4, haptic: 25, cardDelay: 480, emitMs: 420 },
+  epic: {
+    particles: 26,
+    size: 9,
+    spread: 220,
+    shake: 8,
+    haptic: [0, 30, 40, 30],
+    cardDelay: 580,
+    emitMs: 600,
+  },
+  legendary: {
+    particles: 30,
+    size: 11,
+    spread: 250,
+    shake: 12,
+    haptic: [0, 50, 50, 90],
+    cardDelay: 680,
+    emitMs: 780,
+  },
 };
-const BURST_MS = 850; // particle flight duration
-const CARD_DELAY_MS = 230; // item resolves shortly AFTER the burst starts (anticipation)
+const BURST_MS = 900; // per-particle flight duration (gives the gravity arc room to land)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ITEM_ICON: Record<Item['type'], string> = {
@@ -74,16 +118,25 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       opacity: new Animated.Value(0),
     })),
   ).current;
+  // Identity of the reveal whose start-state we've already applied — see reset below.
+  const shownRevealRef = useRef<RewardReveal | null>(null);
+  // The running staggered particle burst, so a re-show (or unmount) can stop its pending
+  // launches before starting a fresh one.
+  const burstAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const rarity: Rarity | null = reveal?.item?.rarity ?? null;
   const fx = rarity ? RARITY_FX[rarity] : null;
   const color = rarity ? getRarityColor(rarity) : '#FFD54F';
 
-  useEffect(() => {
-    if (!reveal) {
-      return;
-    }
-    // Reset every value so a re-show always plays cleanly.
+  // Re-show fix: the Animated values persist across reveals (useRef), so a NEW reveal would
+  // first PAINT with the PREVIOUS reveal's end-state (card already fully visible) for a frame
+  // before the useEffect below resets + replays — making the card flash in, vanish behind the
+  // burst, then resolve again. Reset to the hidden start-state synchronously here, during
+  // render, so the very first paint of each new reveal is already hidden. (A reset in
+  // useEffect runs AFTER paint — too late.) setValue on these refs doesn't trigger a re-render,
+  // and the ref guard means an in-flight animation (same reveal re-rendering) is never reset.
+  if (reveal && reveal !== shownRevealRef.current) {
+    shownRevealRef.current = reveal;
     backdrop.setValue(0);
     cardScale.setValue(0.6);
     cardOpacity.setValue(0);
@@ -95,31 +148,90 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       p.scale.setValue(0);
       p.opacity.setValue(0);
     });
+  }
 
+  useEffect(() => {
+    if (!reveal) {
+      return;
+    }
+    // The hidden start-state is applied synchronously during render (the reset block above), so
+    // the first paint is already hidden; here we only PLAY the animation.
     Animated.timing(backdrop, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 
     if (fx) {
       if (fx.haptic) {
         Vibration.vibrate(fx.haptic);
       }
-      // Particle burst from centre — random angle, biased slightly upward.
+      // Particles erupt from centre over an emission window (fx.emitMs) rather than all at once
+      // — a staggered, continuously-spawning burst that lasts longer at higher rarity and is
+      // harder to miss. Each pops in at its launch, flies a gravity ARC (horizontal spread +
+      // up-then-down), and fades as it falls. Until the stagger launches a particle it waits at
+      // the hidden start-state set by the reset block above.
+      const flights: Animated.CompositeAnimation[] = [];
       for (let i = 0; i < fx.particles; i++) {
         const p = particles[i];
         const angle = Math.random() * Math.PI * 2;
         const dist = fx.spread * (0.45 + Math.random() * 0.55);
         const dx = Math.cos(angle) * dist;
-        const dy = Math.sin(angle) * dist - fx.spread * 0.25; // upward bias
-        p.tx.setValue(0);
-        p.ty.setValue(0);
-        p.scale.setValue(1);
-        p.opacity.setValue(1);
-        Animated.parallel([
-          Animated.timing(p.tx, { toValue: dx, duration: BURST_MS, useNativeDriver: true }),
-          Animated.timing(p.ty, { toValue: dy, duration: BURST_MS, useNativeDriver: true }),
-          Animated.timing(p.scale, { toValue: 0, duration: BURST_MS, useNativeDriver: true }),
-          Animated.timing(p.opacity, { toValue: 0, duration: BURST_MS, useNativeDriver: true }),
-        ]).start();
+        const peakY = -(fx.spread * (0.3 + Math.random() * 0.3)); // up, varied per particle
+        const fallY = fx.spread * (0.55 + Math.random() * 0.5); // down past origin (gravity)
+        flights.push(
+          Animated.parallel([
+            // Horizontal: fly out fast, decelerate.
+            Animated.timing(p.tx, {
+              toValue: dx,
+              duration: BURST_MS,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+            // Vertical: up (decelerating) then down (accelerating) = gravity.
+            Animated.sequence([
+              Animated.timing(p.ty, {
+                toValue: peakY,
+                duration: BURST_MS * 0.35,
+                easing: Easing.out(Easing.quad),
+                useNativeDriver: true,
+              }),
+              Animated.timing(p.ty, {
+                toValue: fallY,
+                duration: BURST_MS * 0.65,
+                easing: Easing.in(Easing.quad),
+                useNativeDriver: true,
+              }),
+            ]),
+            // Pop in (scale 0→1) at launch, then shrink (1→0) as it flies.
+            Animated.sequence([
+              Animated.timing(p.scale, {
+                toValue: 1,
+                duration: 90,
+                easing: Easing.out(Easing.quad),
+                useNativeDriver: true,
+              }),
+              Animated.timing(p.scale, {
+                toValue: 0,
+                duration: BURST_MS - 90,
+                easing: Easing.in(Easing.quad),
+                useNativeDriver: true,
+              }),
+            ]),
+            // Fade in fast at launch, hold, then fade out as it falls.
+            Animated.sequence([
+              Animated.timing(p.opacity, { toValue: 1, duration: 90, useNativeDriver: true }),
+              Animated.delay(BURST_MS * 0.4),
+              Animated.timing(p.opacity, {
+                toValue: 0,
+                duration: BURST_MS * 0.6 - 90,
+                easing: Easing.in(Easing.cubic),
+                useNativeDriver: true,
+              }),
+            ]),
+          ]),
+        );
       }
+      // Stagger the launches across the emission window so particles keep spawning over time
+      // (longer at higher rarity). Held in a ref so a re-show can stop pending launches.
+      burstAnimRef.current = Animated.stagger(fx.emitMs / Math.max(1, fx.particles - 1), flights);
+      burstAnimRef.current.start();
       if (fx.shake > 0) {
         Animated.sequence([
           Animated.timing(shakeX, { toValue: fx.shake, duration: 45, useNativeDriver: true }),
@@ -130,15 +242,22 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       }
     }
 
-    // Item/victory card resolves out of the burst, then the tap prompt.
+    // Item/victory card resolves out of the burst, then the tap prompt. The delay is the
+    // rarity "tell" window (fx.cardDelay); no-drop victories resolve almost immediately.
     Animated.sequence([
-      Animated.delay(fx ? CARD_DELAY_MS : 80),
+      Animated.delay(fx ? fx.cardDelay : 80),
       Animated.parallel([
         Animated.spring(cardScale, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
       ]),
       Animated.timing(promptOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
     ]).start();
+
+    // Stop the staggered burst's pending launches if this reveal is replaced or the component
+    // unmounts, so a stale particle can't pop in over the next reveal / after teardown.
+    return () => {
+      burstAnimRef.current?.stop();
+    };
     // particles/fx/color derive synchronously from `reveal`; re-running only on reveal is intentional.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal]);
