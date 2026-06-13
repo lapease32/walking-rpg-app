@@ -74,6 +74,11 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
         onPress={actions.restoreHp}>
         <Text style={styles.debugButtonText}>Restore Full HP</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.resetButton]}
+        onPress={actions.clearInventory}>
+        <Text style={styles.debugButtonText}>Clear Inventory</Text>
+      </TouchableOpacity>
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
         <View style={styles.encounterChanceValueContainer}>
@@ -157,9 +162,6 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           </Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.debugButton} onPress={actions.simulateLocationUpdate}>
-        <Text style={styles.debugButtonText}>Simulate Location Update</Text>
-      </TouchableOpacity>
       <TouchableOpacity style={styles.debugButton} onPress={actions.simulateMovement}>
         <Text style={styles.debugButtonText}>Simulate 100m Movement</Text>
       </TouchableOpacity>
@@ -196,11 +198,6 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
         style={[styles.debugButton, styles.resetButton]}
         onPress={actions.resetLevel}>
         <Text style={styles.debugButtonText}>Reset Level</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.debugButton, styles.crashButton]}
-        onPress={actions.testCrash}>
-        <Text style={styles.crashButtonText}>💥 Test Crashlytics Crash</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.debugToggle} onPress={() => onToggleDebug(false)}>
         <Text style={styles.debugToggleText}>Hide Debug</Text>
@@ -341,17 +338,6 @@ const styles = StyleSheet.create({
   resetButton: {
     backgroundColor: '#F44336',
     marginTop: 8,
-  },
-  crashButton: {
-    backgroundColor: '#D32F2F',
-    marginTop: 8,
-    borderWidth: 2,
-    borderColor: '#B71C1C',
-  },
-  crashButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   xpButtonContainer: {
     marginTop: 8,
