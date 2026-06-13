@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import { Player } from '../models/Player';
 import { Rarity } from '../models/Creature';
 import { LocationData, DistanceData } from '../services/LocationService';
-import CrashlyticsService from '../services/CrashlyticsService';
 
 export interface DebugReadouts {
   encounterChance: number;
@@ -25,13 +24,11 @@ export interface DebugSettings {
 }
 
 export interface DebugActions {
-  simulateLocationUpdate: () => void;
   simulateMovement: () => void;
   forceEncounter: () => void;
   forceLevelUp: () => void;
   addXP: (amount: number) => void;
   resetLevel: () => void;
-  testCrash: () => void;
   restoreHp: () => void;
   /** Empty the inventory (equipped items kept) — for testing repeated drops without filling up. */
   clearInventory: () => void;
@@ -124,26 +121,6 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     });
   };
 
-  const simulateLocationUpdate = (): void => {
-    const baseLat = currentLocationRef.current?.latitude || 37.7749;
-    const baseLon = currentLocationRef.current?.longitude || -122.4194;
-    // Fixed offsets (~7m NE) — direction doesn't matter for debug purposes
-    const newLocation: LocationData = {
-      latitude: baseLat + 0.00005,
-      longitude: baseLon + 0.00005,
-      accuracy: 10,
-      altitude: 0,
-      heading: 45,
-      speed: 1.5,
-      timestamp: Date.now(),
-    };
-    handleDistanceUpdate({
-      incremental: 10,
-      total: currentDistance + 10,
-      location: newLocation,
-    });
-  };
-
   const forceLevelUp = (): void => {
     const currentPlayer = playerRef.current;
     if (!currentPlayer) return;
@@ -212,38 +189,6 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setPlayerAndSave(updatedPlayer);
   };
 
-  const testCrash = (): void => {
-    Alert.alert(
-      '⚠️ Test Crash',
-      'This will crash the app immediately to test Crashlytics reporting. The crash report will appear in Firebase Console within a few minutes.\n\nAre you sure you want to proceed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Crash App',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (!CrashlyticsService.isInitialized()) {
-                await CrashlyticsService.initialize();
-              }
-              await CrashlyticsService.setCollectionEnabled(true);
-              CrashlyticsService.setAttribute('test_crash', 'true');
-              CrashlyticsService.setAttribute('player_level', playerRef.current?.level ?? 0);
-              CrashlyticsService.log('User initiated test crash from debug menu');
-              await new Promise<void>(resolve => setTimeout(() => resolve(), 200));
-              await CrashlyticsService.crash();
-            } catch (error) {
-              Alert.alert(
-                'Error',
-                `Failed to prepare crash test: ${error instanceof Error ? error.message : String(error)}`,
-              );
-            }
-          },
-        },
-      ],
-    );
-  };
-
   return {
     readouts: {
       encounterChance,
@@ -261,13 +206,11 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       setForcedRarity,
     },
     actions: {
-      simulateLocationUpdate,
       simulateMovement,
       forceEncounter,
       forceLevelUp,
       addXP,
       resetLevel,
-      testCrash,
       restoreHp,
       clearInventory,
       previewReveal: debugPreviewReveal,
