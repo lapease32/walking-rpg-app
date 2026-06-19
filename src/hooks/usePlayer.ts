@@ -1,13 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
-import { Player, PlayerData } from '../models/Player';
+import { Player } from '../models/Player';
 import { Archetype } from '../models/Archetype';
 import AnalyticsService from '../services/AnalyticsService';
 import {
   savePlayerData,
   readLocalPlayerSnapshot,
   reconcileCloudPlayerData,
+  writeLocalPlayerSnapshot,
+  ReconcileResult,
 } from '../utils/storage';
+
+// Archetype selection only reaches the create-character path when the cloud read was
+// INCONCLUSIVE (timed out / unreachable). Retry it a couple times first — a cold-start Firestore
+// stall usually clears once the gRPC channel warms — so we ADOPT an existing cloud character
+// instead of creating a fresh one over it. Only if the retries still fail do we fall back to a
+// provisional (local-only, savedAt:0) character that can never overwrite an unread cloud save.
+const ARCHETYPE_CLOUD_RETRIES = 2;
+const ARCHETYPE_CLOUD_RETRY_DELAY_MS = 1000;
 
 // On Android New Architecture (Fabric), state commits that happen while the
 // activity is paused — e.g. while a runtime permission dialog has focus —
@@ -88,8 +98,14 @@ export function usePlayer() {
   const initGenerationRef = useRef(0);
   // The in-flight cloud reconcile promise. handleArchetypeSelected awaits it so a
   // freshly-chosen archetype can never overwrite an existing cloud character
-  // (fresh install / reinstall). Resolves to cloud PlayerData when it wins, else null.
-  const cloudCheckRef = useRef<Promise<PlayerData | null> | null>(null);
+  // (fresh install / reinstall). Carries the distinct adopted/noNewerCloud/unavailable outcome.
+  const cloudCheckRef = useRef<Promise<ReconcileResult> | null>(null);
+  // True when the live player is PROVISIONAL — created during archetype selection while the cloud
+  // was unreachable, persisted local-only with a savedAt:0 sentinel and NOT yet written to the
+  // cloud. While provisional, saves stay local-only (can't clobber an unread cloud save); the
+  // reconcile resolves it (adopt a real cloud save, or promote this char once cloud is confirmed
+  // empty). Also re-derived on load from a savedAt:0 local snapshot.
+  const provisionalRef = useRef(false);
   // The init generation whose post-paint reconcile has already been started, so
   // the reconcile effect fires exactly once per initializePlayer.
   const reconciledGenerationRef = useRef(-1);
@@ -156,13 +172,28 @@ export function usePlayer() {
     const promise = reconcileCloudPlayerData();
     cloudCheckRef.current = promise;
     promise
-      .then(cloudData => {
-        if (gen !== initGenerationRef.current || !cloudData) return; // superseded or nothing newer
-        const cloudPlayer = Player.fromJSON(cloudData);
-        playerRef.current = cloudPlayer;
-        setPlayer(cloudPlayer);
-        setNeedsArchetypeSelection(false);
-        AnalyticsService.playerSessionStart(cloudPlayer.level, cloudPlayer.totalDistance);
+      .then(result => {
+        if (gen !== initGenerationRef.current) return; // superseded
+        if (result.status === 'adopted') {
+          // Cloud held a strictly-newer save (cross-device), or ANY save for a fresh/provisional
+          // local (savedAt 0) — adopt it as authoritative.
+          const cloudPlayer = Player.fromJSON(result.data);
+          playerRef.current = cloudPlayer;
+          provisionalRef.current = false;
+          setPlayer(cloudPlayer);
+          setNeedsArchetypeSelection(false);
+          AnalyticsService.playerSessionStart(cloudPlayer.level, cloudPlayer.totalDistance);
+        } else if (
+          result.status === 'noNewerCloud' &&
+          provisionalRef.current &&
+          playerRef.current
+        ) {
+          // Provisional character + cloud slot CONFIRMED empty → promote it to the cloud (a real
+          // save), making it canonical and clearing the provisional state.
+          provisionalRef.current = false;
+          savePlayerData(playerRef.current);
+        }
+        // 'unavailable', or 'noNewerCloud' for a normal returning player → keep local as-is.
       })
       .catch(error => console.error('usePlayer: cloud reconcile failed:', error));
   }, [player, needsArchetypeSelection]);
@@ -170,7 +201,16 @@ export function usePlayer() {
   const setPlayerAndSave = useCallback((updated: Player) => {
     playerRef.current = updated;
     setPlayer(updated);
-    savePlayerData(updated);
+    if (provisionalRef.current) {
+      // Provisional character (cloud unconfirmed): keep it local-only with the savedAt:0
+      // sentinel so its progress can't be written to the cloud and overwrite a save we haven't
+      // reconciled yet. It's promoted to the cloud once the reconcile confirms the slot is empty.
+      writeLocalPlayerSnapshot(updated.toJSON(), 0).catch(e =>
+        console.error('setPlayerAndSave: provisional local write failed:', e),
+      );
+    } else {
+      savePlayerData(updated);
+    }
   }, []);
 
   const clearPlayer = useCallback(() => {
@@ -188,6 +228,8 @@ export function usePlayer() {
     // Drop the previous account's in-flight cloud check so the next account's
     // initializePlayer + reconcile effect start a fresh one.
     cloudCheckRef.current = null;
+    // Reset provisional state — the next account/session re-derives it from its own load.
+    provisionalRef.current = false;
     setPlayer(null);
     setNeedsArchetypeSelection(false);
   }, []);
@@ -210,7 +252,7 @@ export function usePlayer() {
       // LOCAL ONLY — never gate first paint on the cloud read; it can synchronously
       // block the JS thread on Android New Arch and strand the user on "Loading…".
       // The post-paint reconcile effect pulls cloud data once the screen is up.
-      const { data: localData } = await readLocalPlayerSnapshot();
+      const { data: localData, savedAt: localSavedAt } = await readLocalPlayerSnapshot();
       // A newer initializePlayer (e.g. belated-sign-in reload) or a clearPlayer
       // superseded us while we awaited. Bail so our stale snapshot can't clobber.
       if (myGeneration !== initGenerationRef.current) {
@@ -222,9 +264,16 @@ export function usePlayer() {
         // the post-paint reconcile will adopt. Show archetype selection now;
         // handleArchetypeSelected waits for the cloud check before creating a new
         // character so an existing cloud save is never clobbered.
+        provisionalRef.current = false;
         showArchetypeSelection();
         return;
       }
+
+      // A savedAt:0 snapshot is a PROVISIONAL character (created in a prior session while the
+      // cloud was unreachable, never cloud-written). Re-flag it so this session's saves stay
+      // local-only and the reconcile can adopt a real cloud save (which outranks savedAt 0) or
+      // promote this one once the cloud is confirmed empty.
+      provisionalRef.current = localSavedAt === 0;
 
       // Returning player — paint from the local snapshot immediately; the
       // reconcile effect adopts cloud data afterward if it is strictly newer.
@@ -264,23 +313,40 @@ export function usePlayer() {
       reconciledGenerationRef.current = gen;
       cloudCheckRef.current = reconcileCloudPlayerData();
     }
-    let cloudData: PlayerData | null = null;
+    let result: ReconcileResult;
     try {
-      cloudData = await cloudCheckRef.current;
+      result = (await cloudCheckRef.current) ?? { status: 'unavailable' };
     } catch {
-      cloudData = null;
+      result = { status: 'unavailable' };
     }
     if (gen !== initGenerationRef.current) {
       return; // account switched while we waited
     }
 
-    if (cloudData || playerRef.current) {
-      // A cloud character exists — adopt it instead of creating a new one. The
-      // reconcile effect usually does this already; this covers the race where
-      // the user confirmed before the effect's setState committed.
-      if (cloudData && !playerRef.current) {
-        const cloudPlayer = Player.fromJSON(cloudData);
+    // The create-character path is reached only when the cloud read was INCONCLUSIVE
+    // (unavailable). Retry a couple times — a cold-start Firestore stall usually clears once the
+    // gRPC channel warms — so an existing cloud character is adopted rather than overwritten.
+    for (let i = 0; i < ARCHETYPE_CLOUD_RETRIES && result.status === 'unavailable'; i++) {
+      await new Promise<void>(resolve =>
+        setTimeout(() => resolve(), ARCHETYPE_CLOUD_RETRY_DELAY_MS),
+      );
+      if (gen !== initGenerationRef.current) return;
+      try {
+        result = await reconcileCloudPlayerData();
+      } catch {
+        result = { status: 'unavailable' };
+      }
+      if (gen !== initGenerationRef.current) return;
+    }
+
+    if (result.status === 'adopted' || playerRef.current) {
+      // A real cloud character exists (or the reconcile effect already set one) — adopt it,
+      // never create over it. Covers the race where the user confirmed before the effect's
+      // setState committed.
+      if (result.status === 'adopted' && !playerRef.current) {
+        const cloudPlayer = Player.fromJSON(result.data);
         playerRef.current = cloudPlayer;
+        provisionalRef.current = false;
         setPlayer(cloudPlayer);
         setNeedsArchetypeSelection(false);
         AnalyticsService.playerSessionStart(cloudPlayer.level, cloudPlayer.totalDistance);
@@ -288,17 +354,29 @@ export function usePlayer() {
       return;
     }
 
-    // No cloud character — safe to create the chosen archetype.
+    // Create the chosen archetype. Do NOT clear needsArchetypeSelection here — defer it into the
+    // commitWhenActive callback so it batches with setPlayer in one render (clearing it early
+    // causes a "Loading..." flash between archetype selection and the home screen).
     const newPlayer = new Player({ archetype });
     playerRef.current = newPlayer;
-    // Do NOT clear needsArchetypeSelection here — defer it into the
-    // commitWhenActive callback so it batches with setPlayer in one render.
-    // Clearing it early causes a "Loading..." flash between archetype selection
-    // and the home screen (needsArchetypeSelection=false, player=null).
-    try {
-      await savePlayerData(newPlayer);
-    } catch (error) {
-      console.error('Error saving new player after archetype selection:', error);
+    if (result.status === 'unavailable') {
+      // Cloud STILL unreachable after retries — create PROVISIONALLY: local-only, savedAt:0, no
+      // cloud write, so it can never overwrite a save we couldn't read. The reconcile (next
+      // launch / belated read) adopts a real cloud save or promotes this one if the cloud's empty.
+      provisionalRef.current = true;
+      try {
+        await writeLocalPlayerSnapshot(newPlayer.toJSON(), 0);
+      } catch (error) {
+        console.error('Error saving provisional player after archetype selection:', error);
+      }
+    } else {
+      // result.status === 'noNewerCloud' → cloud CONFIRMED empty → create + sync to cloud normally.
+      provisionalRef.current = false;
+      try {
+        await savePlayerData(newPlayer);
+      } catch (error) {
+        console.error('Error saving new player after archetype selection:', error);
+      }
     }
 
     AnalyticsService.playerSessionStart(newPlayer.level, newPlayer.totalDistance);
