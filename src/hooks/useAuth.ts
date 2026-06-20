@@ -168,12 +168,12 @@ export function useAuth({
       // Stop in-memory player from fire-and-forgetting saves to the new account
       // UID while the conflict modal is displayed.
       onAccountSwitchRef.current();
-      const cloudRecord = await CloudSyncService.loadPlayerData();
-
-      // Always show the modal when the anonymous user has data. Treating a null
-      // cloud record as "no save" is unsafe — loadPlayerData returns null on
-      // timeout and network errors too, so auto-uploading in that case would
-      // silently overwrite an existing cloud save on a slow network.
+      const cloudLoad = await CloudSyncService.loadPlayerData();
+      // Only a CONFIRMED 'found' record counts as cloud data. 'empty'/'unavailable' (incl. the
+      // timeout/network-error cases) yield null here — and the modal is shown regardless when the
+      // anonymous user has data, so the user chooses rather than us auto-uploading local over a
+      // (possibly unread) cloud save on a slow network.
+      const cloudRecord = cloudLoad.status === 'found' ? cloudLoad.record : null;
       const pendingRecord = {
         localData: localSnapshot.data,
         localSavedAt: localSnapshot.savedAt,

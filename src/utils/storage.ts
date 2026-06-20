@@ -94,21 +94,41 @@ export function isValidPlayerData(data: unknown): data is PlayerData {
  * in flight — written via savePlayerData with a fresh timestamp — is never
  * clobbered by older cloud data.
  */
-export async function reconcileCloudPlayerData(): Promise<PlayerData | null> {
-  const cloudRecord = await CloudSyncService.loadPlayerData();
-  if (cloudRecord === null || !isValidPlayerData(cloudRecord.playerData)) {
-    return null;
+/**
+ * Result of reconciling local vs cloud, kept distinct so callers can tell a CONFIRMED-missing
+ * cloud save apart from a read that simply FAILED — the distinction that prevents a fresh
+ * character from overwriting a real save the read couldn't reach.
+ */
+export type ReconcileResult =
+  | { status: 'adopted'; data: PlayerData } // cloud existed AND was strictly newer → written local
+  | { status: 'noNewerCloud' } //              cloud confirmed empty OR not newer → keep local
+  | { status: 'unavailable' }; //              cloud read failed / timed out / corrupt → unknown
+
+export async function reconcileCloudPlayerData(): Promise<ReconcileResult> {
+  const cloud = await CloudSyncService.loadPlayerData();
+  if (cloud.status === 'unavailable') {
+    return { status: 'unavailable' };
+  }
+  if (cloud.status === 'empty') {
+    return { status: 'noNewerCloud' };
+  }
+  // cloud.status === 'found'
+  if (!isValidPlayerData(cloud.record.playerData)) {
+    // Read succeeded but the doc is malformed. Treat as UNAVAILABLE, not empty — a validator
+    // false-negative must never let a fresh character overwrite a (possibly real) cloud save.
+    console.warn('reconcileCloudPlayerData: cloud doc failed validation — treating as unavailable');
+    return { status: 'unavailable' };
   }
   const { savedAt: currentLocalSavedAt } = await readLocalPlayerSnapshot();
-  if (cloudRecord.lastSavedAt > currentLocalSavedAt) {
+  if (cloud.record.lastSavedAt > currentLocalSavedAt) {
     try {
-      await writeLocalPlayerSnapshot(cloudRecord.playerData, cloudRecord.lastSavedAt);
+      await writeLocalPlayerSnapshot(cloud.record.playerData, cloud.record.lastSavedAt);
     } catch (error) {
       console.error('reconcileCloudPlayerData: failed to persist cloud data locally:', error);
     }
-    return cloudRecord.playerData;
+    return { status: 'adopted', data: cloud.record.playerData };
   }
-  return null;
+  return { status: 'noNewerCloud' };
 }
 
 /**

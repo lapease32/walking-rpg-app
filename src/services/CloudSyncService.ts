@@ -14,6 +14,17 @@ export interface CloudPlayerRecord {
   lastSavedAt: number;
 }
 
+/**
+ * Outcome of a cloud read, kept DISTINCT so callers never confuse "the cloud has no save"
+ * with "we couldn't read the cloud". Treating a timed-out/failed read as `empty` is what let a
+ * fresh level-1 character overwrite a real save — so a failed/timed-out read is `unavailable`,
+ * and only a confirmed-missing document is `empty`.
+ */
+export type CloudLoad =
+  | { status: 'found'; record: CloudPlayerRecord }
+  | { status: 'empty' }
+  | { status: 'unavailable' };
+
 class CloudSyncService {
   // Ensures strictly-increasing Firestore timestamps across rapid successive saves.
   // At walking pace saves are seconds apart so this is normally a no-op, but the
@@ -127,36 +138,45 @@ class CloudSyncService {
     await write;
   }
 
-  async loadPlayerData(): Promise<CloudPlayerRecord | null> {
+  async loadPlayerData(): Promise<CloudLoad> {
     const user = getAuth().currentUser;
     if (!user) {
-      return null;
+      // No auth session → cloud state is UNKNOWN, not empty. Reporting 'empty' here would let
+      // a missing session trigger a fresh-character overwrite.
+      return { status: 'unavailable' };
     }
-    try {
-      // Race the Firestore get against a 10-second timeout. The Firestore SDK can
-      // stall indefinitely on its first gRPC connection (slow network, emulator cold
-      // start, etc.) — without a timeout the app hangs on "Loading..." forever.
-      let timedOut = false;
-      const timeout = new Promise<null>(resolve =>
-        setTimeout(() => {
-          timedOut = true;
-          resolve(null);
-        }, 10000),
-      );
-      const fetch = getDoc(doc(collection(getFirestore(), 'players'), user.uid)).then(snapshot => {
-        if (!snapshot.exists) return null;
+    // Race the Firestore get against a 10-second timeout. The Firestore SDK can stall
+    // indefinitely on its first gRPC connection (slow network, Android New-Arch cold start),
+    // and a stall must surface as 'unavailable' — NOT 'empty' — so it can't cause an overwrite.
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<CloudLoad>(resolve => {
+      timeoutHandle = setTimeout(() => {
+        console.warn('CloudSyncService: loadPlayerData timed out — cloud state unknown');
+        resolve({ status: 'unavailable' });
+      }, 10000);
+    });
+    // .catch on the fetch chain so a late rejection (after the timeout already won the race)
+    // can't surface as an unhandled rejection; it just resolves to 'unavailable'.
+    const fetch = getDoc(doc(collection(getFirestore(), 'players'), user.uid))
+      .then<CloudLoad>(snapshot => {
+        if (!snapshot.exists) return { status: 'empty' };
         const data = snapshot.data() as { playerData: PlayerData; lastSavedAt: number } | undefined;
-        if (!data?.playerData) return null;
-        return { playerData: data.playerData, lastSavedAt: data.lastSavedAt };
+        if (!data?.playerData) return { status: 'empty' };
+        return {
+          status: 'found',
+          record: { playerData: data.playerData, lastSavedAt: data.lastSavedAt },
+        };
+      })
+      .catch((error): CloudLoad => {
+        console.error('CloudSyncService: failed to load player data:', error);
+        return { status: 'unavailable' };
       });
-      const result = await Promise.race([fetch, timeout]);
-      if (timedOut) {
-        console.warn('CloudSyncService: loadPlayerData timed out — falling back to local storage');
+    try {
+      return await Promise.race([fetch, timeout]);
+    } finally {
+      if (timeoutHandle !== undefined) {
+        clearTimeout(timeoutHandle);
       }
-      return result;
-    } catch (error) {
-      console.error('CloudSyncService: failed to load player data:', error);
-      return null;
     }
   }
 }
