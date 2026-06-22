@@ -85,7 +85,11 @@ android {
         applicationId "com.lancepease.walkingrpg"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // versionCode is supplied by CI (android-apk.yml) as the git commit count, which is
+        // strictly increasing on main and survives workflow recreation — so every release is a
+        // clean update over the last. Local builds (env unset) fall back to 1; that's a dev-only
+        // sentinel that never reaches testers/Play. See ANDROID_VERSION_CODE in android-apk.yml.
+        versionCode (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
         versionName "1.0"
         manifestPlaceholders = [usesCleartextTraffic: "false"]
     }

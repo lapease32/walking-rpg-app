@@ -11,7 +11,29 @@ jobs:
     name: Build + distribute release APK
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 so full history is present — the versionCode is derived from the commit
+      # count below, which is 1 on the default shallow clone.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Derive a strictly-increasing versionCode from the commit count on the built ref. This is
+      # monotonic on main and survives workflow recreation (unlike github.run_number). Guard
+      # against a shallow/odd checkout: a count < 2 means history is missing — fail loudly rather
+      # than ship a versionCode that regresses below an already-distributed build.
+      - name: Compute versionCode from commit count
+        id: version
+        run: |
+          CODE=$(git rev-list --count HEAD)
+          if [ "$CODE" -lt 2 ]; then
+            echo "::error::Computed versionCode=$CODE (<2) — history likely shallow; refusing to ship a regressing versionCode."
+            exit 1
+          fi
+          # GITHUB_ENV: real env var for Gradle (System.getenv in build.gradle).
+          # GITHUB_OUTPUT: step output for later steps' `with:` interpolation (release notes).
+          echo "ANDROID_VERSION_CODE=$CODE" >> "$GITHUB_ENV"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Using versionCode=$CODE"
 
       - uses: actions/setup-node@v4
         with:
@@ -83,4 +105,4 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           groups: friends
           file: android/app/build/outputs/apk/release/app-release.apk
-          releaseNotes: 'Automated StrideQuest build from ${{ github.ref_name }} (workflow_dispatch).'
+          releaseNotes: 'Automated StrideQuest build from ${{ github.ref_name }} @ ${{ github.sha }} (versionCode ${{ steps.version.outputs.code }}).'
