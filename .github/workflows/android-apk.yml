@@ -1,8 +1,10 @@
 name: Android Release APK
 
-# On-demand only (Run workflow button). Builds a SIGNED production release APK
-# and pushes it to Firebase App Distribution (tester group "friends"), and also
-# uploads it as a downloadable artifact. Not a PR gate, so it never slows checks.
+# On-demand only (Run workflow button), and MUST be dispatched from main — the build enforces
+# this because the versionCode is the commit count, which is only monotonic on main (see the
+# Compute versionCode step). Builds a SIGNED production release APK and pushes it to Firebase App
+# Distribution (tester group "friends"), and also uploads it as a downloadable artifact. Not a PR
+# gate, so it never slows checks.
 on:
   workflow_dispatch:
 
@@ -24,6 +26,15 @@ jobs:
       - name: Compute versionCode from commit count
         id: version
         run: |
+          # Production releases MUST come from main. workflow_dispatch allows dispatching from any
+          # ref, but the versionCode is the commit count, which is only monotonic along main — a
+          # run from a feature/diverged branch could yield a count BELOW an already-distributed
+          # build (regressing the versionCode even while >= 2). Enforcing main makes the count
+          # monotonic by construction; this is also the correct policy for a signed prod build.
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Release must be dispatched from main (got $GITHUB_REF). versionCode is only monotonic on main."
+            exit 1
+          fi
           CODE=$(git rev-list --count HEAD)
           if [ "$CODE" -lt 2 ]; then
             echo "::error::Computed versionCode=$CODE (<2) — history likely shallow; refusing to ship a regressing versionCode."
