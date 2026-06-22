@@ -1,4 +1,10 @@
-import { Creature, createCreatureFromTemplate, CREATURE_TEMPLATES } from '../../models/Creature';
+import {
+  Creature,
+  createCreatureFromTemplate,
+  CREATURE_TEMPLATES,
+  rollEncounterRarity,
+  pickEncounterTemplate,
+} from '../../models/Creature';
 import { DEFAULT_RESISTANCES, applyResistance } from '../../models/DamageType';
 
 const makeCreature = (overrides: Partial<ConstructorParameters<typeof Creature>[0]> = {}) =>
@@ -188,5 +194,42 @@ describe('Creature', () => {
     it('returns 0 at full immunity (resistance 1.0)', () => {
       expect(applyResistance(20, 1.0)).toBe(0);
     });
+  });
+});
+
+describe('encounter rarity scaling (level-weighted)', () => {
+  const rareRate = (lvl: number, n = 1000) => {
+    let r = 0;
+    for (let i = 0; i < n; i++) if (rollEncounterRarity(lvl) === 'rare') r++;
+    return r;
+  };
+
+  it('NEVER rolls rare at level 1 (no unwinnable above-common fights for new players)', () => {
+    for (let i = 0; i < 400; i++) {
+      expect(rollEncounterRarity(1)).not.toBe('rare');
+    }
+  });
+
+  it('rolls mostly common at level 1', () => {
+    let common = 0;
+    for (let i = 0; i < 500; i++) {
+      if (rollEncounterRarity(1) === 'common') common++;
+    }
+    expect(common).toBeGreaterThan(350); // >70%
+  });
+
+  it('rare frequency increases with level band (and is 0 at L1)', () => {
+    expect(rareRate(1)).toBe(0);
+    expect(rareRate(6)).toBeGreaterThan(rareRate(3));
+    expect(rareRate(12)).toBeGreaterThan(rareRate(6));
+  });
+
+  it('pickEncounterTemplate returns a real template, never rare at level 1', () => {
+    const ids = new Set(CREATURE_TEMPLATES.map(t => t.id));
+    for (let i = 0; i < 200; i++) {
+      const t = pickEncounterTemplate(1);
+      expect(ids.has(t.id)).toBe(true);
+      expect(t.rarity).not.toBe('rare');
+    }
   });
 });

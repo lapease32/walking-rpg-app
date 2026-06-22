@@ -1,4 +1,4 @@
-import { Creature, createCreatureFromTemplate, CREATURE_TEMPLATES } from './Creature';
+import { Creature, createCreatureFromTemplate, pickEncounterTemplate } from './Creature';
 
 export interface Location {
   latitude: number;
@@ -45,8 +45,9 @@ export class Encounter {
    * Create a random encounter
    */
   static createRandomEncounter(location: Location, playerLevel: number = 1): Encounter {
-    // Select a random creature template
-    const template = CREATURE_TEMPLATES[Math.floor(Math.random() * CREATURE_TEMPLATES.length)];
+    // Pick a creature template weighted by player level (low levels skew to common, so new
+    // players aren't thrown unwinnable above-common fights). See pickEncounterTemplate.
+    const template = pickEncounterTemplate(playerLevel);
 
     const creature = createCreatureFromTemplate(template, playerLevel);
 
