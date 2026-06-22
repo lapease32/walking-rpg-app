@@ -169,9 +169,12 @@ export const CREATURE_TEMPLATES: CreatureTemplate[] = [
     id: 'mountain_guardian',
     name: 'Mountain Guardian',
     type: 'Earth',
-    maxHp: 100,
-    attack: 25,
-    defense: 20,
+    // Rebalanced down from 100/25/20: the old defense (20) exceeded a L1 player's attack (19),
+    // so the subtractive damage formula floored player damage at 1/hit — a mathematically
+    // unwinnable wall. 80/20/12 makes it a tough-but-beatable rare at the levels it now appears.
+    maxHp: 80,
+    attack: 20,
+    defense: 12,
     speed: 10,
     rarity: 'rare',
     description: 'A powerful guardian of elevated terrain',
@@ -213,4 +216,43 @@ export function createCreatureFromTemplate(
     defense: Math.floor(template.defense * levelMultiplier),
     speed: Math.floor(template.speed * levelMultiplier),
   });
+}
+
+// Encounter rarity weights by player level. Early levels skew hard to common (winnable with
+// starting stats); higher rarities phase in as the player's attack outgrows creature defense.
+// Previously encounters picked a template UNIFORMLY (~60% uncommon-or-rare regardless of level),
+// throwing L1 players unwinnable fights. Only rarities that have templates appear here.
+// Ordered high→low minLevel; the first band whose minLevel <= playerLevel applies.
+const ENCOUNTER_RARITY_WEIGHTS: [number, Partial<Record<Rarity, number>>][] = [
+  [12, { common: 20, uncommon: 45, rare: 35 }],
+  [6, { common: 35, uncommon: 45, rare: 20 }],
+  [3, { common: 55, uncommon: 43, rare: 2 }],
+  [1, { common: 85, uncommon: 15, rare: 0 }],
+];
+
+/** Weighted-random encounter rarity for a player level (see ENCOUNTER_RARITY_WEIGHTS). */
+export function rollEncounterRarity(playerLevel: number): Rarity {
+  const [, weights] =
+    ENCOUNTER_RARITY_WEIGHTS.find(([minLevel]) => playerLevel >= minLevel) ??
+    ENCOUNTER_RARITY_WEIGHTS[ENCOUNTER_RARITY_WEIGHTS.length - 1];
+  const entries = Object.entries(weights) as [Rarity, number][];
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let roll = Math.random() * total;
+  for (const [rarity, w] of entries) {
+    roll -= w;
+    if (roll <= 0) return rarity;
+  }
+  return 'common';
+}
+
+/**
+ * Pick an encounter creature template weighted by player level: roll a rarity (level-scaled),
+ * then a uniform-random template of that rarity. Falls back to the full pool if no template of
+ * the rolled rarity exists (keeps the function safe if the template set changes).
+ */
+export function pickEncounterTemplate(playerLevel: number = 1): CreatureTemplate {
+  const rarity = rollEncounterRarity(playerLevel);
+  const ofRarity = CREATURE_TEMPLATES.filter(t => t.rarity === rarity);
+  const pool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
