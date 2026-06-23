@@ -15,7 +15,9 @@ on:
 jobs:
   e2e-ios:
     name: E2E iOS
-    runs-on: macos-latest
+    # macos-26 (arm64, Xcode 26) — see ios-build.yml: macos-latest rotated to a broken Intel
+    # Xcode 26.5 image that dropped the x86_64 simulator Swift-compatibility libraries.
+    runs-on: macos-26
     timeout-minutes: 60
 
     env:

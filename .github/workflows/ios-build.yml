@@ -16,7 +16,11 @@ on:
 jobs:
   build:
     name: iOS
-    runs-on: macos-latest
+    # macos-26 (arm64, Xcode 26). Pinned off macos-latest, which rotated to an Intel Xcode 26.5
+    # image that dropped the x86_64 simulator Swift-compatibility libraries — breaking the build
+    # with "Undefined symbols for architecture x86_64". Building arm64 on macos-26 is clean
+    # (verified locally on Xcode 26), and keeps the SDK current with Apple's iOS 26 requirement.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
