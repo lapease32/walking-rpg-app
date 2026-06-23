@@ -48,6 +48,12 @@ jobs:
           bundler-cache: true
           working-directory: ios
 
+      # The Xcode project routes compilation through React Native's ccache-clang wrappers with
+      # CCACHE_BINARY hard-set to /opt/homebrew/bin/ccache (see project.pbxproj), so ccache must
+      # be present on the runner or the Release archive fails. Mirrors ios-build.yml.
+      - name: Install ccache
+        run: command -v ccache || brew install ccache
+
       - name: Build + upload to TestFlight (fastlane)
         working-directory: ios
         env:
