@@ -7,6 +7,15 @@ name: iOS Release (TestFlight)
 on:
   workflow_dispatch:
 
+# Serialize releases: only one iOS release runs at a time, and a second dispatch QUEUES behind the
+# first (cancel-in-progress: false — never abort an in-flight upload). Without this, two concurrent
+# runs could read the same latest TestFlight build number, build identical CFBundleVersions, and the
+# second upload would be rejected by App Store Connect as a duplicate. Serializing means the second
+# run reads the now-incremented latest number and uploads cleanly.
+concurrency:
+  group: ios-release
+  cancel-in-progress: false
+
 jobs:
   testflight:
     name: Build + upload to TestFlight
