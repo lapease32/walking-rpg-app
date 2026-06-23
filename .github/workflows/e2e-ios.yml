@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 60
 
     env:
+      # Pin Xcode 26.4.1: 26.5 dropped libswiftCompatibility56 that the Firebase pods force-load.
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 360000
       # Opt this release build into the 'testing' environment so the debug panel
       # (debug-force-encounter / debug-instant-defeat) the golden path taps stays

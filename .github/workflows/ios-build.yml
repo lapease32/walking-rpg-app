@@ -21,6 +21,12 @@ jobs:
     # with "Undefined symbols for architecture x86_64". Building arm64 on macos-26 is clean
     # (verified locally on Xcode 26), and keeps the SDK current with Apple's iOS 26 requirement.
     runs-on: macos-26
+    # Pin Xcode 26.4.1: the runner's default Xcode 26.5 removed libswiftCompatibility56, which the
+    # precompiled Firebase static libs force-load → "Undefined symbols … swiftCompatibility56".
+    # 26.4.1 (also installed on the image) still ships it and is verified working locally. Durable
+    # fix is a Firebase bump that no longer force-loads the Swift 5.6 compat lib (tracked).
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
 

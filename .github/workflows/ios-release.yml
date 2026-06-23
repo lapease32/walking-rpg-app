@@ -23,6 +23,10 @@ jobs:
     # Store Connect uploads, and macos-latest still images an older Xcode (iOS 18.5 SDK), which
     # gets the TestFlight upload rejected with a 409 "SDK version issue". Pin macos-26 here.
     runs-on: macos-26
+    # Pin Xcode 26.4.1: see ios-build.yml — 26.5 dropped libswiftCompatibility56 that the Firebase
+    # pods force-load. 26.4.1 has the iOS 26.4 SDK, which still satisfies Apple's iOS 26 upload rule.
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
     steps:
       - name: Enforce release from main
         if: github.ref != 'refs/heads/main'
