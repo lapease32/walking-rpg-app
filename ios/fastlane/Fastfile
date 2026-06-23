@@ -30,6 +30,9 @@ platform :ios do
       issuer_id: ENV.fetch("ASC_ISSUER_ID"),
       key_content: ENV.fetch("ASC_KEY_CONTENT"),
       is_key_content_base64: true,
+      # Standard App Store team (not Apple Enterprise). Explicit because the App Store Connect
+      # API can't determine this on its own — without it, cert/profile calls error out.
+      in_house: false,
     )
 
     # Pull the distribution cert + App Store provisioning profile. readonly: CI must never create
