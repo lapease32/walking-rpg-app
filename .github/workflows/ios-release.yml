@@ -1,0 +1,53 @@
+name: iOS Release (TestFlight)
+
+# On-demand only (Run workflow button), and MUST be dispatched from main — same policy as the
+# Android release. Builds a SIGNED Release archive via fastlane and uploads it to TestFlight.
+# Requires the App Store Connect API key + match secrets and the one-time match bootstrap
+# described in docs/ios-testflight.md; until those exist the run will fail at the signing step.
+on:
+  workflow_dispatch:
+
+jobs:
+  testflight:
+    name: Build + upload to TestFlight
+    runs-on: macos-latest
+    steps:
+      - name: Enforce release from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::iOS release must be dispatched from main (got ${{ github.ref }})."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Write GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICES_INFO_PLIST: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST }}
+        run: echo "$GOOGLE_SERVICES_INFO_PLIST" | base64 -d > ios/WalkingRPGTemp/GoogleService-Info.plist
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: Build + upload to TestFlight (fastlane)
+        working-directory: ios
+        env:
+          # App Store Connect API key (auth — no Apple ID password / 2FA).
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }} # base64 of the .p8
+          # fastlane match (signing assets in a private repo).
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }} # base64 of "user:PAT"
+        run: bundle exec fastlane beta

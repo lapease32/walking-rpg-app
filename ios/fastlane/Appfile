@@ -1,0 +1,5 @@
+app_identifier("com.lancepease.walkingrpg")
+team_id("JBRWTF92Q9") # Apple Developer Portal team
+
+# No apple_id / itc_team_id here on purpose: CI (and the beta lane) authenticate with an
+# App Store Connect API key, which avoids an Apple ID password + 2FA prompt. See fastlane/Fastfile.

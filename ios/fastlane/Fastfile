@@ -1,0 +1,84 @@
+# fastlane configuration for StrideQuest iOS.
+#
+# The `beta` lane builds a signed Release archive and uploads it to TestFlight.
+#  - Auth:    App Store Connect API key (no Apple ID password / 2FA in CI).
+#  - Signing: fastlane match — distribution cert + App Store profile pulled from a private repo,
+#             READONLY in CI (assets are bootstrapped once locally; CI never mutates them).
+#  - Build #: latest TestFlight build + 1, so a release can be cut at any time and always
+#             increments cleanly — decoupled from git entirely.
+#
+# One-time setup + the required secrets are documented in docs/ios-testflight.md.
+
+default_platform(:ios)
+
+WORKSPACE = "WalkingRPGTemp.xcworkspace"
+PROJECT = "WalkingRPGTemp.xcodeproj"
+SCHEME = "WalkingRPGTemp"
+APP_IDENTIFIER = "com.lancepease.walkingrpg"
+TEAM_ID = "JBRWTF92Q9"
+MATCH_PROFILE = "match AppStore #{APP_IDENTIFIER}"
+
+platform :ios do
+  desc "Build a signed Release archive and upload it to TestFlight"
+  lane :beta do
+    # On CI, create a throwaway keychain so match can install the signing cert without touching
+    # a developer login keychain (match auto-uses the keychain setup_ci configures). No-op locally.
+    setup_ci
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_CONTENT"),
+      is_key_content_base64: true,
+    )
+
+    # Pull the distribution cert + App Store provisioning profile. readonly: CI must never create
+    # or mutate signing assets — bootstrap them locally (see docs), CI only consumes them.
+    match(
+      type: "appstore",
+      readonly: true,
+      api_key: api_key,
+    )
+
+    # Next build number = highest already on TestFlight + 1. Independent of commits, so two builds
+    # cut from the same source still get distinct, increasing build numbers.
+    next_build = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      initial_build_number: 0,
+    ) + 1
+    increment_build_number(build_number: next_build, xcodeproj: PROJECT)
+
+    # node_modules must already be installed (the Podfile references ../node_modules); the CI
+    # workflow runs `yarn install` before this lane.
+    cocoapods(podfile: "Podfile")
+
+    # The project defaults to automatic signing, which conflicts with match-provided assets in CI.
+    # Force manual signing pinned to the match profile for the app target only.
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: PROJECT,
+      team_id: TEAM_ID,
+      bundle_identifier: APP_IDENTIFIER,
+      code_sign_identity: "Apple Distribution",
+      profile_name: MATCH_PROFILE,
+      targets: [SCHEME],
+    )
+
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: { APP_IDENTIFIER => MATCH_PROFILE },
+      },
+    )
+
+    # skip_waiting_for_build_processing: don't block the runner ~10 min waiting for Apple to finish
+    # processing — the build still lands in TestFlight; testers are notified once processing ends.
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+    )
+  end
+end

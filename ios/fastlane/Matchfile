@@ -1,0 +1,7 @@
+# fastlane match: the signing certificate + App Store provisioning profile are generated once
+# and stored ENCRYPTED in a separate private git repo (MATCH_GIT_URL). CI pulls them in readonly
+# mode; you bootstrap the repo once locally. See docs/ios-testflight.md.
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+type("appstore")
+app_identifier(["com.lancepease.walkingrpg"])

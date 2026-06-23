@@ -48,6 +48,14 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
+# iOS fastlane lives in ios/fastlane (the patterns above are repo-root anchored, so they don't
+# cover it) — ignore its run artifacts + the signed build output produced by the beta lane.
+ios/fastlane/report.xml
+ios/fastlane/Preview.html
+ios/fastlane/README.md
+ios/fastlane/test_output
+ios/*.ipa
+ios/*.app.dSYM.zip
 
 # Bundle artifacts
 *.jsbundle
