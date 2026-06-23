@@ -60,6 +60,9 @@ jobs:
       - name: Build for simulator
         run: |
           set -o pipefail
+          # ARCHS=arm64: Xcode 26.5 (on macos-26) dropped the x86_64 iOS-simulator Swift-compat
+          # libraries, so a generic simulator destination's x86_64 slice fails to link. arm64
+          # matches the runner and is all we need to verify the app compiles. (Verified locally.)
           xcodebuild build \
             -workspace ios/WalkingRPGTemp.xcworkspace \
             -scheme WalkingRPGTemp \
@@ -67,4 +70,6 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
             -quiet

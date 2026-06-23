@@ -68,6 +68,8 @@ jobs:
 
       - name: Build for simulator
         run: |
+          # ARCHS=arm64: Xcode 26.5 dropped the x86_64 iOS-simulator Swift-compat libraries; build
+          # arm64 only (matches the arm64 runner + booted simulator the E2E test runs against).
           xcodebuild \
             -workspace ios/WalkingRPGTemp.xcworkspace \
             -scheme WalkingRPGTemp \
@@ -75,7 +77,9 @@ jobs:
             -sdk iphonesimulator \
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO
 
       - name: Boot simulator
         run: |
