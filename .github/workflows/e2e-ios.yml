@@ -23,6 +23,9 @@ jobs:
     env:
       # Pin Xcode 26.4.1: 26.5 dropped libswiftCompatibility56 that the Firebase pods force-load.
       DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+      # See ios-build.yml: force the complete default Xcode toolchain (fixes Firebase's
+      # libswiftCompatibility56 link failure on GitHub's Xcode 26 runners).
+      TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 360000
       # Opt this release build into the 'testing' environment so the debug panel
       # (debug-force-encounter / debug-instant-defeat) the golden path taps stays

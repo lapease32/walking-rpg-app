@@ -27,6 +27,9 @@ jobs:
     # pods force-load. 26.4.1 has the iOS 26.4 SDK, which still satisfies Apple's iOS 26 upload rule.
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+      # See ios-build.yml: force the complete default Xcode toolchain (fixes Firebase's
+      # libswiftCompatibility56 link failure on GitHub's Xcode 26 runners).
+      TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
     steps:
       - name: Enforce release from main
         if: github.ref != 'refs/heads/main'
