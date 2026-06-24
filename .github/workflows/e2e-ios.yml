@@ -15,10 +15,17 @@ on:
 jobs:
   e2e-ios:
     name: E2E iOS
-    runs-on: macos-latest
+    # macos-26 (arm64, Xcode 26) — see ios-build.yml: macos-latest rotated to a broken Intel
+    # Xcode 26.5 image that dropped the x86_64 simulator Swift-compatibility libraries.
+    runs-on: macos-26
     timeout-minutes: 60
 
     env:
+      # Pin Xcode 26.4.1: 26.5 dropped libswiftCompatibility56 that the Firebase pods force-load.
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+      # See ios-build.yml: force the complete default Xcode toolchain (fixes Firebase's
+      # libswiftCompatibility56 link failure on GitHub's Xcode 26 runners).
+      TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 360000
       # Opt this release build into the 'testing' environment so the debug panel
       # (debug-force-encounter / debug-instant-defeat) the golden path taps stays
@@ -66,6 +73,8 @@ jobs:
 
       - name: Build for simulator
         run: |
+          # ARCHS=arm64: Xcode 26.5 dropped the x86_64 iOS-simulator Swift-compat libraries; build
+          # arm64 only (matches the arm64 runner + booted simulator the E2E test runs against).
           xcodebuild \
             -workspace ios/WalkingRPGTemp.xcworkspace \
             -scheme WalkingRPGTemp \
@@ -73,7 +82,9 @@ jobs:
             -sdk iphonesimulator \
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO
 
       - name: Boot simulator
         run: |

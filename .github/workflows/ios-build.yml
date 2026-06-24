@@ -16,7 +16,21 @@ on:
 jobs:
   build:
     name: iOS
-    runs-on: macos-latest
+    # macos-26 (arm64, Xcode 26). Pinned off macos-latest, which rotated to an Intel Xcode 26.5
+    # image that dropped the x86_64 simulator Swift-compatibility libraries — breaking the build
+    # with "Undefined symbols for architecture x86_64". Building arm64 on macos-26 is clean
+    # (verified locally on Xcode 26), and keeps the SDK current with Apple's iOS 26 requirement.
+    runs-on: macos-26
+    # Pin Xcode 26.4.1: the runner's default Xcode 26.5 removed libswiftCompatibility56, which the
+    # precompiled Firebase static libs force-load → "Undefined symbols … swiftCompatibility56".
+    # 26.4.1 (also installed on the image) still ships it and is verified working locally. Durable
+    # fix is a Firebase bump that no longer force-loads the Swift 5.6 compat lib (tracked).
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+      # Force the COMPLETE default Xcode toolchain. GitHub's Xcode 26 installs otherwise select an
+      # incomplete Swift toolchain missing the back-compat libs that Firebase force-loads
+      # (libswiftCompatibility56) — the cause of the "library not found" linker failure.
+      TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +70,9 @@ jobs:
       - name: Build for simulator
         run: |
           set -o pipefail
+          # ARCHS=arm64: Xcode 26.5 (on macos-26) dropped the x86_64 iOS-simulator Swift-compat
+          # libraries, so a generic simulator destination's x86_64 slice fails to link. arm64
+          # matches the runner and is all we need to verify the app compiles. (Verified locally.)
           xcodebuild build \
             -workspace ios/WalkingRPGTemp.xcworkspace \
             -scheme WalkingRPGTemp \
@@ -63,4 +80,6 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
             -quiet
