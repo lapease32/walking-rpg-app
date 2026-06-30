@@ -2,6 +2,7 @@ import { MutableRefObject } from 'react';
 import { Alert } from 'react-native';
 import { Player } from '../models/Player';
 import { Rarity } from '../models/Creature';
+import { generateItem } from '../services/LootService';
 import { LocationData, DistanceData } from '../services/LocationService';
 
 export interface DebugReadouts {
@@ -24,14 +25,17 @@ export interface DebugSettings {
 }
 
 export interface DebugActions {
-  simulateMovement: () => void;
+  /** Add `distanceMeters` of simulated movement (the panel offers +10 / +100 / +1000). */
+  simulateMovement: (distanceMeters: number) => void;
   forceEncounter: () => void;
-  forceLevelUp: () => void;
+  /** Jump to an exact level with the canonical stats for it (panel offers L1/5/10/20/50). */
+  setLevel: (targetLevel: number) => void;
   addXP: (amount: number) => void;
-  resetLevel: () => void;
   restoreHp: () => void;
   /** Empty the inventory (equipped items kept) — for testing repeated drops without filling up. */
   clearInventory: () => void;
+  /** Jam every empty inventory slot with a generated item — tests the inventory-full path. */
+  fillInventory: () => void;
   /** Show the reward reveal for a synthetic drop at `rarity` (null = random); no combat. */
   previewReveal: (rarity: Rarity | null) => void;
 }
@@ -68,8 +72,8 @@ interface UseDebugActionsParams {
 }
 
 /**
- * Owns the debug-mode action logic — player mutation (force level/XP/reset), location
- * simulation, and the Crashlytics test — and re-groups the encounter-domain debug config that
+ * Owns the debug-mode action logic — player mutation (set level, add XP, heal, fill/clear
+ * inventory) and location simulation — and re-groups the encounter-domain debug config that
  * useEncounter exposes. This keeps DebugPanel purely presentational and collapses its prop
  * surface, matching the post-refactor split (hooks own logic, components render). Debug
  * concerns stay OUT of the production hooks. Debug-only: the panel that consumes this is hard-
@@ -100,11 +104,10 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     debugPreviewReveal,
   } = params;
 
-  const simulateMovement = (): void => {
-    const fakeDistance = 100;
+  const simulateMovement = (distanceMeters: number): void => {
     const baseLat = currentLocationRef.current?.latitude || 37.7749;
     const baseLon = currentLocationRef.current?.longitude || -122.4194;
-    const latOffset = fakeDistance / 111000;
+    const latOffset = distanceMeters / 111000;
     const newLocation: LocationData = {
       latitude: baseLat + latOffset,
       longitude: baseLon,
@@ -115,19 +118,19 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       timestamp: Date.now(),
     };
     handleDistanceUpdate({
-      incremental: fakeDistance,
-      total: currentDistance + fakeDistance,
+      incremental: distanceMeters,
+      total: currentDistance + distanceMeters,
       location: newLocation,
     });
   };
 
-  const forceLevelUp = (): void => {
+  const setLevel = (targetLevel: number): void => {
     const currentPlayer = playerRef.current;
     if (!currentPlayer) return;
     const updatedPlayer = new Player(currentPlayer.toJSON());
-    updatedPlayer.forceLevelUp();
+    updatedPlayer.setLevel(targetLevel);
     setPlayerAndSave(updatedPlayer);
-    Alert.alert('Level Up!', `You are now level ${updatedPlayer.level}!`);
+    Alert.alert('Level Set', `You are now level ${updatedPlayer.level}.`);
   };
 
   const addXP = (amount: number): void => {
@@ -149,28 +152,18 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     }
   };
 
-  const resetLevel = (): void => {
+  const fillInventory = (): void => {
     const currentPlayer = playerRef.current;
     if (!currentPlayer) return;
-    Alert.alert(
-      'Reset Level',
-      'Are you sure you want to reset to level 1? This will reset your level, XP, and combat stats.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            const currentPlayerAtConfirm = playerRef.current;
-            if (!currentPlayerAtConfirm) return;
-            const updatedPlayer = new Player(currentPlayerAtConfirm.toJSON());
-            updatedPlayer.resetLevel();
-            setPlayerAndSave(updatedPlayer);
-            Alert.alert('Level Reset', 'You have been reset to level 1.');
-          },
-        },
-      ],
-    );
+    const updatedPlayer = new Player(currentPlayer.toJSON());
+    // Fill every empty slot with a generated item (at the player's level); addItemToInventory
+    // returns -1 once full. Exercises the "inventory full → drop lost" path.
+    let added = 0;
+    while (updatedPlayer.addItemToInventory(generateItem(updatedPlayer.level)) !== -1) {
+      added += 1;
+    }
+    setPlayerAndSave(updatedPlayer);
+    Alert.alert('Inventory Filled', `Added ${added} item(s); inventory is now full.`);
   };
 
   const restoreHp = (): void => {
@@ -208,11 +201,11 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     actions: {
       simulateMovement,
       forceEncounter,
-      forceLevelUp,
+      setLevel,
       addXP,
-      resetLevel,
       restoreHp,
       clearInventory,
+      fillInventory,
       previewReveal: debugPreviewReveal,
     },
   };
