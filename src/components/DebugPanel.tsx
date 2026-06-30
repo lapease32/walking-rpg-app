@@ -79,6 +79,11 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
         onPress={actions.clearInventory}>
         <Text style={styles.debugButtonText}>Clear Inventory</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.levelControlButton]}
+        onPress={actions.fillInventory}>
+        <Text style={styles.debugButtonText}>Fill Inventory</Text>
+      </TouchableOpacity>
       <View style={styles.encounterChanceContainer}>
         <Text style={styles.encounterChanceLabel}>Encounter Chance:</Text>
         <View style={styles.encounterChanceValueContainer}>
@@ -162,20 +167,38 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           </Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.debugButton} onPress={actions.simulateMovement}>
-        <Text style={styles.debugButtonText}>Simulate 100m Movement</Text>
-      </TouchableOpacity>
+      <View style={styles.xpButtonContainer}>
+        <Text style={styles.xpButtonLabel}>Simulate Movement:</Text>
+        {[
+          { label: '+10m', meters: 10 },
+          { label: '+100m', meters: 100 },
+          { label: '+1km', meters: 1000 },
+        ].map(step => (
+          <TouchableOpacity
+            key={step.meters}
+            style={[styles.debugButton, styles.xpButton]}
+            onPress={() => actions.simulateMovement(step.meters)}>
+            <Text style={styles.debugButtonText}>{step.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <TouchableOpacity
         style={[styles.debugButton, styles.forceEncounterButton]}
         onPress={actions.forceEncounter}
         testID="debug-force-encounter">
         <Text style={styles.debugButtonText}>Force Encounter</Text>
       </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.debugButton, styles.levelControlButton]}
-        onPress={actions.forceLevelUp}>
-        <Text style={styles.debugButtonText}>Force Level Up</Text>
-      </TouchableOpacity>
+      <View style={styles.xpButtonContainer}>
+        <Text style={styles.xpButtonLabel}>Set Level:</Text>
+        {[1, 5, 10, 20, 50].map(lvl => (
+          <TouchableOpacity
+            key={lvl}
+            style={[styles.debugButton, styles.levelControlButton]}
+            onPress={() => actions.setLevel(lvl)}>
+            <Text style={styles.debugButtonText}>L{lvl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <View style={styles.xpButtonContainer}>
         <Text style={styles.xpButtonLabel}>Add XP:</Text>
         <TouchableOpacity
@@ -194,11 +217,6 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           <Text style={styles.debugButtonText}>+1000 XP</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={[styles.debugButton, styles.resetButton]}
-        onPress={actions.resetLevel}>
-        <Text style={styles.debugButtonText}>Reset Level</Text>
-      </TouchableOpacity>
       <TouchableOpacity style={styles.debugToggle} onPress={() => onToggleDebug(false)}>
         <Text style={styles.debugToggleText}>Hide Debug</Text>
       </TouchableOpacity>

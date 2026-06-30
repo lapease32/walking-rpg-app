@@ -272,19 +272,16 @@ export class Player {
     this.creaturesDefeated += 1;
   }
 
-  forceLevelUp(): void {
-    this.level += 1;
-    const cfg = ARCHETYPE_CONFIGS[this.archetype];
-    this.str += cfg.strPerLevel;
-    this.agi += cfg.agiPerLevel;
-    this.int += cfg.intPerLevel;
-    this.recalculateStats();
-  }
-
-  resetLevel(): void {
-    this.level = 1;
+  /**
+   * Debug-only: jump the player to an exact level. Applies the canonical attributes for that level
+   * (computeAttributes — identical to having levelled there naturally), recalculates combat stats,
+   * resets XP into the new level, and full-heals. Clamped to >= 1. Replaces the old
+   * forceLevelUp/resetLevel pair (resetLevel was setLevel(1); a level-up is setLevel(level + 1)).
+   */
+  setLevel(targetLevel: number): void {
+    this.level = Math.max(1, Math.floor(targetLevel));
     this.experience = 0;
-    const attrs = computeAttributes(this.archetype, 1);
+    const attrs = computeAttributes(this.archetype, this.level);
     this.str = attrs.str;
     this.agi = attrs.agi;
     this.int = attrs.int;

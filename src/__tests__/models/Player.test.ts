@@ -502,4 +502,41 @@ describe('Player', () => {
       expect(PLAYER_CONFIG.MAX_INVENTORY_SIZE).toBe(50);
     });
   });
+
+  describe('setLevel (debug)', () => {
+    it('jumps to the target level with the canonical attributes for it', () => {
+      const player = new Player({ archetype: Archetype.Mage, level: 1 });
+      player.setLevel(10);
+      const expected = computeAttributes(Archetype.Mage, 10);
+      expect(player.level).toBe(10);
+      expect(player.str).toBe(expected.str);
+      expect(player.agi).toBe(expected.agi);
+      expect(player.int).toBe(expected.int);
+    });
+
+    it('resets XP into the new level and full-heals', () => {
+      const player = new Player({ level: 1, experience: 40 });
+      player.setLevel(5);
+      expect(player.experience).toBe(0);
+      expect(player.hp).toBe(player.maxHp);
+    });
+
+    it('recomputes combat stats from the new attributes', () => {
+      const player = new Player({ level: 1 });
+      const attackAtL1 = player.attack;
+      player.setLevel(20);
+      const expected = computeAttributes(player.archetype, 20);
+      expect(player.attack).toBe(deriveAttack(expected.str, expected.agi));
+      expect(player.attack).toBeGreaterThan(attackAtL1);
+    });
+
+    it('clamps below 1 to level 1 (setLevel(0) is a reset)', () => {
+      const player = new Player({ level: 8 });
+      player.setLevel(0);
+      const expected = computeAttributes(player.archetype, 1);
+      expect(player.level).toBe(1);
+      expect(player.str).toBe(expected.str);
+      expect(player.agi).toBe(expected.agi);
+    });
+  });
 });
