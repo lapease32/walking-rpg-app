@@ -12,6 +12,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.UiThreadUtil;
 
 /**
  * Lets the JS layer ask Android to exempt the app from battery optimization (Doze / OEM
@@ -60,22 +61,25 @@ public class BatteryOptimizationModule extends ReactContextBaseJavaModule {
    */
   @ReactMethod
   public void requestExemption(Promise promise) {
-    try {
-      Context context = getReactApplicationContext();
-      PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-      if (pm != null && pm.isIgnoringBatteryOptimizations(context.getPackageName())) {
-        promise.resolve(false);
-        return;
-      }
-      Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-      intent.setData(Uri.parse("package:" + context.getPackageName()));
-      // Started from the application context (no guaranteed foreground Activity), so a new task is
-      // required for the system dialog to appear.
-      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-      context.startActivity(intent);
-      promise.resolve(true);
-    } catch (Exception e) {
-      promise.reject("battery_opt_request_failed", e);
+    final Context context = getReactApplicationContext();
+    PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+    if (pm != null && pm.isIgnoringBatteryOptimizations(context.getPackageName())) {
+      promise.resolve(false);
+      return;
     }
+    // @ReactMethod runs on a background thread; launching an Activity must happen on the main
+    // thread (startActivity can throw off-thread on some Android versions/OEMs). Marshal it over.
+    UiThreadUtil.runOnUiThread(() -> {
+      try {
+        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+        intent.setData(Uri.parse("package:" + context.getPackageName()));
+        // No guaranteed foreground Activity (app context) → a new task is required for the dialog.
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
+        promise.resolve(true);
+      } catch (Exception e) {
+        promise.reject("battery_opt_request_failed", e);
+      }
+    });
   }
 }

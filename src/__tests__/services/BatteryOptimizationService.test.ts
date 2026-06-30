@@ -106,4 +106,35 @@ describe('BatteryOptimizationService.maybeRequestExemption', () => {
 
     expect(mockSetShown).not.toHaveBeenCalled();
   });
+
+  it('does not record the prompt when the native side reports already-exempt (no dialog shown)', async () => {
+    mockHasShown.mockResolvedValue(false);
+    native.isIgnoringBatteryOptimizations.mockResolvedValue(false);
+    native.requestExemption.mockResolvedValue(false); // native: already exempt → no dialog launched
+
+    await BatteryOptimizationService.maybeRequestExemption();
+
+    expect(mockSetShown).not.toHaveBeenCalled();
+  });
+
+  it('guards against overlapping calls launching the dialog more than once', async () => {
+    mockHasShown.mockResolvedValue(false);
+    native.isIgnoringBatteryOptimizations.mockResolvedValue(false);
+    let resolveRequest: (launched: boolean) => void = () => {};
+    native.requestExemption.mockReturnValue(
+      new Promise<boolean>(resolve => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    // Fire two overlapping calls before the first resolves; the in-flight guard should let only
+    // one through to the native dialog.
+    const first = BatteryOptimizationService.maybeRequestExemption();
+    const second = BatteryOptimizationService.maybeRequestExemption();
+    resolveRequest(true);
+    await Promise.all([first, second]);
+
+    expect(native.requestExemption).toHaveBeenCalledTimes(1);
+    expect(mockSetShown).toHaveBeenCalledTimes(1);
+  });
 });
