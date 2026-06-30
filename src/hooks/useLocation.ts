@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
+import BatteryOptimizationService from '../services/BatteryOptimizationService';
 import { saveTrackingState } from '../utils/storage';
 
 export function useLocation() {
@@ -27,6 +28,9 @@ export function useLocation() {
       console.warn('Location permission denied — tracking not started');
       return;
     }
+    // Android only, once: ask the OS to exempt us from battery optimization so Doze / OEM killers
+    // don't suspend background GPS while walking. Fire-and-forget — never blocks tracking start.
+    BatteryOptimizationService.maybeRequestExemption().catch(console.error);
     LocationService.startTracking(handleLocationUpdate, onDistanceUpdate);
     setIsTracking(true);
     saveTrackingState(true);

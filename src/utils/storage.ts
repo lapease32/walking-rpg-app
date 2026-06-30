@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
   TRACKING_STATE: '@walking_rpg:tracking_state',
   CONFLICT_PENDING: '@walking_rpg:conflict_pending',
+  BATTERY_PROMPT_SHOWN: '@walking_rpg:battery_prompt_shown',
 } as const;
 
 export interface PendingConflictRecord {
@@ -250,6 +251,34 @@ export async function loadTrackingState(): Promise<boolean> {
     return value !== null ? (JSON.parse(value) as boolean) : false;
   } catch (error) {
     console.error('Error loading tracking state:', error);
+    return false;
+  }
+}
+
+/**
+ * Mark that the Android battery-optimization exemption prompt has been shown, so it's only ever
+ * asked once (we never re-nag a user who declined — they can still enable it in system settings).
+ */
+export async function setBatteryPromptShown(): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.BATTERY_PROMPT_SHOWN, JSON.stringify(true));
+    return true;
+  } catch (error) {
+    console.error('Error saving battery-prompt-shown flag:', error);
+    return false;
+  }
+}
+
+/**
+ * Whether the battery-optimization exemption prompt has already been shown. Returns false if
+ * never shown or on error (fail-open is harmless — at worst the prompt shows once more).
+ */
+export async function hasBatteryPromptBeenShown(): Promise<boolean> {
+  try {
+    const value = await AsyncStorage.getItem(STORAGE_KEYS.BATTERY_PROMPT_SHOWN);
+    return value !== null ? (JSON.parse(value) as boolean) : false;
+  } catch (error) {
+    console.error('Error loading battery-prompt-shown flag:', error);
     return false;
   }
 }
