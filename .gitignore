@@ -87,3 +87,13 @@ docs/personal/
 
 #Release folder
 releases/
+
+# Local Claude Code state (accumulated permission allowlist, local overrides, lock) — not project code
+.claude/
+
+# Local debug / test artifacts pulled down while diagnosing CI
+logcat-android/
+maestro-android-results/
+
+# Stray AI-generated image downloads
+openart-*.png
