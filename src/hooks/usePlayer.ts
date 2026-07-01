@@ -8,7 +8,6 @@ import {
   readLocalPlayerSnapshot,
   reconcileCloudPlayerData,
   writeLocalPlayerSnapshot,
-  clearLocalPlayerData,
   ReconcileResult,
 } from '../utils/storage';
 
@@ -391,36 +390,6 @@ export function usePlayer() {
     });
   }, []);
 
-  // Debug only: reset to the new-user flow by dropping the player and re-showing archetype
-  // selection. Clearing LOCAL storage is essential, not just in-memory: reconcileCloudPlayerData
-  // compares cloud against the LOCAL savedAt, and if a stale local save remained, the common
-  // in-sync case (cloud not strictly newer than local) would return `noNewerCloud` →
-  // handleArchetypeSelected would CREATE a fresh character and overwrite the cloud document. With
-  // local cleared, the cloud save is always "newer" → `adopted` → the existing character is
-  // restored, never overwritten. If the cloud is genuinely empty, a fresh character is created
-  // (nothing to lose). We only re-enter the archetype-selection state once local is actually
-  // cleared, so a clear failure can't leave the unsafe stale-local state.
-  const debugTriggerArchetypeSelection = useCallback(async (): Promise<void> => {
-    try {
-      await clearLocalPlayerData();
-    } catch (error) {
-      console.error('debugTriggerArchetypeSelection: failed to clear local player data:', error);
-      return;
-    }
-    // Bump the generation FIRST (as clearPlayer does) so any in-flight reconcile from the prior
-    // load bails at its `gen !== initGenerationRef.current` guard instead of completing its
-    // 'adopted' handler and restoring the player over this reset. The reconcile effect then starts
-    // a fresh reconcile for the new generation, seeing the now-cleared local state.
-    initGenerationRef.current++;
-    pendingCommitUnsubRef.current?.();
-    pendingCommitUnsubRef.current = null;
-    playerRef.current = null;
-    cloudCheckRef.current = null;
-    provisionalRef.current = false;
-    setPlayer(null);
-    setNeedsArchetypeSelection(true);
-  }, []);
-
   return {
     player,
     playerRef,
@@ -429,7 +398,6 @@ export function usePlayer() {
     initializePlayer,
     needsArchetypeSelection,
     handleArchetypeSelected,
-    debugTriggerArchetypeSelection,
     repaintToken,
   };
 }

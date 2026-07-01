@@ -225,11 +225,6 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           <Text style={styles.debugButtonText}>+1000 XP</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={[styles.debugButton, styles.resetButton]}
-        onPress={actions.triggerArchetypeSelection}>
-        <Text style={styles.debugButtonText}>Re-trigger Archetype Selection</Text>
-      </TouchableOpacity>
       <TouchableOpacity style={styles.debugToggle} onPress={() => onToggleDebug(false)}>
         <Text style={styles.debugToggleText}>Hide Debug</Text>
       </TouchableOpacity>

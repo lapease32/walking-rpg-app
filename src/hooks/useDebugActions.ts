@@ -41,8 +41,6 @@ export interface DebugActions {
   fillInventory: () => void;
   /** Show the reward reveal for a synthetic drop at `rarity` (null = random); no combat. */
   previewReveal: (rarity: Rarity | null) => void;
-  /** Re-show the archetype-selection screen (new-user flow); clears the in-memory player. */
-  triggerArchetypeSelection: () => void;
 }
 
 /** Everything DebugPanel needs, grouped so the panel can stay presentational. */
@@ -74,8 +72,6 @@ interface UseDebugActionsParams {
   setForcedRarity: (value: Rarity | null) => void;
   forceEncounter: () => void;
   debugPreviewReveal: (rarity: Rarity | null) => void;
-  // Player-domain debug (usePlayer): reset to the archetype-selection state (clears local player).
-  debugTriggerArchetypeSelection: () => Promise<void>;
 }
 
 /**
@@ -109,7 +105,6 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setForcedRarity,
     forceEncounter,
     debugPreviewReveal,
-    debugTriggerArchetypeSelection,
   } = params;
 
   const simulateMovement = (distanceMeters: number): void => {
@@ -190,23 +185,6 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setPlayerAndSave(updatedPlayer);
   };
 
-  const triggerArchetypeSelection = (): void => {
-    Alert.alert(
-      'Re-trigger Archetype Selection',
-      'Clears your LOCAL character and re-shows archetype selection (new-user flow). Your cloud ' +
-        'save is safe — if one exists it is restored when you pick; a fresh character is created ' +
-        'only if the cloud is empty. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Re-trigger',
-          style: 'destructive',
-          onPress: () => void debugTriggerArchetypeSelection(),
-        },
-      ],
-    );
-  };
-
   return {
     readouts: {
       encounterChance,
@@ -233,7 +211,6 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       clearInventory,
       fillInventory,
       previewReveal: debugPreviewReveal,
-      triggerArchetypeSelection,
     },
   };
 }
