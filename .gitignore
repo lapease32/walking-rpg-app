@@ -102,3 +102,6 @@ maestro-android-results/
 
 # Stray AI-generated image downloads
 openart-*.png
+
+# Build / tool logs (regenerated — e.g. ios/pod-install.log, rewritten on every pod install)
+*.log
