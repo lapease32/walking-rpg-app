@@ -2,6 +2,7 @@ import { MutableRefObject } from 'react';
 import { Alert } from 'react-native';
 import { Player } from '../models/Player';
 import { Rarity } from '../models/Creature';
+import CloudSyncService, { CloudSyncStatus } from '../services/CloudSyncService';
 import { generateItem } from '../services/LootService';
 import { LocationData, DistanceData } from '../services/LocationService';
 
@@ -12,6 +13,8 @@ export interface DebugReadouts {
   timeRemaining: number;
   /** Latest GPS fix (state, not ref) so the panel re-renders as it updates. */
   location: LocationData | null;
+  /** Cloud-write health (last successful sync, pending writes) — read each render. */
+  syncStatus: CloudSyncStatus;
 }
 
 export interface DebugSettings {
@@ -38,6 +41,8 @@ export interface DebugActions {
   fillInventory: () => void;
   /** Show the reward reveal for a synthetic drop at `rarity` (null = random); no combat. */
   previewReveal: (rarity: Rarity | null) => void;
+  /** Re-show the archetype-selection screen (new-user flow); clears the in-memory player. */
+  triggerArchetypeSelection: () => void;
 }
 
 /** Everything DebugPanel needs, grouped so the panel can stay presentational. */
@@ -69,6 +74,8 @@ interface UseDebugActionsParams {
   setForcedRarity: (value: Rarity | null) => void;
   forceEncounter: () => void;
   debugPreviewReveal: (rarity: Rarity | null) => void;
+  // Player-domain debug (usePlayer): re-enter the archetype-selection state.
+  debugTriggerArchetypeSelection: () => void;
 }
 
 /**
@@ -102,6 +109,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setForcedRarity,
     forceEncounter,
     debugPreviewReveal,
+    debugTriggerArchetypeSelection,
   } = params;
 
   const simulateMovement = (distanceMeters: number): void => {
@@ -182,6 +190,22 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     setPlayerAndSave(updatedPlayer);
   };
 
+  const triggerArchetypeSelection = (): void => {
+    Alert.alert(
+      'Re-trigger Archetype Selection',
+      'Clears the in-memory character and re-shows the archetype selection screen (new-user flow). ' +
+        'Your cloud save is safe — if one exists it is re-adopted when you pick. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Re-trigger',
+          style: 'destructive',
+          onPress: () => debugTriggerArchetypeSelection(),
+        },
+      ],
+    );
+  };
+
   return {
     readouts: {
       encounterChance,
@@ -189,6 +213,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       isTimeBlocking,
       timeRemaining,
       location: currentLocation,
+      syncStatus: CloudSyncService.getSyncStatus(),
     },
     settings: {
       bypassTimeConstraint,
@@ -207,6 +232,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       clearInventory,
       fillInventory,
       previewReveal: debugPreviewReveal,
+      triggerArchetypeSelection,
     },
   };
 }

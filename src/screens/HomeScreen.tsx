@@ -49,6 +49,7 @@ export default function HomeScreen() {
     initializePlayer,
     needsArchetypeSelection,
     handleArchetypeSelected,
+    debugTriggerArchetypeSelection,
     repaintToken,
   } = usePlayer();
   const [showInventoryModal, setShowInventoryModal] = useState<boolean>(false);
@@ -299,6 +300,7 @@ export default function HomeScreen() {
     setForcedRarity,
     forceEncounter,
     debugPreviewReveal,
+    debugTriggerArchetypeSelection,
   });
 
   if (needsArchetypeSelection) {

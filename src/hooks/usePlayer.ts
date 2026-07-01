@@ -390,6 +390,21 @@ export function usePlayer() {
     });
   }, []);
 
+  // Debug only: drop the in-memory player and re-show archetype selection to exercise the new-user
+  // flow. Non-invasive — it just re-enters the archetype-selection state the app already supports;
+  // handleArchetypeSelected's reconcile guard still re-adopts any cloud character (so this can't
+  // lose cloud data), and local storage is left intact, so backing out without picking just reloads
+  // the character on the next launch.
+  const debugTriggerArchetypeSelection = useCallback((): void => {
+    pendingCommitUnsubRef.current?.();
+    pendingCommitUnsubRef.current = null;
+    playerRef.current = null;
+    cloudCheckRef.current = null;
+    provisionalRef.current = false;
+    setPlayer(null);
+    setNeedsArchetypeSelection(true);
+  }, []);
+
   return {
     player,
     playerRef,
@@ -398,6 +413,7 @@ export function usePlayer() {
     initializePlayer,
     needsArchetypeSelection,
     handleArchetypeSelected,
+    debugTriggerArchetypeSelection,
     repaintToken,
   };
 }

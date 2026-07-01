@@ -68,6 +68,14 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
             </Text>
           </>
         )}
+        <Text style={styles.debugStatRow}>
+          ☁️ Sync:{' '}
+          {readouts.syncStatus.lastSuccessfulSyncAt
+            ? `${Math.round((Date.now() - readouts.syncStatus.lastSuccessfulSyncAt) / 1000)}s ago`
+            : 'never'}
+          {'  '}⏳ {readouts.syncStatus.pendingWrites} pending
+          {readouts.syncStatus.writesSuspended ? '  ⛔ suspended' : ''}
+        </Text>
       </View>
       <TouchableOpacity
         style={[styles.debugButton, styles.levelControlButton]}
@@ -217,6 +225,11 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
           <Text style={styles.debugButtonText}>+1000 XP</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={[styles.debugButton, styles.resetButton]}
+        onPress={actions.triggerArchetypeSelection}>
+        <Text style={styles.debugButtonText}>Re-trigger Archetype Selection</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.debugToggle} onPress={() => onToggleDebug(false)}>
         <Text style={styles.debugToggleText}>Hide Debug</Text>
       </TouchableOpacity>
