@@ -407,6 +407,11 @@ export function usePlayer() {
       console.error('debugTriggerArchetypeSelection: failed to clear local player data:', error);
       return;
     }
+    // Bump the generation FIRST (as clearPlayer does) so any in-flight reconcile from the prior
+    // load bails at its `gen !== initGenerationRef.current` guard instead of completing its
+    // 'adopted' handler and restoring the player over this reset. The reconcile effect then starts
+    // a fresh reconcile for the new generation, seeing the now-cleared local state.
+    initGenerationRef.current++;
     pendingCommitUnsubRef.current?.();
     pendingCommitUnsubRef.current = null;
     playerRef.current = null;
