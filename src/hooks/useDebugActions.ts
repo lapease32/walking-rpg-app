@@ -74,8 +74,8 @@ interface UseDebugActionsParams {
   setForcedRarity: (value: Rarity | null) => void;
   forceEncounter: () => void;
   debugPreviewReveal: (rarity: Rarity | null) => void;
-  // Player-domain debug (usePlayer): re-enter the archetype-selection state.
-  debugTriggerArchetypeSelection: () => void;
+  // Player-domain debug (usePlayer): reset to the archetype-selection state (clears local player).
+  debugTriggerArchetypeSelection: () => Promise<void>;
 }
 
 /**
@@ -193,14 +193,15 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
   const triggerArchetypeSelection = (): void => {
     Alert.alert(
       'Re-trigger Archetype Selection',
-      'Clears the in-memory character and re-shows the archetype selection screen (new-user flow). ' +
-        'Your cloud save is safe — if one exists it is re-adopted when you pick. Continue?',
+      'Clears your LOCAL character and re-shows archetype selection (new-user flow). Your cloud ' +
+        'save is safe — if one exists it is restored when you pick; a fresh character is created ' +
+        'only if the cloud is empty. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Re-trigger',
           style: 'destructive',
-          onPress: () => debugTriggerArchetypeSelection(),
+          onPress: () => void debugTriggerArchetypeSelection(),
         },
       ],
     );

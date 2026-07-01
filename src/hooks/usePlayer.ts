@@ -8,6 +8,7 @@ import {
   readLocalPlayerSnapshot,
   reconcileCloudPlayerData,
   writeLocalPlayerSnapshot,
+  clearLocalPlayerData,
   ReconcileResult,
 } from '../utils/storage';
 
@@ -390,12 +391,22 @@ export function usePlayer() {
     });
   }, []);
 
-  // Debug only: drop the in-memory player and re-show archetype selection to exercise the new-user
-  // flow. Non-invasive — it just re-enters the archetype-selection state the app already supports;
-  // handleArchetypeSelected's reconcile guard still re-adopts any cloud character (so this can't
-  // lose cloud data), and local storage is left intact, so backing out without picking just reloads
-  // the character on the next launch.
-  const debugTriggerArchetypeSelection = useCallback((): void => {
+  // Debug only: reset to the new-user flow by dropping the player and re-showing archetype
+  // selection. Clearing LOCAL storage is essential, not just in-memory: reconcileCloudPlayerData
+  // compares cloud against the LOCAL savedAt, and if a stale local save remained, the common
+  // in-sync case (cloud not strictly newer than local) would return `noNewerCloud` →
+  // handleArchetypeSelected would CREATE a fresh character and overwrite the cloud document. With
+  // local cleared, the cloud save is always "newer" → `adopted` → the existing character is
+  // restored, never overwritten. If the cloud is genuinely empty, a fresh character is created
+  // (nothing to lose). We only re-enter the archetype-selection state once local is actually
+  // cleared, so a clear failure can't leave the unsafe stale-local state.
+  const debugTriggerArchetypeSelection = useCallback(async (): Promise<void> => {
+    try {
+      await clearLocalPlayerData();
+    } catch (error) {
+      console.error('debugTriggerArchetypeSelection: failed to clear local player data:', error);
+      return;
+    }
     pendingCommitUnsubRef.current?.();
     pendingCommitUnsubRef.current = null;
     playerRef.current = null;
