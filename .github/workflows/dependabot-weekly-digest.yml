@@ -1,0 +1,84 @@
+name: Weekly Dependabot Digest
+
+# Weekly READ-ONLY triage of open Dependabot PRs. Runs `.github/scripts/dependabot-digest.sh`
+# (native `gh` + GITHUB_TOKEN — no shared rate limit, works even once the repo is private) and
+# posts the result as a GitHub issue assigned to the repo owner, so it notifies by email + the
+# GitHub mobile app. Never merges/rebases/recreates anything — it's a nudge to start the manual pass.
+
+on:
+  schedule:
+    - cron: '0 15 * * 1' # Mondays 15:00 UTC (~10am ET / 7am PT)
+  workflow_dispatch: {} # manual on-demand run
+  pull_request:
+    # Runs in DRY-RUN (prints the digest to the job summary, posts no issue) when this workflow
+    # or its script changes, so a PR can validate it on the real ubuntu runner with zero side effects.
+    paths:
+      - .github/workflows/dependabot-weekly-digest.yml
+      - .github/scripts/dependabot-digest.sh
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  issues: write
+
+# Never run two digests at once; a newer run supersedes an in-flight one.
+concurrency:
+  group: dependabot-digest
+  cancel-in-progress: true
+
+jobs:
+  digest:
+    name: Dependabot digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate digest
+        id: gen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          bash .github/scripts/dependabot-digest.sh > "$RUNNER_TEMP/digest.md"
+          if [ -s "$RUNNER_TEMP/digest.md" ]; then
+            echo "has_content=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_content=false" >> "$GITHUB_OUTPUT"
+            echo "No open Dependabot PRs — nothing to report."
+          fi
+
+      - name: Dry-run preview (pull_request only — posts nothing)
+        if: github.event_name == 'pull_request'
+        run: |
+          {
+            echo '### Dependabot digest — dry-run preview'
+            echo '_This is what the weekly issue would contain. No issue is posted on pull_request runs._'
+            echo
+            if [ -s "$RUNNER_TEMP/digest.md" ]; then cat "$RUNNER_TEMP/digest.md"; else echo 'No open Dependabot PRs.'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post digest issue
+        if: steps.gen.outputs.has_content == 'true' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          # Idempotent marker label.
+          gh label create dependabot-digest --repo "$REPO" \
+            --color ededed --description "Weekly Dependabot triage digest" 2>/dev/null || true
+
+          # Close prior open digests so only the latest is active.
+          for n in $(gh issue list --repo "$REPO" --label dependabot-digest --state open \
+                       --json number --jq '.[].number' 2>/dev/null || true); do
+            gh issue close "$n" --repo "$REPO" >/dev/null 2>&1 || true
+          done
+
+          # Post the fresh digest, assigned to the owner so it notifies (email + GitHub mobile push).
+          gh issue create --repo "$REPO" \
+            --title "🔔 Weekly Dependabot digest — $(date -u +%Y-%m-%d)" \
+            --body-file "$RUNNER_TEMP/digest.md" \
+            --label dependabot-digest \
+            --assignee "$OWNER"
