@@ -2,6 +2,7 @@ import { MutableRefObject } from 'react';
 import { Alert } from 'react-native';
 import { Player } from '../models/Player';
 import { Rarity } from '../models/Creature';
+import CloudSyncService, { CloudSyncStatus } from '../services/CloudSyncService';
 import { generateItem } from '../services/LootService';
 import { LocationData, DistanceData } from '../services/LocationService';
 
@@ -12,6 +13,8 @@ export interface DebugReadouts {
   timeRemaining: number;
   /** Latest GPS fix (state, not ref) so the panel re-renders as it updates. */
   location: LocationData | null;
+  /** Cloud-write health (last successful sync, pending writes) — read each render. */
+  syncStatus: CloudSyncStatus;
 }
 
 export interface DebugSettings {
@@ -189,6 +192,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       isTimeBlocking,
       timeRemaining,
       location: currentLocation,
+      syncStatus: CloudSyncService.getSyncStatus(),
     },
     settings: {
       bypassTimeConstraint,

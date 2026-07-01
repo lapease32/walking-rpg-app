@@ -25,6 +25,16 @@ export type CloudLoad =
   | { status: 'empty' }
   | { status: 'unavailable' };
 
+/** Snapshot of cloud-write health for the debug panel (see getSyncStatus). */
+export interface CloudSyncStatus {
+  /** Wall-clock (Date.now) of the last setDoc that resolved, or null if none this session. */
+  lastSuccessfulSyncAt: number | null;
+  /** setDocs currently in-flight (issued, not yet resolved/rejected). */
+  pendingWrites: number;
+  /** Whether new saves are suspended (set during account deletion). */
+  writesSuspended: boolean;
+}
+
 class CloudSyncService {
   // Ensures strictly-increasing Firestore timestamps across rapid successive saves.
   // At walking pace saves are seconds apart so this is normally a no-op, but the
@@ -41,6 +51,11 @@ class CloudSyncService {
   // setDoc finish BEFORE players/{uid} is deleted — otherwise that late write resurrects the
   // doc. Each segment self-catches so the chain never rejects or stays pending on failure.
   private pendingWrite: Promise<void> = Promise.resolve();
+  // Observability for the debug panel (see getSyncStatus). lastSuccessfulSyncAt is wall-clock
+  // (Date.now) of the last setDoc that RESOLVED; pendingWriteCount is the number of setDocs
+  // in-flight (not yet resolved/rejected). Neither affects save behavior.
+  private lastSuccessfulSyncAt: number | null = null;
+  private pendingWriteCount: number = 0;
 
   suspendWrites(): void {
     this.writesSuspended = true;
@@ -123,19 +138,34 @@ class CloudSyncService {
     // setDoc() instead of runTransaction so Firestore's offline persistence can queue
     // the write locally and flush when connectivity returns. Out-of-order write
     // protection is enforced server-side by the lastSavedAt rule in firestore.rules.
+    this.pendingWriteCount += 1;
     const write = setDoc(doc(collection(getFirestore(), 'players'), user.uid), {
       playerData,
       lastSavedAt: syncTimestamp,
     })
-      .then(() => {})
+      .then(() => {
+        this.lastSuccessfulSyncAt = Date.now();
+      })
       .catch(error => {
         console.error('CloudSyncService: failed to save player data:', error);
         // Non-fatal — local save already succeeded; offline persistence will retry
+      })
+      .finally(() => {
+        this.pendingWriteCount = Math.max(0, this.pendingWriteCount - 1);
       });
     // Track for drainPendingWrites. Chain onto the prior write so concurrent saves are all
     // awaited; each segment self-catches above so the chain never rejects.
     this.pendingWrite = this.pendingWrite.then(() => write);
     await write;
+  }
+
+  /** Read-only cloud-write health for the debug panel. Never affects save behavior. */
+  getSyncStatus(): CloudSyncStatus {
+    return {
+      lastSuccessfulSyncAt: this.lastSuccessfulSyncAt,
+      pendingWrites: this.pendingWriteCount,
+      writesSuspended: this.writesSuspended,
+    };
   }
 
   async loadPlayerData(): Promise<CloudLoad> {
