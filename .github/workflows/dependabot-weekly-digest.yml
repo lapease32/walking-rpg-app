@@ -52,12 +52,14 @@ jobs:
       - name: Dry-run preview (pull_request only — posts nothing)
         if: github.event_name == 'pull_request'
         run: |
-          {
+          preview() {
             echo '### Dependabot digest — dry-run preview'
             echo '_This is what the weekly issue would contain. No issue is posted on pull_request runs._'
             echo
             if [ -s "$RUNNER_TEMP/digest.md" ]; then cat "$RUNNER_TEMP/digest.md"; else echo 'No open Dependabot PRs.'; fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          }
+          preview >> "$GITHUB_STEP_SUMMARY" # rendered in the PR's checks UI
+          preview                           # and to the log so the run is verifiable from `gh run view`
 
       - name: Post digest issue
         if: steps.gen.outputs.has_content == 'true' && github.event_name != 'pull_request'
