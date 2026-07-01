@@ -19,12 +19,19 @@ set -euo pipefail
 
 REPO="${REPO:-lapease32/walking-rpg-app}"
 
-prs_json="$(gh pr list --repo "$REPO" --author "app/dependabot" --state open \
-  --json number,title,createdAt,labels 2>/dev/null || echo '[]')"
-
-count="$(jq 'length' <<<"$prs_json")"
+# Fail LOUDLY if the query fails — otherwise a transient gh/auth/rate-limit/network error would be
+# indistinguishable from "no open Dependabot PRs" and would silently skip the weekly digest.
+if ! prs_json="$(gh pr list --repo "$REPO" --author "app/dependabot" --state open \
+     --json number,title,createdAt,labels 2>/dev/null)"; then
+  echo "dependabot-digest: 'gh pr list' failed (auth / rate limit / network) — aborting so the run fails visibly instead of skipping silently." >&2
+  exit 1
+fi
+if ! count="$(jq 'length' <<<"$prs_json" 2>/dev/null)"; then
+  echo "dependabot-digest: unexpected non-JSON response from 'gh pr list' — aborting." >&2
+  exit 1
+fi
 if [ "$count" -eq 0 ]; then
-  exit 0 # no open Dependabot PRs — print nothing, caller skips notifying
+  exit 0 # genuinely no open Dependabot PRs — print nothing; caller skips notifying
 fi
 
 now_epoch="$(date -u +%s)"
