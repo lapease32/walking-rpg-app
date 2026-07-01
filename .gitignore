@@ -56,6 +56,11 @@ ios/fastlane/README.md
 ios/fastlane/test_output
 ios/*.ipa
 ios/*.app.dSYM.zip
+# ios/fastlane's Gemfile.lock is intentionally NOT committed: CI (ruby/setup-ruby bundler-cache)
+# regenerates it, and committing it pulls fastlane's dev-only transitive gems (e.g. the high-sev
+# faraday ReDoS advisory — build tooling, never shipped) into the Dependency Review gate, which
+# would block unrelated PRs. Keep it local.
+ios/Gemfile.lock
 
 # Bundle artifacts
 *.jsbundle
@@ -87,3 +92,16 @@ docs/personal/
 
 #Release folder
 releases/
+
+# Local Claude Code state (accumulated permission allowlist, local overrides, lock) — not project code
+.claude/
+
+# Local debug / test artifacts pulled down while diagnosing CI
+logcat-android/
+maestro-android-results/
+
+# Stray AI-generated image downloads
+openart-*.png
+
+# Build / tool logs (regenerated — e.g. ios/pod-install.log, rewritten on every pod install)
+*.log
