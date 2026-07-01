@@ -68,19 +68,24 @@ jobs:
           REPO: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
         run: |
-          # Idempotent marker label.
+          # Idempotent marker label (must exist before we create/label the issue).
           gh label create dependabot-digest --repo "$REPO" \
             --color ededed --description "Weekly Dependabot triage digest" 2>/dev/null || true
 
-          # Close prior open digests so only the latest is active.
-          for n in $(gh issue list --repo "$REPO" --label dependabot-digest --state open \
-                       --json number --jq '.[].number' 2>/dev/null || true); do
-            gh issue close "$n" --repo "$REPO" >/dev/null 2>&1 || true
-          done
-
-          # Post the fresh digest, assigned to the owner so it notifies (email + GitHub mobile push).
-          gh issue create --repo "$REPO" \
+          # Create the fresh digest FIRST, assigned to the owner so it notifies (email + GitHub
+          # mobile push). Doing this before closing anything means a failed/cancelled create can
+          # never leave us with no open digest — last week's stays up until a new one exists.
+          new_url="$(gh issue create --repo "$REPO" \
             --title "🔔 Weekly Dependabot digest — $(date -u +%Y-%m-%d)" \
             --body-file "$RUNNER_TEMP/digest.md" \
             --label dependabot-digest \
-            --assignee "$OWNER"
+            --assignee "$OWNER")"
+          echo "Created $new_url"
+          new_num="${new_url##*/}"
+
+          # Now close older open digests so only the latest stays active (skip the one we just made).
+          for n in $(gh issue list --repo "$REPO" --label dependabot-digest --state open \
+                       --json number --jq '.[].number' 2>/dev/null || true); do
+            [ "$n" = "$new_num" ] && continue
+            gh issue close "$n" --repo "$REPO" >/dev/null 2>&1 || true
+          done

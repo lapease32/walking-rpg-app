@@ -33,7 +33,7 @@ to_epoch() { date -u -d "$1" +%s 2>/dev/null || echo "$now_epoch"; } # GNU date 
 # Emit one TAB-separated record per PR: rank \t num \t title \t sev \t kind \t verdict \t action
 # rank sorts safest/easiest first (1) to most-involved (6). Presentation happens after sorting.
 emit_records() {
-  local row num title created labels kind sev age_days checks_json failing verdict action rank
+  local row num title created labels kind sev age_days checks_json failing pending verdict action rank
   while read -r row; do
     num="$(jq -r '.number' <<<"$row")"
     title="$(jq -r '.title' <<<"$row")"
@@ -57,22 +57,29 @@ emit_records() {
 
     checks_json="$(gh pr checks "$num" --repo "$REPO" --json name,bucket 2>/dev/null || true)"
     [ -z "$checks_json" ] && checks_json='[]'
-    failing="$(jq -r '[.[] | select(.bucket=="fail") | .name] | join(",")' <<<"$checks_json" 2>/dev/null || echo "")"
+    # Buckets: pass | fail | pending | skipping | cancel. Treat only "fail" as red and "pending"
+    # as not-yet-decided — an empty fail set does NOT mean green if checks are still running.
+    failing="$(jq -r '[.[] | select(.bucket=="fail")    | .name] | join(",")' <<<"$checks_json" 2>/dev/null || echo "")"
+    pending="$(jq -r '[.[] | select(.bucket=="pending") | .name] | join(",")' <<<"$checks_json" 2>/dev/null || echo "")"
 
-    # Order matters: most-specific / most-actionable signals first.
-    if [ -z "$failing" ]; then
-      verdict="all checks green"; action="merge candidate"; rank=1
-    elif [ "$failing" = "E2E iOS" ]; then
-      verdict="only E2E iOS red (known flake)"; action="re-run E2E once, then merge"; rank=2
-    elif [ "$failing" = "Lint" ]; then
-      verdict="only Lint red"; action="quick fix"; rank=3
-    elif grep -q "TypeCheck" <<<"$failing"; then
-      # TypeCheck fails when the dependency's real API/types changed — a code break, not staleness.
-      verdict="TypeCheck red (${failing})"; action="real API/type break — its own focused effort"; rank=6
-    elif [ "$age_days" -ge 10 ]; then
-      verdict="red on a stale PR (${age_days}d): ${failing}"; action="@dependabot recreate, then re-triage"; rank=4
+    # Order matters: failures first (most-actionable), then still-running, then truly green.
+    if [ -n "$failing" ]; then
+      if [ "$failing" = "E2E iOS" ]; then
+        verdict="only E2E iOS red (known flake)"; action="re-run E2E once, then merge"; rank=2
+      elif [ "$failing" = "Lint" ]; then
+        verdict="only Lint red"; action="quick fix"; rank=3
+      elif grep -q "TypeCheck" <<<"$failing"; then
+        # TypeCheck fails when the dependency's real API/types changed — a code break, not staleness.
+        verdict="TypeCheck red (${failing})"; action="real API/type break — its own focused effort"; rank=6
+      elif [ "$age_days" -ge 10 ]; then
+        verdict="red on a stale PR (${age_days}d): ${failing}"; action="@dependabot recreate, then re-triage"; rank=4
+      else
+        verdict="red: ${failing}"; action="verify"; rank=5
+      fi
+    elif [ -n "$pending" ]; then
+      verdict="CI still running (${pending})"; action="re-check once CI finishes"; rank=7
     else
-      verdict="red: ${failing}"; action="verify"; rank=5
+      verdict="all checks green"; action="merge candidate"; rank=1
     fi
 
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$rank" "$num" "$title" "$sev" "$kind" "$verdict" "$action"
