@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# Weekly Dependabot triage digest generator.
+#
+# Lists the repo's open Dependabot PRs, classifies each one (production vs dev
+# dependency, semver jump, and a CI verdict derived from which checks are failing),
+# and prints a scannable, safest-first markdown digest to stdout.
+#
+# Strictly READ-ONLY: it only queries the GitHub API via `gh`; it never merges,
+# rebases, recreates, or comments. The caller decides what to do with the output.
+#
+# Exit 0 with EMPTY stdout when there are no open Dependabot PRs, so the caller can
+# skip posting a "nothing to do" notification.
+#
+# Requires: gh (authenticated via GH_TOKEN/GITHUB_TOKEN in CI, or `gh auth` locally),
+# jq. Staleness uses GNU `date -d` (present on ubuntu runners); on BSD/macOS the age
+# gracefully degrades to 0, which only affects the "stale PR" heuristic.
+set -euo pipefail
+
+REPO="${REPO:-lapease32/walking-rpg-app}"
+
+# Fail LOUDLY if the query fails — otherwise a transient gh/auth/rate-limit/network error would be
+# indistinguishable from "no open Dependabot PRs" and would silently skip the weekly digest.
+if ! prs_json="$(gh pr list --repo "$REPO" --author "app/dependabot" --state open \
+     --json number,title,createdAt,labels 2>/dev/null)"; then
+  echo "dependabot-digest: 'gh pr list' failed (auth / rate limit / network) — aborting so the run fails visibly instead of skipping silently." >&2
+  exit 1
+fi
+if ! count="$(jq 'length' <<<"$prs_json" 2>/dev/null)"; then
+  echo "dependabot-digest: unexpected non-JSON response from 'gh pr list' — aborting." >&2
+  exit 1
+fi
+if [ "$count" -eq 0 ]; then
+  exit 0 # genuinely no open Dependabot PRs — print nothing; caller skips notifying
+fi
+
+now_epoch="$(date -u +%s)"
+to_epoch() { date -u -d "$1" +%s 2>/dev/null || echo "$now_epoch"; } # GNU date on runner; else age 0
+
+# Emit one TAB-separated record per PR: rank \t num \t title \t sev \t kind \t verdict \t action
+# rank sorts safest/easiest first (1) to most-involved (6). Presentation happens after sorting.
+emit_records() {
+  local row num title created labels kind sev age_days checks_json failing pending verdict action rank
+  while read -r row; do
+    num="$(jq -r '.number' <<<"$row")"
+    title="$(jq -r '.title' <<<"$row")"
+    created="$(jq -r '.createdAt' <<<"$row")"
+    labels="$(jq -r '[.labels[].name] | join(",")' <<<"$row")"
+
+    kind="prod"
+    if grep -qiE 'deps-dev|babel|jest|eslint|prettier|@types/|lint-staged|typescript|dev-tooling|testing' \
+         <<<"$title $labels"; then
+      kind="dev"
+    fi
+
+    sev="bump"
+    if [[ "$title" =~ from\ ([0-9]+)\.[0-9]+[^\ ]*\ to\ ([0-9]+)\.[0-9]+ ]]; then
+      if [ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ]; then sev="MAJOR"; else sev="minor/patch"; fi
+    elif grep -qiE 'group .*with .*update' <<<"$title"; then
+      sev="group" # grouped bumps hide per-package versions; lean on CI signal below
+    fi
+
+    age_days=$(( (now_epoch - $(to_epoch "$created")) / 86400 ))
+
+    checks_json="$(gh pr checks "$num" --repo "$REPO" --json name,bucket 2>/dev/null || true)"
+    [ -z "$checks_json" ] && checks_json='[]'
+    # Buckets: pass | fail | pending | skipping | cancel. Treat only "fail" as red and "pending"
+    # as not-yet-decided — an empty fail set does NOT mean green if checks are still running.
+    failing="$(jq -r '[.[] | select(.bucket=="fail")    | .name] | join(",")' <<<"$checks_json" 2>/dev/null || echo "")"
+    pending="$(jq -r '[.[] | select(.bucket=="pending") | .name] | join(",")' <<<"$checks_json" 2>/dev/null || echo "")"
+
+    # Order matters: failures first (most-actionable), then still-running, then truly green.
+    if [ -n "$failing" ]; then
+      if [ "$failing" = "E2E iOS" ]; then
+        verdict="only E2E iOS red (known flake)"; action="re-run E2E once, then merge"; rank=2
+      elif [ "$failing" = "Lint" ]; then
+        verdict="only Lint red"; action="quick fix"; rank=3
+      elif grep -q "TypeCheck" <<<"$failing"; then
+        # TypeCheck fails when the dependency's real API/types changed — a code break, not staleness.
+        verdict="TypeCheck red (${failing})"; action="real API/type break — its own focused effort"; rank=6
+      elif [ "$age_days" -ge 10 ]; then
+        verdict="red on a stale PR (${age_days}d): ${failing}"; action="@dependabot recreate, then re-triage"; rank=4
+      else
+        verdict="red: ${failing}"; action="verify"; rank=5
+      fi
+    elif [ -n "$pending" ]; then
+      verdict="CI still running (${pending})"; action="re-check once CI finishes"; rank=7
+    else
+      verdict="all checks green"; action="merge candidate"; rank=1
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$rank" "$num" "$title" "$sev" "$kind" "$verdict" "$action"
+  done < <(jq -c '.[]' <<<"$prs_json")
+}
+
+records="$(emit_records)"
+safe_n="$(awk -F'\t' '$1<=2' <<<"$records" | grep -c . || true)" # merge candidates + known flakes
+
+# Header
+printf '## 🔔 Weekly Dependabot digest — %s\n\n' "$(date -u +%Y-%m-%d)"
+printf '%s open Dependabot PR(s). Read-only triage — you run the merges.\n\n' "$count"
+
+# Body, safest-first (sort by leading rank), formatted as two lines per PR.
+sort -n <<<"$records" | while IFS=$'\t' read -r rank num title sev kind verdict action; do
+  printf -- '- **#%s** — %s _(%s, %s)_\n    - CI: %s → **%s**\n' \
+    "$num" "$title" "$sev" "$kind" "$verdict" "$action"
+done
+
+printf -- '\n**Bottom line:** ~%s look safe to knock out; the rest need a closer look (see each line).\n' "$safe_n"
+printf -- '\n_Heuristic classification (not a live review). Generated by `.github/workflows/dependabot-weekly-digest.yml`._\n'
