@@ -21,9 +21,7 @@ export interface CloudPlayerRecord {
  * and only a confirmed-missing document is `empty`.
  */
 export type CloudLoad =
-  | { status: 'found'; record: CloudPlayerRecord }
-  | { status: 'empty' }
-  | { status: 'unavailable' };
+  { status: 'found'; record: CloudPlayerRecord } | { status: 'empty' } | { status: 'unavailable' };
 
 /** Snapshot of cloud-write health for the debug panel (see getSyncStatus). */
 export interface CloudSyncStatus {
