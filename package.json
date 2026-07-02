@@ -14,9 +14,7 @@
     "postinstall": "patch-package",
     "firebase": "firebase",
     "prepare": "husky",
-    "clean:ios": "pkill -x XCBBuildService 2>/dev/null; pkill -f 'Xcode.IndexingService' 2>/dev/null; sleep 1; rm -rf ~/Library/Developer/Xcode/DerivedData/WalkingRPGTemp-* 2>/dev/null; true",
-    "e2e:build:ios": "detox build -c ios.sim.debug",
-    "e2e:ios": "detox test -c ios.sim.debug"
+    "clean:ios": "pkill -x XCBBuildService 2>/dev/null; pkill -f 'Xcode.IndexingService' 2>/dev/null; sleep 1; rm -rf ~/Library/Developer/Xcode/DerivedData/WalkingRPGTemp-* 2>/dev/null; true"
   },
   "dependencies": {
     "@invertase/react-native-apple-authentication": "^2.5.1",
@@ -46,13 +44,11 @@
     "@react-native/jest-preset": "0.85.3",
     "@react-native/metro-config": "^0.85.3",
     "@tsconfig/react-native": "^3.0.9",
-    "@types/detox": "^18.1.3",
     "@types/jest": "^30.0.0",
     "@types/react": "^19.1.0",
     "@types/react-test-renderer": "^19.1.0",
     "babel-jest": "^30.3.0",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
-    "detox": "^20.50.4",
     "eslint": "^8.19.0",
     "eslint-plugin-prettier": "^5.5.6",
     "firebase-tools": "^15.22.4",
