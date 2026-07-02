@@ -314,9 +314,7 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
                 </Text>
                 <View style={styles.statsRow}>
                   {item.attack !== undefined && <Text style={styles.stat}>⚔ +{item.attack}</Text>}
-                  {item.defense !== undefined && (
-                    <Text style={styles.stat}>🛡 +{item.defense}</Text>
-                  )}
+                  {item.defense !== undefined && <Text style={styles.stat}>🛡 +{item.defense}</Text>}
                   {item.maxHp !== undefined && <Text style={styles.stat}>❤ +{item.maxHp}</Text>}
                 </View>
                 {reveal.isUpgrade ? (

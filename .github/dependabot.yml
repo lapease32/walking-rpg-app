@@ -36,6 +36,13 @@ updates:
       # TypeScript major upgrades require tsconfig and type-system migration — defer until planned
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # Metro is RN's bundler and is version-locked to the react-native release (RN 0.85.x wants
+      # metro 0.84.x). Never bump metro's minor/major independently — it rides RN upgrades.
+      # Patch bumps within the RN-matched line are still allowed.
+      - dependency-name: 'metro'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: 'metro-*'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
     groups:
       react-native-firebase:
         patterns:
@@ -44,6 +51,9 @@ updates:
         patterns:
           - 'react-native'
           - 'react'
+          # react-test-renderer is published in lockstep with react and MUST match it exactly —
+          # group it here so it bumps together with react (never split into dev-tooling).
+          - 'react-test-renderer'
           - '@react-native/*'
           - '@react-native-community/*'
           - 'react-native-*'
@@ -59,6 +69,9 @@ updates:
           - 'jest-*'
           - '@jest/*'
           - 'ts-jest'
+          # babel-jest tracks the jest version — group it with jest so they stay in lockstep
+          # (never split into dev-tooling).
+          - 'babel-jest'
       # Catch-all for everything else: collapse remaining dev-tooling minor+patch bumps
       # (lint-staged, eslint, husky, prettier, @typescript-eslint/*, etc.) into ONE weekly
       # PR to minimize open Dependabot PRs. Scoped to development deps only — runtime deps
