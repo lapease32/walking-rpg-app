@@ -4,9 +4,12 @@ import {
   onAuthStateChanged,
   signOut,
   signInWithCredential,
+  reauthenticateWithCredential,
+  linkWithCredential,
   GoogleAuthProvider,
   AppleAuthProvider,
-  FirebaseAuthTypes,
+  type User,
+  type AuthCredential,
 } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
@@ -26,7 +29,7 @@ export interface AuthUser {
 // The caller is responsible for showing resolution UI and calling
 // AuthService.signInWithExistingCredential() once the user has chosen a save.
 export class AccountConflictError extends Error {
-  constructor(public readonly credential: FirebaseAuthTypes.AuthCredential) {
+  constructor(public readonly credential: AuthCredential) {
     super('auth/credential-already-in-use');
     this.name = 'AccountConflictError';
   }
@@ -194,7 +197,7 @@ class AuthService {
       if (!idToken) {
         throw new Error('Re-authentication failed: no ID token returned');
       }
-      await user.reauthenticateWithCredential(GoogleAuthProvider.credential(idToken));
+      await reauthenticateWithCredential(user, GoogleAuthProvider.credential(idToken));
     } else if (providerId === 'apple.com') {
       if (Platform.OS !== 'ios') {
         throw new Error('Apple re-authentication is only available on iOS');
@@ -208,7 +211,7 @@ class AuthService {
       if (!identityToken) {
         throw new Error('Re-authentication failed: no identity token returned');
       }
-      await user.reauthenticateWithCredential(AppleAuthProvider.credential(identityToken, nonce));
+      await reauthenticateWithCredential(user, AppleAuthProvider.credential(identityToken, nonce));
     } else {
       throw new Error(`Cannot re-authenticate unsupported provider: ${providerId ?? 'unknown'}`);
     }
@@ -216,16 +219,16 @@ class AuthService {
 
   // Signs in directly with a credential that is already linked to an existing account.
   // Only call this after the user has resolved the save conflict via AccountConflictError.
-  async signInWithExistingCredential(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
+  async signInWithExistingCredential(credential: AuthCredential): Promise<void> {
     await signInWithCredential(getAuth(), credential);
   }
 
-  private async linkOrSignIn(credential: FirebaseAuthTypes.AuthCredential): Promise<void> {
+  private async linkOrSignIn(credential: AuthCredential): Promise<void> {
     const currentUser = getAuth().currentUser;
     if (currentUser?.isAnonymous) {
       try {
         // Preserve the anonymous session's data by linking it to the new credential
-        await currentUser.linkWithCredential(credential);
+        await linkWithCredential(currentUser, credential);
         return;
       } catch (error: any) {
         const accountAlreadyExists =
@@ -242,7 +245,7 @@ class AuthService {
     await signInWithCredential(getAuth(), credential);
   }
 
-  private toAuthUser(user: FirebaseAuthTypes.User): AuthUser {
+  private toAuthUser(user: User): AuthUser {
     return {
       uid: user.uid,
       displayName: user.displayName,
