@@ -21,11 +21,9 @@ jobs:
     timeout-minutes: 60
 
     env:
-      # Pin Xcode 26.4.1: 26.5 dropped libswiftCompatibility56 that the Firebase pods force-load.
-      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
-      # See ios-build.yml: force the complete default Xcode toolchain (fixes Firebase's
-      # libswiftCompatibility56 link failure on GitHub's Xcode 26 runners).
-      TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
+      # EXPERIMENT (Firebase 12.15.0, #226): the DEVELOPER_DIR pin + TOOLCHAINS override were
+      # workarounds for the OLD Firebase pods force-loading libswiftCompatibility56 (a lib newer
+      # Xcode 26 dropped). Trialing their removal here to see if v25 no longer force-loads it.
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 360000
       # Opt this release build into the 'testing' environment so the debug panel
       # (debug-force-encounter / debug-instant-defeat) the golden path taps stays
@@ -73,8 +71,9 @@ jobs:
 
       - name: Build for simulator
         run: |
-          # ARCHS=arm64: Xcode 26.5 dropped the x86_64 iOS-simulator Swift-compat libraries; build
-          # arm64 only (matches the arm64 runner + booted simulator the E2E test runs against).
+          # EXPERIMENT (#226 Firebase 12.15.0): ARCHS=arm64/ONLY_ACTIVE_ARCH=NO were part of the
+          # same libswiftCompatibility56 workaround (the dropped x86_64 sim compat lib). Removed
+          # here to test whether the clean build links now. Restore if the x86_64 slice fails.
           xcodebuild \
             -workspace ios/WalkingRPGTemp.xcworkspace \
             -scheme WalkingRPGTemp \
@@ -82,9 +81,7 @@ jobs:
             -sdk iphonesimulator \
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Boot simulator
         run: |
