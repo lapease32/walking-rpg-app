@@ -28,6 +28,7 @@ import {
   computeEffectiveStats,
 } from '../models/Ability';
 import { applyResistance } from '../models/DamageType';
+import { mitigateDamage } from '../models/combat';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -486,7 +487,7 @@ export function useEncounter({
 
     // Creature counter-attacks using effective stats (debuffs on creature attack apply here).
     if (!creature.isDefeated()) {
-      const creatureDamage = Math.max(1, creatureEffectiveAttack - playerEffective.defense);
+      const creatureDamage = mitigateDamage(creatureEffectiveAttack, playerEffective.defense);
       updatedPlayer.takeDamage(creatureDamage);
     }
 

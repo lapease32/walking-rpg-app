@@ -1,5 +1,6 @@
 import { DamageType, Resistances, applyResistance } from './DamageType';
 import { Archetype } from './Archetype';
+import { mitigateDamage } from './combat';
 
 export type AbilityPrimitive = 'direct' | 'dot' | 'buff_debuff' | 'defensive';
 
@@ -154,12 +155,8 @@ export function resolveAbility(
 
   switch (ability.primitive) {
     case 'direct': {
-      // Same formula as Player.calculateDamage; resistance layer on top.
-      // At resistance=0 (all current creatures) this is byte-for-byte identical to the old path.
-      const rawDamage = Math.max(
-        1,
-        Math.floor((casterAttack - targetDefense) * ability.damageMultiplier),
-      );
+      // Ratio-based defense mitigation (see mitigateDamage), then the resistance layer on top.
+      const rawDamage = mitigateDamage(casterAttack, targetDefense, ability.damageMultiplier);
       const damage = applyResistance(rawDamage, targetResistances[ability.damageType]);
       return { ...base, damage };
     }
