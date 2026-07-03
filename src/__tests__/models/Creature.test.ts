@@ -118,19 +118,20 @@ describe('Creature', () => {
   });
 
   describe('calculateDamage', () => {
-    it('returns attack minus player defense', () => {
+    // Ratio-based mitigation (see combat.ts mitigateDamage): attack² / (attack + defense).
+    it('mitigates via the ratio formula', () => {
       const creature = makeCreature({ attack: 15 });
-      expect(creature.calculateDamage(5)).toBe(10);
+      expect(creature.calculateDamage(5)).toBe(11); // 15² / 20 = 11.25 → 11
     });
 
-    it('enforces minimum of 1 damage', () => {
+    it('enforces minimum of 1 damage against overwhelming defense', () => {
       const creature = makeCreature({ attack: 5 });
-      expect(creature.calculateDamage(100)).toBe(1);
+      expect(creature.calculateDamage(100)).toBe(1); // 25/105 → floor 0 → clamped to 1
     });
 
-    it('does not floor fractional results (damage is integer input)', () => {
+    it('floors fractional damage to an integer', () => {
       const creature = makeCreature({ attack: 15 });
-      expect(creature.calculateDamage(10)).toBe(5);
+      expect(creature.calculateDamage(10)).toBe(9); // 15² / 25 = 9
     });
   });
 

@@ -1,4 +1,5 @@
 import { PLAYER_CONFIG } from '../constants/config';
+import { mitigateDamage } from './combat';
 import {
   WeaponItem,
   OffhandItem,
@@ -240,8 +241,7 @@ export class Player {
   }
 
   calculateDamage(creatureDefense: number, damageMultiplier: number = 1.0): number {
-    const baseDamage = this.attack - creatureDefense;
-    return Math.max(1, Math.floor(baseDamage * damageMultiplier));
+    return mitigateDamage(this.attack, creatureDefense, damageMultiplier);
   }
 
   takeDamage(amount: number): void {

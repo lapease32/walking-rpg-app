@@ -1,4 +1,5 @@
 import { Resistances, DEFAULT_RESISTANCES } from './DamageType';
+import { mitigateDamage } from './combat';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -115,12 +116,10 @@ export class Creature {
   }
 
   /**
-   * Calculate damage dealt to a player
-   * Damage = creature attack - player defense (minimum 1)
+   * Calculate damage dealt to a player, via the shared ratio-based mitigation (see mitigateDamage).
    */
   calculateDamage(playerDefense: number): number {
-    const damage = this.attack - playerDefense;
-    return Math.max(1, damage); // Minimum 1 damage
+    return mitigateDamage(this.attack, playerDefense);
   }
 }
 

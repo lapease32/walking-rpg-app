@@ -204,19 +204,20 @@ describe('Player', () => {
   });
 
   describe('calculateDamage', () => {
+    // Ratio-based mitigation (see combat.ts mitigateDamage): attack² / (attack + defense).
     it('calculates base damage correctly', () => {
       const player = new Player({ attack: 20 });
-      expect(player.calculateDamage(5)).toBe(15);
+      expect(player.calculateDamage(5)).toBe(16); // 20² / 25
     });
 
     it('applies damage multiplier and floors result', () => {
       const player = new Player({ attack: 20 });
-      expect(player.calculateDamage(5, 1.5)).toBe(22);
+      expect(player.calculateDamage(5, 1.5)).toBe(24); // floor(16 * 1.5)
     });
 
     it('enforces minimum of 1 damage', () => {
       const player = new Player({ attack: 5 });
-      expect(player.calculateDamage(100)).toBe(1);
+      expect(player.calculateDamage(100)).toBe(1); // 25/105 → floor 0 → clamped to 1
     });
   });
 

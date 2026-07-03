@@ -66,11 +66,11 @@ const makeDefensiveAbility = (overrides: Partial<DefensiveAbility> = {}): Defens
 });
 
 describe('resolveAbility — direct', () => {
-  it('produces the same damage as the old Player.calculateDamage at resistance 0', () => {
-    // Old formula: Math.max(1, Math.floor((attack - defense) * multiplier))
+  it('applies ratio-based mitigation at resistance 0', () => {
+    // mitigateDamage(20, 5) = 20² / 25 = 16 (see combat.ts)
     const ability = makeDirectAbility({ damageMultiplier: 1.0 });
     const result = resolveAbility(ability, 20, 5, NO_RESIST, CASTER_MAX_HP);
-    expect(result.damage).toBe(Math.max(1, Math.floor((20 - 5) * 1.0)));
+    expect(result.damage).toBe(16);
     expect(result.heal).toBe(0);
     expect(result.shield).toBe(0);
     expect(result.appliedEffects).toHaveLength(0);
@@ -79,11 +79,11 @@ describe('resolveAbility — direct', () => {
   it('applies damageMultiplier correctly', () => {
     const ability = makeDirectAbility({ damageMultiplier: 1.5 });
     const result = resolveAbility(ability, 20, 5, NO_RESIST, CASTER_MAX_HP);
-    expect(result.damage).toBe(Math.max(1, Math.floor((20 - 5) * 1.5)));
+    expect(result.damage).toBe(24); // floor(16 * 1.5)
   });
 
-  it('enforces minimum 1 raw damage before resistance', () => {
-    // attack lower than defense → raw would be negative, clamped to 1
+  it('clamps to a minimum of 1 when defense overwhelms attack', () => {
+    // mitigateDamage(5, 100) = 25/105 → floor 0 → clamped to 1 (a floor, not the old hard wall)
     const ability = makeDirectAbility({ damageMultiplier: 1.0 });
     const result = resolveAbility(ability, 5, 100, NO_RESIST, CASTER_MAX_HP);
     expect(result.damage).toBe(1);
