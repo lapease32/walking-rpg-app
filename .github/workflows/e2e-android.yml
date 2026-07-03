@@ -1,5 +1,12 @@
 name: E2E Android
 
+# Cancel a superseded run for the same ref (e.g. a manual dispatch while a nightly is mid-run)
+# instead of queuing a duplicate. NOTE: android-apk.yml (release/distribution) intentionally
+# does NOT do this — a release run must never be cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   # QUARANTINED off per-PR/push. The Android E2E golden path is ~60% flaky due to a
   # residual RNFirebase New-Architecture cold-start stall (the first JS-side Firestore
