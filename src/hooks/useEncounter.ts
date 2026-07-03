@@ -8,14 +8,17 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { dropItem, generateItem } from '../services/LootService';
+import { resolveAutoCombat } from '../models/AutoCombat';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
   clearPendingEncounter,
-  savePendingEncounter,
-  EncounterData,
+  appendWalkSummaryEntry,
+  loadWalkSummary,
+  clearWalkSummary,
+  WalkSummaryEntry,
 } from '../utils/storage';
-import { ENCOUNTER_CONFIG } from '../constants/config';
+import { ENCOUNTER_CONFIG, COMBAT_CONFIG } from '../constants/config';
 import {
   Ability,
   BuffDebuffAbility,
@@ -43,6 +46,11 @@ interface UseEncounterParams {
 // dismiss animation before revealing. Tuned to the Modal fade/slide (~300ms) with headroom.
 const REWARD_REVEAL_DELAY_MS = 380;
 
+// Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
+// uncommon drops are frequent, so notifying on them would be spam — they still appear in the
+// on-return walk summary.
+const NOTABLE_DROP_RARITIES = new Set<Rarity>(['rare', 'epic', 'legendary']);
+
 export function useEncounter({
   playerRef,
   setPlayerAndSave,
@@ -64,6 +72,9 @@ export function useEncounter({
   const [forcedRarity, setForcedRarity] = useState<Rarity | null>(null);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
   const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
+  // Non-null → the "while you walked" summary modal is shown for these passively-resolved
+  // encounters. Populated by checkWalkSummary on app-foreground; cleared on dismiss.
+  const [walkSummary, setWalkSummary] = useState<WalkSummaryEntry[] | null>(null);
   // Authoritative refs — always current, used for synchronous reads inside handlers.
   // playerCombatStateRef replaces the old playerResourceRef pattern and extends it to
   // the full state so every handler sees post-last-ability values, not stale closures.
@@ -73,6 +84,7 @@ export function useEncounter({
   const victoryProcessedRef = useRef<boolean>(false);
   const fleeProcessedRef = useRef<boolean>(false);
   const isCheckingPendingEncounterRef = useRef<boolean>(false);
+  const isCheckingWalkSummaryRef = useRef<boolean>(false);
   const isProcessingNotificationTapRef = useRef<boolean>(false);
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
@@ -152,6 +164,9 @@ export function useEncounter({
       rewardRevealTimerRef.current = null;
     }
     setRewardReveal(null);
+    // Drop any in-memory walk summary so a previous account's passive haul can't linger over the
+    // new session (the persisted log is per-account and drained on foreground for the signed-in user).
+    setWalkSummary(null);
   };
 
   const checkPendingEncounter = async (): Promise<void> => {
@@ -292,6 +307,107 @@ export function useEncounter({
       setRewardReveal(reveal);
     }, REWARD_REVEAL_DELAY_MS);
   };
+
+  // Resolve an encounter passively (auto-combat) instead of opening the turn-based screen — used
+  // when the player is moving or the app is backgrounded (see onDistanceEncounterUpdate). Rewards
+  // are idle-tier and applied immediately (so they're never lost), and a display record is appended
+  // to the walk summary shown on return. Non-punishing: a loss only pays a smaller XP share, never
+  // HP. No modal or encounterRef is touched — the walk is never interrupted.
+  const resolvePassiveEncounter = async (
+    encounter: Encounter,
+    isBackground: boolean,
+  ): Promise<void> => {
+    // Base rewards off the freshest player. setPlayerAndSave updates playerRef synchronously, so
+    // playerRef.current already includes the distance just added this tick (handleDistanceUpdate
+    // adds distance + saves BEFORE calling the encounter gate) — cloning the stale arg would
+    // clobber that distance increment when we save the reward-updated player.
+    const basePlayer = playerRef.current;
+    if (!basePlayer) {
+      return;
+    }
+    const creature = encounter.creature;
+    const outcome = resolveAutoCombat(basePlayer.level, creature);
+
+    const updatedPlayer = new Player(basePlayer.toJSON());
+    updatedPlayer.incrementEncounters();
+    if (outcome.won) {
+      updatedPlayer.defeatCreature();
+    }
+    const levelsGained = updatedPlayer.addExperience(outcome.xpGained);
+
+    let item = outcome.item;
+    if (item) {
+      const inventoryIndex = updatedPlayer.addItemToInventory(item);
+      if (inventoryIndex === -1) {
+        // Inventory full — the drop is discarded. Record no item so the summary never promises
+        // loot the player didn't actually receive.
+        item = null;
+      } else {
+        AnalyticsService.itemDropped(item.rarity, item.type, item.level, updatedPlayer.level);
+      }
+    }
+    // Passive combat never threatens HP, but keep the player topped up so a later stopped
+    // turn-based fight always starts from full (matches handleVictory / handleFlee).
+    updatedPlayer.fullHeal();
+    setPlayerAndSave(updatedPlayer);
+
+    if (levelsGained > 0) {
+      AnalyticsService.levelUp(updatedPlayer.level);
+    }
+
+    const entry: WalkSummaryEntry = {
+      creatureName: creature.name,
+      rarity: creature.rarity,
+      won: outcome.won,
+      xpGained: outcome.xpGained,
+      item,
+      timestamp: Date.now(),
+    };
+    await appendWalkSummaryEntry(entry);
+
+    // Rare-or-better drop while the app is backgrounded → a light "nice surprise" notification.
+    // Rare-only keeps it from becoming spam; the full haul is shown by the summary on foreground.
+    if (isBackground && item && NOTABLE_DROP_RARITIES.has(item.rarity)) {
+      try {
+        await NotificationService.showPassiveVictoryNotification(creature.name, item.name);
+      } catch {
+        // Non-fatal — the reward is already applied and recorded in the summary.
+      }
+    }
+  };
+
+  // Drain the persisted walk-summary log and present it as the "while you walked" modal. Called on
+  // app-foreground (HomeScreen), alongside checkPendingEncounter. Clears storage BEFORE showing so
+  // a crash mid-present can't double-show; rewards were already applied when each entry was written,
+  // so a lost summary is cosmetic only.
+  const checkWalkSummary = async (): Promise<void> => {
+    if (isCheckingWalkSummaryRef.current) {
+      return;
+    }
+    isCheckingWalkSummaryRef.current = true;
+    try {
+      // Don't cover an active encounter or an already-open summary.
+      if (encounterRef.current) {
+        return;
+      }
+      const entries = await loadWalkSummary();
+      if (entries.length === 0) {
+        return;
+      }
+      const cleared = await clearWalkSummary();
+      if (!cleared) {
+        // Leave it for the next foreground rather than risk showing the same haul twice.
+        return;
+      }
+      setWalkSummary(entries);
+    } catch (error) {
+      console.error('Error checking walk summary:', error);
+    } finally {
+      isCheckingWalkSummaryRef.current = false;
+    }
+  };
+
+  const dismissWalkSummary = (): void => setWalkSummary(null);
 
   const handleFlee = (): void => {
     if (fleeProcessedRef.current) {
@@ -683,50 +799,16 @@ export function useEncounter({
           encounter.playerLevel,
         );
         const isInBackground = appStateRef.current !== 'active';
+        // Passive/active gate (the hybrid idle/active loop): while the player is moving OR the app
+        // is backgrounded — i.e. they're walking, not looking — auto-resolve the encounter so the
+        // walk is never interrupted. Only when the player is STOPPED with the app open do we
+        // present the turn-based opt-in. Rewards + a "while you walked" summary entry are handled
+        // in resolvePassiveEncounter.
+        const isMoving =
+          LocationService.getCurrentSpeed() >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH;
 
-        if (isInBackground) {
-          try {
-            const existingPendingEncounter = await loadPendingEncounter();
-            if (existingPendingEncounter) {
-              console.warn(
-                'Background encounter already pending, skipping new encounter to prevent overwrite',
-              );
-              return;
-            }
-
-            const encounterData: EncounterData = {
-              creature: {
-                id: encounter.creature.id,
-                name: encounter.creature.name,
-                type: encounter.creature.type,
-                level: encounter.creature.level,
-                hp: encounter.creature.hp,
-                maxHp: encounter.creature.maxHp,
-                attack: encounter.creature.attack,
-                defense: encounter.creature.defense,
-                speed: encounter.creature.speed,
-                rarity: encounter.creature.rarity,
-                description: encounter.creature.description,
-                encounterRate: encounter.creature.encounterRate,
-              },
-              location: encounter.location,
-              timestamp: encounter.timestamp,
-              playerLevel: encounter.playerLevel,
-              status: encounter.status,
-            };
-            const saveSuccess = await savePendingEncounter(encounterData);
-
-            if (!saveSuccess) {
-              console.error(
-                'Failed to save pending encounter, skipping ref update and notification',
-              );
-              return;
-            }
-
-            await NotificationService.showEncounterNotification(encounter);
-          } catch (error) {
-            console.error('Error handling background encounter:', error);
-          }
+        if ((isInBackground || isMoving) && currentPlayer) {
+          await resolvePassiveEncounter(encounter, isInBackground);
         } else {
           encounterRef.current = encounter;
           isMinimizedRef.current = false;
@@ -806,6 +888,9 @@ export function useEncounter({
     playerCombatStateRef,
     rewardReveal,
     dismissReward,
+    walkSummary,
+    checkWalkSummary,
+    dismissWalkSummary,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
