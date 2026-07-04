@@ -425,11 +425,14 @@ export function useEncounter({
   // re-invoke it when the encounter or reveal presence changes (e.g. a reveal was just dismissed).
   useEffect(() => {
     checkWalkSummary();
-    // checkWalkSummary is intentionally omitted from deps: it's recreated each render, so including
-    // it would run the drain (an AsyncStorage read) every render. We only want to re-attempt when
-    // the encounter or reveal presence changes; checkWalkSummary self-guards and reads fresh state.
+    // Re-attempt the drain when a blocker clears: an encounter or reward reveal resolving, OR the
+    // summary being DISMISSED (walkSummary → null) — passive fights can append while the modal is
+    // open (walking-and-looking, or backgrounded), so on dismiss we drain what accumulated instead
+    // of leaving it until the next foreground. checkWalkSummary is intentionally omitted from deps:
+    // it's recreated each render, so including it would run the drain (an AsyncStorage read) every
+    // render; checkWalkSummary self-guards and reads fresh state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEncounter, rewardReveal]);
+  }, [currentEncounter, rewardReveal, walkSummary]);
 
   const handleFlee = (): void => {
     if (fleeProcessedRef.current) {
@@ -808,11 +811,18 @@ export function useEncounter({
         distanceData.incremental,
       );
 
-      const encounter = EncounterService.processDistanceUpdate(
-        distanceData,
-        locationForEncounter,
-        currentPlayer?.level || 1,
-      );
+      // Only roll for an encounter when a player is loaded to receive it. processDistanceUpdate
+      // consumes the roll and resets encounter pacing, so calling it without a player (e.g. tracking
+      // resumed during the startup window before the player finishes loading) would generate an
+      // encounter that resolvePassiveEncounter then drops for lack of a player — silently losing the
+      // roll. Skipping leaves the roll (and pacing) intact until the player is present.
+      const encounter = currentPlayer
+        ? EncounterService.processDistanceUpdate(
+            distanceData,
+            locationForEncounter,
+            currentPlayer.level,
+          )
+        : null;
 
       if (encounter) {
         AnalyticsService.encounterTriggered(
