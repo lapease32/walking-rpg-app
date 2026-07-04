@@ -1,5 +1,13 @@
-import { shouldDropItem, generateItem, dropItem } from '../../services/LootService';
+import {
+  shouldDropItem,
+  generateItem,
+  dropItem,
+  dropActiveCombatItem,
+} from '../../services/LootService';
 import { LOOT_CONFIG } from '../../constants/config';
+
+const statTotal = (item: { attack?: number; defense?: number; maxHp?: number }): number =>
+  (item.attack ?? 0) + (item.defense ?? 0) + (item.maxHp ?? 0);
 
 describe('LootService', () => {
   afterEach(() => {
@@ -168,6 +176,16 @@ describe('LootService', () => {
         }
       }
     });
+
+    it('scales base + affix stat values by statMultiplier (default 1 unchanged)', () => {
+      // Math.random === 0 makes every roll deterministic (min base, first slot/affix), so the only
+      // difference between the two items is the multiplier.
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const base = generateItem(5, 'epic'); // statMultiplier defaults to 1
+      const doubled = generateItem(5, 'epic', 2);
+      expect(statTotal(base)).toBeGreaterThan(0);
+      expect(statTotal(doubled)).toBe(statTotal(base) * 2);
+    });
   });
 
   describe('dropItem', () => {
@@ -220,6 +238,39 @@ describe('LootService', () => {
       const item = dropItem(true, 1, null);
       expect(item).not.toBeNull();
       expect(['common', 'uncommon', 'rare', 'epic', 'legendary']).toContain(item!.rarity);
+    });
+  });
+
+  describe('dropActiveCombatItem', () => {
+    it('always returns an item when forceDrop is true', () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.99);
+      expect(dropActiveCombatItem(true)).not.toBeNull();
+    });
+
+    it('uses a higher drop chance than passive — drops where dropItem would not', () => {
+      // A roll between BASE_DROP_CHANCE (0.4) and BASE+BONUS (0.6): passive misses, active hits.
+      const between =
+        LOOT_CONFIG.BASE_DROP_CHANCE + LOOT_CONFIG.ACTIVE_COMBAT_DROP_CHANCE_BONUS / 2;
+      jest.spyOn(Math, 'random').mockReturnValue(between);
+      expect(dropItem()).toBeNull();
+      expect(dropActiveCombatItem()).not.toBeNull();
+    });
+
+    it('returns null when the roll fails even the boosted drop chance', () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.999);
+      expect(dropActiveCombatItem()).toBeNull();
+    });
+
+    it('drops beefier gear than a passive drop of the same rarity (loot multiplier)', () => {
+      // Deterministic rolls (Math.random === 0) + forced rarity → only the multiplier differs.
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const passive = dropItem(true, 5, 'epic');
+      const active = dropActiveCombatItem(true, 5, 'epic');
+      expect(passive).not.toBeNull();
+      expect(active).not.toBeNull();
+      expect(statTotal(active!)).toBe(
+        statTotal(passive!) * LOOT_CONFIG.ACTIVE_COMBAT_LOOT_MULTIPLIER,
+      );
     });
   });
 });

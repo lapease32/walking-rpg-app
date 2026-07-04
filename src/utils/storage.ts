@@ -171,13 +171,9 @@ export async function loadSettings(): Promise<AppSettings | null> {
 }
 
 /**
- * Save pending encounter (for background encounters).
- *
- * SUPERSEDED by passive auto-combat: background encounters now auto-resolve into the walk summary
- * (see useEncounter.resolvePassiveEncounter) rather than being saved for later turn-based play, so
- * this has no callers. The pending-encounter read path (loadPendingEncounter/checkPendingEncounter)
- * is kept to drain any encounter saved by a pre-update build; the whole mechanism is scheduled for
- * removal in a follow-up cleanup.
+ * Save a held encounter — the "worthy foe" store. Holds an ELITE encounter that fired while the app
+ * was backgrounded so the player can engage it turn-based on their next foreground (see
+ * useEncounter.holdEliteEncounter). Common encounters auto-resolve passively and are NOT saved here.
  */
 export async function savePendingEncounter(encounter: EncounterData): Promise<boolean> {
   try {
@@ -446,13 +442,15 @@ export async function readLocalPlayerSnapshot(): Promise<{
 
 export async function clearLocalPlayerData(): Promise<void> {
   try {
-    // WALK_SUMMARY is per-account activity — clear it on account switch so the next user can't see
-    // the previous account's "while you walked" recap on foreground (in-memory state is cleared
-    // separately by useEncounter.clearEncounter). Account DELETION uses clearAllUserData.
+    // WALK_SUMMARY (passive haul) and PENDING_ENCOUNTER (a held "worthy foe") are per-account
+    // activity — clear them on account switch so the next user can't see or fight the previous
+    // account's data (in-memory state is cleared separately by useEncounter.clearEncounter).
+    // Account DELETION uses clearAllUserData.
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.PLAYER_DATA,
       STORAGE_KEYS.PLAYER_SAVED_AT,
       STORAGE_KEYS.WALK_SUMMARY,
+      STORAGE_KEYS.PENDING_ENCOUNTER,
     ]);
   } catch (error) {
     console.error('clearLocalPlayerData: storage error, proceeding with reload:', error);

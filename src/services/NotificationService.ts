@@ -72,14 +72,13 @@ class NotificationService {
     }
   }
 
-  // SUPERSEDED by passive auto-combat (see showPassiveVictoryNotification): encounters while
-  // walking/backgrounded now auto-resolve instead of prompting the player to come play, so this
-  // "come play" notification has no callers. Scheduled for removal with the pending-encounter
-  // mechanism in a follow-up cleanup.
+  // Notify the player that a "worthy foe" (an ELITE encounter) is waiting to be fought turn-based —
+  // fired when an elite is held while the app is backgrounded (see useEncounter.holdEliteEncounter).
+  // Tapping opens the app, where checkPendingEncounter presents the turn-based fight.
   async showEncounterNotification(encounter: Encounter): Promise<string> {
     const creature = encounter.creature;
-    const title = '🎮 Creature Encounter!';
-    const body = `A ${creature.name} appeared! Tap to view.`;
+    const title = '⚔️ A Worthy Foe Awaits!';
+    const body = `A ${creature.name} (${creature.rarity}) stalks you. Tap to fight it.`;
 
     try {
       const notificationId = await notifee.displayNotification({

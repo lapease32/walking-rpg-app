@@ -2,22 +2,25 @@ import { useState, useRef, useEffect, MutableRefObject } from 'react';
 import { Alert, AppStateStatus } from 'react-native';
 import { Player } from '../models/Player';
 import { Encounter, Location } from '../models/Encounter';
-import { Creature, Rarity } from '../models/Creature';
+import { Creature, Rarity, isEliteCreature } from '../models/Creature';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
-import { dropItem, generateItem } from '../services/LootService';
+import { dropActiveCombatItem, generateItem } from '../services/LootService';
 import { resolveAutoCombat } from '../models/AutoCombat';
+import { activeCombatXp } from '../models/combatRewards';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
   clearPendingEncounter,
+  savePendingEncounter,
   appendWalkSummaryEntry,
   drainWalkSummary,
   WalkSummaryEntry,
+  EncounterData,
 } from '../utils/storage';
-import { ENCOUNTER_CONFIG, COMBAT_CONFIG } from '../constants/config';
+import { ENCOUNTER_CONFIG } from '../constants/config';
 import {
   Ability,
   BuffDebuffAbility,
@@ -74,6 +77,10 @@ export function useEncounter({
   // Non-null → the "while you walked" summary modal is shown for these passively-resolved
   // encounters. Populated by checkWalkSummary on app-foreground; cleared on dismiss.
   const [walkSummary, setWalkSummary] = useState<WalkSummaryEntry[] | null>(null);
+  // Non-null → a held ELITE "worthy foe" is waiting; drives the inline WorthyFoeCard (NOT a modal,
+  // so it never conflicts with the summary/reveal modals). Reflected from the pending-encounter
+  // store by refreshHeldFoe; engageHeldFoe presents the turn-based fight on tap.
+  const [heldFoe, setHeldFoe] = useState<Encounter | null>(null);
   // Authoritative refs — always current, used for synchronous reads inside handlers.
   // playerCombatStateRef replaces the old playerResourceRef pattern and extends it to
   // the full state so every handler sees post-last-ability values, not stale closures.
@@ -84,7 +91,6 @@ export function useEncounter({
   const fleeProcessedRef = useRef<boolean>(false);
   const isCheckingPendingEncounterRef = useRef<boolean>(false);
   const isCheckingWalkSummaryRef = useRef<boolean>(false);
-  const isProcessingNotificationTapRef = useRef<boolean>(false);
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const showCombatModalRef = useRef<boolean>(false);
@@ -163,63 +169,69 @@ export function useEncounter({
       rewardRevealTimerRef.current = null;
     }
     setRewardReveal(null);
-    // Drop any in-memory walk summary so a previous account's passive haul can't linger over the
-    // new session (the persisted log is per-account and drained on foreground for the signed-in user).
+    // Drop any in-memory walk summary + held foe so a previous account's passive haul / worthy foe
+    // can't linger over the new session (the persisted stores are per-account and wiped by
+    // clearLocalPlayerData on account switch).
     setWalkSummary(null);
+    setHeldFoe(null);
   };
 
-  const checkPendingEncounter = async (): Promise<void> => {
-    if (isCheckingPendingEncounterRef.current) {
+  // Reflect the persisted "worthy foe" store into heldFoe state (drives the inline WorthyFoeCard).
+  // Peek only — no modal, no clear — so it can run freely on foreground/mount alongside the walk
+  // summary without any modal-stacking coordination (a card isn't a modal). engageHeldFoe presents
+  // the fight on tap. Skips while an encounter is active (the store is cleared then, and we don't
+  // want the card flashing over a fight).
+  const refreshHeldFoe = async (): Promise<void> => {
+    if (isCheckingPendingEncounterRef.current || encounterRef.current) {
       return;
     }
-
     isCheckingPendingEncounterRef.current = true;
-
     try {
-      if (encounterRef.current) {
-        await clearPendingEncounter();
-        return;
-      }
-
       const pendingEncounterData = await loadPendingEncounter();
       if (pendingEncounterData) {
         const creature = new Creature(pendingEncounterData.creature);
-        const encounter = new Encounter({
-          creature,
-          location: pendingEncounterData.location,
-          timestamp: pendingEncounterData.timestamp,
-          playerLevel: pendingEncounterData.playerLevel,
-          status: pendingEncounterData.status,
-        });
-
-        encounterRef.current = encounter;
-        isMinimizedRef.current = false;
-        showCombatModalRef.current = false;
-        victoryProcessedRef.current = false;
-        fleeProcessedRef.current = false;
-
-        const clearSuccess = await clearPendingEncounter();
-        if (!clearSuccess) {
-          encounterRef.current = null;
-          isMinimizedRef.current = false;
-          showCombatModalRef.current = false;
-          victoryProcessedRef.current = false;
-          fleeProcessedRef.current = false;
-          console.error(
-            'Failed to clear pending encounter - skipping encounter display to prevent data loss',
-          );
-          return;
-        }
-
-        setCurrentEncounter(encounter);
-        setShowEncounterModal(true);
-        setIsEncounterModalMinimized(false);
+        setHeldFoe(
+          new Encounter({
+            creature,
+            location: pendingEncounterData.location,
+            timestamp: pendingEncounterData.timestamp,
+            playerLevel: pendingEncounterData.playerLevel,
+            status: pendingEncounterData.status,
+          }),
+        );
+      } else {
+        setHeldFoe(null);
       }
     } catch (error) {
-      console.error('Error checking pending encounter:', error);
+      console.error('Error refreshing held foe:', error);
     } finally {
       isCheckingPendingEncounterRef.current = false;
     }
+  };
+
+  // Engage the held "worthy foe" (WorthyFoeCard "Fight" tap): present it as the active turn-based
+  // encounter. Deliberate user action, so no modal-stacking concern (the card sits behind any
+  // modal; the player dismisses those to reach it). Clears the persisted hold FIRST so it can't be
+  // re-surfaced as a card during/after the fight; only presents if the clear succeeded.
+  const engageHeldFoe = async (): Promise<void> => {
+    const encounter = heldFoe;
+    if (!encounter || encounterRef.current) {
+      return;
+    }
+    const cleared = await clearPendingEncounter();
+    if (!cleared) {
+      console.error('Failed to clear held foe; not engaging to avoid a duplicate');
+      return;
+    }
+    encounterRef.current = encounter;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    victoryProcessedRef.current = false;
+    fleeProcessedRef.current = false;
+    setHeldFoe(null);
+    setCurrentEncounter(encounter);
+    setShowEncounterModal(true);
+    setIsEncounterModalMinimized(false);
   };
 
   const handleVictory = (playerToUse?: Player): void => {
@@ -240,10 +252,13 @@ export function useEncounter({
     updatedPlayer.defeatCreature();
     updatedPlayer.incrementEncounters();
 
-    const expGain = currentEncounterState.creature.getExperienceReward();
+    // Turn-based wins are elite fights (see the encounter gate) — apply the active-combat reward
+    // differential: boosted XP + a higher drop chance + multiplier-scaled stat rolls. Passive
+    // (walking) wins stay idle-tier, so stopping to fight a worthy foe is genuinely worth it.
+    const expGain = activeCombatXp(currentEncounterState.creature.getExperienceReward());
     const levelsGained = updatedPlayer.addExperience(expGain);
 
-    const droppedItem = dropItem(forceItemDrop, updatedPlayer.level, forcedRarity);
+    const droppedItem = dropActiveCombatItem(forceItemDrop, updatedPlayer.level, forcedRarity);
     let inventoryFull = false;
     let isUpgrade = false;
     if (droppedItem) {
@@ -305,6 +320,69 @@ export function useEncounter({
       rewardRevealTimerRef.current = null;
       setRewardReveal(reveal);
     }, REWARD_REVEAL_DELAY_MS);
+  };
+
+  // Hold an ELITE encounter as the "worthy foe": persist it. ALL elites (foreground and background)
+  // route through here — the caller then presents it via checkPendingEncounter (one guarded
+  // presentation path, so an elite modal never stacks over a reveal/summary and the "one foe at a
+  // time" overflow rule applies uniformly). A notification is fired only when BACKGROUNDED (a
+  // foreground elite is presented immediately, so it needs no notification).
+  //
+  // Returns whether the foe was HELD. Returns false when it couldn't be — a foe is already held
+  // (overflow) or the save failed — so the caller resolves the encounter passively instead of
+  // losing it (the roll was already consumed upstream). Notification failure does NOT unset the
+  // hold (the foe is persisted regardless).
+  const holdEliteEncounter = async (
+    encounter: Encounter,
+    isBackground: boolean,
+  ): Promise<boolean> => {
+    try {
+      const existing = await loadPendingEncounter();
+      if (existing) {
+        return false;
+      }
+      const encounterData: EncounterData = {
+        creature: {
+          id: encounter.creature.id,
+          name: encounter.creature.name,
+          type: encounter.creature.type,
+          level: encounter.creature.level,
+          hp: encounter.creature.hp,
+          maxHp: encounter.creature.maxHp,
+          attack: encounter.creature.attack,
+          defense: encounter.creature.defense,
+          speed: encounter.creature.speed,
+          rarity: encounter.creature.rarity,
+          description: encounter.creature.description,
+          encounterRate: encounter.creature.encounterRate,
+        },
+        location: encounter.location,
+        timestamp: encounter.timestamp,
+        playerLevel: encounter.playerLevel,
+        status: encounter.status,
+      };
+      const saveSuccess = await savePendingEncounter(encounterData);
+      if (!saveSuccess) {
+        console.error('Failed to hold elite encounter');
+        return false;
+      }
+      // Surface the inline "worthy foe" card immediately (in memory) — non-modal, so no
+      // coordination needed. On a cold start from a backgrounded hold, refreshHeldFoe re-loads it.
+      setHeldFoe(encounter);
+      // Notify only when backgrounded (the player isn't looking); a foreground hold shows the card
+      // right away. Best-effort — the foe is held whether or not this succeeds.
+      if (isBackground) {
+        try {
+          await NotificationService.showEncounterNotification(encounter);
+        } catch (error) {
+          console.error('Elite held but notification failed:', error);
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error holding elite encounter:', error);
+      return false;
+    }
   };
 
   // Resolve an encounter passively (auto-combat) instead of opening the turn-based screen — used
@@ -830,46 +908,24 @@ export function useEncounter({
           encounter.playerLevel,
         );
         const isInBackground = appStateRef.current !== 'active';
-        // Passive/active gate (the hybrid idle/active loop): while the player is moving OR the app
-        // is backgrounded — i.e. they're walking, not looking — auto-resolve the encounter so the
-        // walk is never interrupted. Only when the player is STOPPED with the app open do we
-        // present the turn-based opt-in. Rewards + a "while you walked" summary entry are handled
-        // in resolvePassiveEncounter.
-        //
-        // Use THIS segment's speed (distanceData.location.speed, m/s), NOT
-        // LocationService.getCurrentSpeed(): the distance callback fires before LocationService
-        // commits currentLocation, so getCurrentSpeed() would read the PREVIOUS fix's speed
-        // (LocationService invokes onDistanceUpdate, then sets currentLocation). Distance only
-        // accumulates from high-accuracy fixes, so location.speed is reliable at encounter time.
-        // GPS often reports speed as 0 even while walking (missing speed → 0), so speed alone would
-        // misclassify a walker as stopped and wrongly interrupt them with the turn-based modal. Also
-        // treat a segment that covered real ground as moving — distance only accrues from
-        // high-accuracy fixes, so it's a reliable "walking" signal at encounter time. NOTE: because
-        // encounters only fire from accumulated movement, this routes natural encounters to passive
-        // by default; a dedicated "stop and fight this one" turn-based opt-in is a future design
-        // decision (a speed gate can't cleanly detect "stopped" — a stationary player generates no
-        // encounters). The turn-based path stays reachable via the debug force-encounter flow.
-        const segmentSpeedKmh = location.speed * 3.6;
-        const isMoving =
-          segmentSpeedKmh >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH ||
-          distanceData.incremental >= COMBAT_CONFIG.PASSIVE_MOVE_DISTANCE_M;
-
-        if (isInBackground || isMoving) {
-          // Passive auto-resolve. resolvePassiveEncounter reads playerRef and no-ops if no player is
-          // loaded yet, so a backgrounded/moving encounter never falls through to open turn-based UI
-          // that wouldn't be visible (and couldn't be fought) while the app is backgrounded.
-          await resolvePassiveEncounter(encounter, isInBackground);
+        // RARITY gate (the hybrid idle/active loop). Rarity — not movement — decides the path, since
+        // encounters only fire from movement anyway (a speed gate can't tell "walking" from
+        // "stopped"): COMMON creatures auto-resolve passively into the walk summary (never interrupt
+        // the walk); ELITE creatures (rare+, isEliteCreature) are the deliberate turn-based "boss
+        // fights" that pay the better-loot differential.
+        if (isEliteCreature(encounter.creature)) {
+          // Hold the elite as a "worthy foe". holdEliteEncounter surfaces the inline card (foreground
+          // and background alike) and notifies when backgrounded — the player engages it turn-based
+          // from the card. If it can't be held (a foe is already held, or the save failed), resolve
+          // it passively so the encounter isn't lost.
+          const held = await holdEliteEncounter(encounter, isInBackground);
+          if (!held) {
+            await resolvePassiveEncounter(encounter, isInBackground);
+          }
         } else {
-          // Stopped + foreground → the turn-based opt-in.
-          encounterRef.current = encounter;
-          isMinimizedRef.current = false;
-          showCombatModalRef.current = false;
-          victoryProcessedRef.current = false;
-          fleeProcessedRef.current = false;
-
-          setCurrentEncounter(encounter);
-          setShowEncounterModal(true);
-          setIsEncounterModalMinimized(false);
+          // Common: auto-resolve passively. resolvePassiveEncounter reads playerRef and no-ops if no
+          // player is loaded yet, so it never falls through to open turn-based UI.
+          await resolvePassiveEncounter(encounter, isInBackground);
         }
 
         setEncounterChance(0);
@@ -942,8 +998,9 @@ export function useEncounter({
     walkSummary,
     checkWalkSummary,
     dismissWalkSummary,
-    isProcessingNotificationTapRef,
-    checkPendingEncounter,
+    heldFoe,
+    refreshHeldFoe,
+    engageHeldFoe,
     handleFight,
     handleAbility,
     handleDebugDefeat,

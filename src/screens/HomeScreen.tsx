@@ -28,6 +28,7 @@ import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import RewardRevealModal from '../components/RewardRevealModal';
 import WalkSummaryModal from '../components/WalkSummaryModal';
+import WorthyFoeCard from '../components/WorthyFoeCard';
 import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
@@ -93,8 +94,9 @@ export default function HomeScreen() {
     walkSummary,
     checkWalkSummary,
     dismissWalkSummary,
-    isProcessingNotificationTapRef,
-    checkPendingEncounter,
+    heldFoe,
+    refreshHeldFoe,
+    engageHeldFoe,
     handleFight,
     handleAbility,
     handleDebugDefeat,
@@ -139,11 +141,10 @@ export default function HomeScreen() {
 
   // Load player data and initialize notifications on mount
   useEffect(() => {
-    // Resolve any pending encounter FIRST, then drain the walk summary (auto-resolved encounters
-    // from a prior backgrounded session). Sequenced, not parallel: checkWalkSummary bails when an
-    // encounter is showing, so running it after checkPendingEncounter settles prevents the summary
-    // and encounter modals from stacking (two RN Modals conflict on iOS).
-    checkPendingEncounter().finally(() => checkWalkSummary());
+    // Surface a held "worthy foe" (inline card) and the walk summary from a prior backgrounded
+    // session. Independent — the foe is a card, not a modal, so no sequencing is needed.
+    refreshHeldFoe();
+    checkWalkSummary();
     // Auth must be ready before loadPlayerData so cloud data is available on first load
     initializeAuth();
     // initializeTracking must await initializeNotifications so the tracking
@@ -163,24 +164,12 @@ export default function HomeScreen() {
     // Background handler is registered in index.ts (must be at app level)
     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
-        // User tapped encounter notification - check for pending encounter
-        // Set flag to prevent appState transition from also triggering check
-        // This flag is checked synchronously in the appState effect before calling checkPendingEncounter
-        isProcessingNotificationTapRef.current = true;
-        // Fire and forget - errors are handled in checkPendingEncounter
-        checkPendingEncounter()
-          .catch(error => {
-            console.error('Error in notification handler:', error);
-          })
-          .finally(() => {
-            // Clear flag after processing completes
-            // Use setTimeout to ensure appState transition check (if queued) sees the flag
-            setTimeout(() => {
-              isProcessingNotificationTapRef.current = false;
-            }, 50);
-          });
+        // Tapped a "worthy foe" notification — surface the inline card (non-modal; idempotent).
+        refreshHeldFoe().catch(error => {
+          console.error('Error handling worthy-foe notification:', error);
+        });
       } else if (type === EventType.PRESS && detail.notification?.data?.type === 'walk_summary') {
-        // User tapped the passive-victory notification — show the "while you walked" recap.
+        // Tapped the passive-victory notification — show the "while you walked" recap.
         checkWalkSummary().catch(error => {
           console.error('Error handling walk summary notification:', error);
         });
@@ -191,7 +180,7 @@ export default function HomeScreen() {
     return () => {
       unsubscribe();
     };
-    // checkPendingEncounter and isProcessingNotificationTapRef use refs internally — stable across renders
+    // refreshHeldFoe / checkWalkSummary use refs internally — stable across renders
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -202,15 +191,10 @@ export default function HomeScreen() {
     // Only check if transitioning from non-active to active (not on initial mount)
     // Skip if notification tap is being processed (it will handle the check)
     if (appState === 'active' && prevAppStateRef.current !== 'active') {
-      // Sequence the pending-encounter check and the walk-summary drain so their modals can't
-      // stack (checkWalkSummary bails when an encounter is showing — see the mount effect).
-      // When a notification tap is mid-flight, that handler owns the pending-encounter check, so
-      // here we only drain the summary.
-      if (isProcessingNotificationTapRef.current) {
-        checkWalkSummary();
-      } else {
-        checkPendingEncounter().finally(() => checkWalkSummary());
-      }
+      // On foreground: refresh the held "worthy foe" card and drain the walk summary. Independent —
+      // the foe is a card (not a modal), so nothing to sequence.
+      refreshHeldFoe();
+      checkWalkSummary();
     }
     prevAppStateRef.current = appState;
     // prevAppStateRef is a stable ref from useAppLifecycle — not a reactive dep
@@ -375,6 +359,8 @@ export default function HomeScreen() {
           </View>
 
           <PlayerStats player={player} />
+
+          <WorthyFoeCard foe={heldFoe} onFight={engageHeldFoe} />
 
           <EquipmentDisplay
             equipment={player.equipment}
