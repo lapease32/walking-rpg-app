@@ -492,6 +492,19 @@ export function useEncounter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEncounter, rewardReveal, walkSummary]);
 
+  // Present a held "worthy foe" once nothing else is on screen. checkPendingEncounter bails while a
+  // fight is active (it leaves the foe stored — see its guard), and a fight ending mid-session
+  // doesn't otherwise re-trigger it, so re-attempt when the encounter / reward reveal / walk summary
+  // clear. Guarded so the held-foe encounter modal never stacks over the reveal or summary (two RN
+  // Modals conflict on iOS). Declared AFTER the walk-summary effect so a pending summary presents
+  // first; the foe surfaces once it's dismissed. checkPendingEncounter self-guards + is omitted from
+  // deps (recreated each render; including it would re-run every render).
+  useEffect(() => {
+    if (!currentEncounter && !rewardReveal && !rewardRevealTimerRef.current && !walkSummary) {
+      checkPendingEncounter();
+    }
+  }, [currentEncounter, rewardReveal, walkSummary]);
+
   const handleFlee = (): void => {
     if (fleeProcessedRef.current) {
       return;
