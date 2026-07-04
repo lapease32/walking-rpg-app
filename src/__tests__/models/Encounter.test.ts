@@ -103,4 +103,20 @@ describe('Encounter', () => {
       expect(encounter.status).toBe('active');
     });
   });
+
+  describe('rarityOverride (debug forcing)', () => {
+    it('forces the creature rarity when provided', () => {
+      for (const r of ['common', 'uncommon', 'rare', 'epic'] as const) {
+        const encounter = Encounter.createRandomEncounter(makeLocation(), 10, r);
+        expect(encounter.creature.rarity).toBe(r);
+      }
+    });
+
+    it('rolls rarity normally when no override is given', () => {
+      const encounter = Encounter.createRandomEncounter(makeLocation(), 1);
+      expect(['common', 'uncommon', 'rare', 'epic', 'legendary']).toContain(
+        encounter.creature.rarity,
+      );
+    });
+  });
 });

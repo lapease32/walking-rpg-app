@@ -105,6 +105,10 @@ export default function HomeScreen() {
     handleExpandMinimized,
     handleFlee,
     forceEncounter,
+    debugForceIdleEncounter,
+    debugForceEliteEncounter,
+    debugSimulateWalk,
+    debugShowWalkSummary,
     onDistanceEncounterUpdate,
     clearEncounter,
   } = useEncounter({ playerRef, setPlayerAndSave, appStateRef, currentLocationRef });
@@ -299,6 +303,10 @@ export default function HomeScreen() {
     forcedRarity,
     setForcedRarity,
     forceEncounter,
+    debugForceIdleEncounter,
+    debugForceEliteEncounter,
+    debugSimulateWalk,
+    debugShowWalkSummary,
     debugPreviewReveal,
   });
 

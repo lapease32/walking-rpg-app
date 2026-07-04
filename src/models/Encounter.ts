@@ -1,4 +1,10 @@
-import { Creature, createCreatureFromTemplate, pickEncounterTemplate } from './Creature';
+import {
+  Creature,
+  Rarity,
+  createCreatureFromTemplate,
+  pickEncounterTemplate,
+  pickEncounterTemplateOfRarity,
+} from './Creature';
 
 export interface Location {
   latitude: number;
@@ -44,10 +50,17 @@ export class Encounter {
   /**
    * Create a random encounter
    */
-  static createRandomEncounter(location: Location, playerLevel: number = 1): Encounter {
+  static createRandomEncounter(
+    location: Location,
+    playerLevel: number = 1,
+    rarityOverride?: Rarity,
+  ): Encounter {
     // Pick a creature template weighted by player level (low levels skew to common, so new
     // players aren't thrown unwinnable above-common fights). See pickEncounterTemplate.
-    const template = pickEncounterTemplate(playerLevel);
+    // rarityOverride (debug encounter-forcing) forces a specific rarity instead of rolling.
+    const template = rarityOverride
+      ? pickEncounterTemplateOfRarity(rarityOverride)
+      : pickEncounterTemplate(playerLevel);
 
     const creature = createCreatureFromTemplate(template, playerLevel);
 

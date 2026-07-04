@@ -30,7 +30,16 @@ export interface DebugSettings {
 export interface DebugActions {
   /** Add `distanceMeters` of simulated movement (the panel offers +10 / +100 / +1000). */
   simulateMovement: (distanceMeters: number) => void;
+  /** BYPASS the gate straight to the turn-based modal (E2E depends on the debug-force-encounter testID). */
   forceEncounter: () => void;
+  /** Force a COMMON encounter through the REAL passive path → auto-resolves into the walk summary. */
+  forceIdleEncounter: (rarity?: Rarity) => void;
+  /** Force an ELITE (rare/epic) encounter through the REAL hold path → the "worthy foe" card. */
+  forceEliteEncounter: (rarity?: Rarity) => void;
+  /** Fire N passive resolutions to build a multi-entry walk summary quickly. */
+  simulateWalk: (count?: number) => void;
+  /** Surface the accumulated walk summary now (instead of waiting for a foreground transition). */
+  showWalkSummary: () => void;
   /** Jump to an exact level with the canonical stats for it (panel offers L1/5/10/20/50). */
   setLevel: (targetLevel: number) => void;
   addXP: (amount: number) => void;
@@ -71,6 +80,10 @@ interface UseDebugActionsParams {
   forcedRarity: Rarity | null;
   setForcedRarity: (value: Rarity | null) => void;
   forceEncounter: () => void;
+  debugForceIdleEncounter: (rarity?: Rarity) => void;
+  debugForceEliteEncounter: (rarity?: Rarity) => void;
+  debugSimulateWalk: (count?: number) => void;
+  debugShowWalkSummary: () => void;
   debugPreviewReveal: (rarity: Rarity | null) => void;
 }
 
@@ -104,6 +117,10 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     forcedRarity,
     setForcedRarity,
     forceEncounter,
+    debugForceIdleEncounter,
+    debugForceEliteEncounter,
+    debugSimulateWalk,
+    debugShowWalkSummary,
     debugPreviewReveal,
   } = params;
 
@@ -205,6 +222,10 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     actions: {
       simulateMovement,
       forceEncounter,
+      forceIdleEncounter: debugForceIdleEncounter,
+      forceEliteEncounter: debugForceEliteEncounter,
+      simulateWalk: debugSimulateWalk,
+      showWalkSummary: debugShowWalkSummary,
       setLevel,
       addXP,
       restoreHp,

@@ -197,6 +197,41 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
         <Text style={styles.debugButtonText}>Force Encounter</Text>
       </TouchableOpacity>
       <View style={styles.xpButtonContainer}>
+        {/* Routes through the REAL rarity gate (common → passive/idle, elite → held worthy foe) —
+            unlike "Force Encounter" above, which bypasses straight to turn-based. */}
+        <Text style={styles.xpButtonLabel}>Encounter Routing (real gate):</Text>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.forceEncounterButton]}
+          onPress={() => actions.forceIdleEncounter('common')}
+          testID="debug-force-idle">
+          <Text style={styles.debugButtonText}>Idle Win (common)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.forceEncounterButton]}
+          onPress={() => actions.forceEliteEncounter('rare')}
+          testID="debug-force-elite-rare">
+          <Text style={styles.debugButtonText}>Worthy Foe (rare)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.forceEncounterButton]}
+          onPress={() => actions.forceEliteEncounter('epic')}
+          testID="debug-force-elite-epic">
+          <Text style={styles.debugButtonText}>Worthy Foe (epic)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.xpButton]}
+          onPress={() => actions.simulateWalk(5)}
+          testID="debug-simulate-walk">
+          <Text style={styles.debugButtonText}>Simulate Walk ×5</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.debugButton, styles.xpButton]}
+          onPress={actions.showWalkSummary}
+          testID="debug-show-walk-summary">
+          <Text style={styles.debugButtonText}>Show Walk Summary</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.xpButtonContainer}>
         <Text style={styles.xpButtonLabel}>Set Level:</Text>
         {[1, 5, 10, 20, 50].map(lvl => (
           <TouchableOpacity

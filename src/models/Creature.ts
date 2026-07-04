@@ -326,6 +326,15 @@ export function rollEncounterRarity(playerLevel: number): Rarity {
  */
 export function pickEncounterTemplate(playerLevel: number = 1): CreatureTemplate {
   const rarity = rollEncounterRarity(playerLevel);
+  return pickEncounterTemplateOfRarity(rarity);
+}
+
+/**
+ * Pick a random template of a SPECIFIC rarity — used by debug encounter-forcing to reliably spawn a
+ * common (→ passive) or elite (→ held) creature. Falls back to the full pool if no template of that
+ * rarity exists (e.g. legendary, none authored yet), so callers always get a real template.
+ */
+export function pickEncounterTemplateOfRarity(rarity: Rarity): CreatureTemplate {
   const ofRarity = CREATURE_TEMPLATES.filter(t => t.rarity === rarity);
   const pool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
   return pool[Math.floor(Math.random() * pool.length)];

@@ -844,6 +844,62 @@ export function useEncounter({
     setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
   };
 
+  // ─── Debug-only encounter-routing helpers (DebugPanel, gated by enableDebugMode) ───
+  // Unlike forceEncounter (which BYPASSES the gate straight to the turn-based modal), these route a
+  // rarity-forced encounter through the REAL logic so debug behaves exactly like production: a
+  // common → passive auto-resolve (walk summary), an elite → held "worthy foe" card.
+  const debugEncounterContext = (): { location: Location; level: number } => {
+    const loc = currentLocationRef.current;
+    const location: Location = loc
+      ? { latitude: loc.latitude, longitude: loc.longitude }
+      : { latitude: 37.7749, longitude: -122.4194 };
+    return { location, level: playerRef.current?.level ?? 1 };
+  };
+
+  const debugForceIdleEncounter = (rarity: Rarity = 'common'): void => {
+    const { location, level } = debugEncounterContext();
+    const encounter = EncounterService.forceEncounter(location, level, rarity);
+    // Real passive path (foreground): applies idle-tier rewards + appends to the walk summary.
+    resolvePassiveEncounter(encounter, false).catch(e =>
+      console.error('debug passive encounter failed:', e),
+    );
+  };
+
+  const debugForceEliteEncounter = (rarity: Rarity = 'rare'): void => {
+    const { location, level } = debugEncounterContext();
+    const encounter = EncounterService.forceEncounter(location, level, rarity);
+    // Real hold path (foreground): surfaces the "worthy foe" card. Mirror the production gate — if
+    // the elite can't be held (one is already held, or the save failed), fall back to a passive
+    // resolution so the forced encounter is never silently dropped.
+    holdEliteEncounter(encounter, false)
+      .then(held => (held ? undefined : resolvePassiveEncounter(encounter, false)))
+      .catch(e => console.error('debug elite encounter failed:', e));
+  };
+
+  const debugSimulateWalk = async (count: number = 5): Promise<void> => {
+    // Fire N common passive resolutions to build a multi-entry walk summary. AWAIT each one so the
+    // runs are strictly sequential: resolvePassiveEncounter reads playerRef and setPlayerAndSave
+    // updates it, so awaiting lets rewards compound off the prior result and serializes the storage
+    // saves (player + summary append). Firing them in parallel would leave the saves racing to land
+    // in order — the sequential form matches how a real walk resolves one encounter at a time.
+    for (let i = 0; i < count; i++) {
+      // Re-read the context each iteration: an awaited resolution can level the player, and
+      // production spawns every encounter at the CURRENT level (the gate reads playerRef.current
+      // each tick), so later encounters must scale to the just-updated level, not a stale snapshot.
+      const { location, level } = debugEncounterContext();
+      const encounter = EncounterService.forceEncounter(location, level, 'common');
+      try {
+        await resolvePassiveEncounter(encounter, false);
+      } catch (e) {
+        console.error('debug passive encounter failed:', e);
+      }
+    }
+  };
+
+  const debugShowWalkSummary = (): void => {
+    checkWalkSummary().catch(e => console.error('debug show walk summary failed:', e));
+  };
+
   const onDistanceEncounterUpdate = async (
     distanceData: DistanceData,
     currentPlayer: Player | null,
@@ -1009,6 +1065,10 @@ export function useEncounter({
     handleExpandMinimized,
     handleFlee,
     forceEncounter,
+    debugForceIdleEncounter,
+    debugForceEliteEncounter,
+    debugSimulateWalk,
+    debugShowWalkSummary,
     onDistanceEncounterUpdate,
     clearEncounter,
   };
