@@ -1,46 +1,86 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { Player } from '../models/Player';
 import { ARCHETYPE_CONFIGS } from '../models/Archetype';
+import { MOTION_BAR_TIMING, MOTION_SPRING } from '../constants/motion';
 
 interface PlayerStatsProps {
   player: Player | null;
 }
 
 /**
- * Component to display player statistics
+ * Component to display player statistics. HP/XP bar fills EASE to new values (instead of snapping)
+ * and the level pops on level-up — graphics roadmap Phase 1 micro-polish.
  */
 export default function PlayerStats({ player }: PlayerStatsProps) {
-  if (!player) {
+  const stats = player ? player.getStats() : null;
+  const progressPercentage =
+    stats && stats.experienceForNextLevel > 0
+      ? (stats.experience / stats.experienceForNextLevel) * 100
+      : 0;
+  // HP percentage with guard against division by zero.
+  const hpPercentage = stats && stats.maxHp > 0 ? stats.hp / stats.maxHp : 1;
+  const currentLevel = stats ? stats.level : null;
+
+  // Animated bar widths + level-flourish scale. Hooks must run unconditionally (before the early
+  // return below). PlayerStats only mounts once a player exists (HomeScreen gates it), so the
+  // shared values initialize straight to real values — no on-mount flicker.
+  const hpWidth = useSharedValue(hpPercentage * 100);
+  const expWidth = useSharedValue(progressPercentage);
+  const levelScale = useSharedValue(1);
+  const prevLevelRef = useRef<number | null>(currentLevel);
+
+  // Ease the bars to their new values on change (HP drains/refills, XP fills). withTiming to the
+  // same value on mount is a no-op, so no visible animation until something actually changes.
+  useEffect(() => {
+    hpWidth.value = withTiming(hpPercentage * 100, MOTION_BAR_TIMING);
+    expWidth.value = withTiming(progressPercentage, MOTION_BAR_TIMING);
+  }, [hpPercentage, progressPercentage, hpWidth, expWidth]);
+
+  // Level-up flourish: pop the level text when it INCREASES (never on first mount).
+  useEffect(() => {
+    if (
+      currentLevel !== null &&
+      prevLevelRef.current !== null &&
+      currentLevel > prevLevelRef.current
+    ) {
+      levelScale.value = withSequence(
+        withSpring(1.35, MOTION_SPRING.pop),
+        withSpring(1, MOTION_SPRING.pop),
+      );
+    }
+    if (currentLevel !== null) {
+      prevLevelRef.current = currentLevel;
+    }
+  }, [currentLevel, levelScale]);
+
+  const hpAnimStyle = useAnimatedStyle(() => ({ width: `${hpWidth.value}%` }));
+  const expAnimStyle = useAnimatedStyle(() => ({ width: `${expWidth.value}%` }));
+  const levelAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: levelScale.value }] }));
+
+  if (!player || !stats) {
     return null;
   }
 
-  const stats = player.getStats();
-  const progressPercentage =
-    stats.experienceForNextLevel > 0 ? (stats.experience / stats.experienceForNextLevel) * 100 : 0;
-
-  // Calculate HP percentage with guard against division by zero
-  const hpPercentage = stats.maxHp > 0 ? stats.hp / stats.maxHp : 1;
   const hpBarColor = hpPercentage > 0.5 ? '#4CAF50' : hpPercentage > 0.25 ? '#FF9800' : '#F44336';
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.playerName}>{ARCHETYPE_CONFIGS[player.archetype].name}</Text>
-        <Text style={styles.level}>Level {stats.level}</Text>
+        <Animated.Text style={[styles.level, levelAnimStyle]}>Level {stats.level}</Animated.Text>
       </View>
 
       <View style={styles.hpContainer}>
         <View style={styles.hpBar}>
-          <View
-            style={[
-              styles.hpFill,
-              {
-                width: `${hpPercentage * 100}%`,
-                backgroundColor: hpBarColor,
-              },
-            ]}
-          />
+          <Animated.View style={[styles.hpFill, { backgroundColor: hpBarColor }, hpAnimStyle]} />
         </View>
         <Text style={styles.hpText}>
           {stats.hp} / {stats.maxHp} HP
@@ -49,7 +89,7 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
 
       <View style={styles.expContainer}>
         <View style={styles.expBar}>
-          <View style={[styles.expFill, { width: `${progressPercentage}%` }]} />
+          <Animated.View style={[styles.expFill, expAnimStyle]} />
         </View>
         <Text style={styles.expText}>
           {stats.experience} / {stats.experienceForNextLevel} XP

@@ -11,6 +11,7 @@ import {
 import { Encounter } from '../models/Encounter';
 import { Rarity } from '../models/Creature';
 import { DamageType } from '../models/DamageType';
+import PressableScale from './PressableScale';
 
 interface EncounterModalProps {
   encounter: Encounter | null;
@@ -228,7 +229,7 @@ export default function EncounterModal({
           )}
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
+            <PressableScale
               style={[
                 styles.button,
                 styles.fightButton,
@@ -240,10 +241,10 @@ export default function EncounterModal({
               <Text style={styles.buttonText}>
                 {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.fleeButton]} onPress={onFlee}>
+            </PressableScale>
+            <PressableScale style={[styles.button, styles.fleeButton]} onPress={onFlee}>
               <Text style={styles.buttonText}>Flee</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </Pressable>

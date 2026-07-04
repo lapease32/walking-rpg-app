@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Encounter } from '../models/Encounter';
 import { getRarityColor } from '../constants/rarity';
+import PressableScale from './PressableScale';
 
 /**
  * Inline "worthy foe" card for a held ELITE encounter. Deliberately NOT a Modal — it sits in the
@@ -34,16 +35,12 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
       <Text style={styles.meta}>
         {creature.rarity.toUpperCase()} · Lv {creature.level}
       </Text>
-      <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: color },
-          pressed && styles.buttonPressed,
-        ]}
+      <PressableScale
+        style={[styles.button, { backgroundColor: color }]}
         onPress={onFight}
         testID="worthy-foe-fight">
         <Text style={styles.buttonText}>Fight →</Text>
-      </Pressable>
+      </PressableScale>
     </Animated.View>
   );
 }
@@ -72,6 +69,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 10,
   },
-  buttonPressed: { opacity: 0.8 },
   buttonText: { color: '#0B1622', fontSize: 15, fontWeight: 'bold' },
 });
