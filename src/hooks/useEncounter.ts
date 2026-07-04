@@ -409,6 +409,17 @@ export function useEncounter({
 
   const dismissWalkSummary = (): void => setWalkSummary(null);
 
+  // checkWalkSummary bails when an encounter is showing (it must not cover an active encounter),
+  // so a summary can be left in storage if an encounter won the cold-start race or the player was
+  // mid-fight. Re-attempt the drain once the encounter clears. Guarded on the reward reveal so the
+  // summary never stacks over/under a victory reveal (two RN Modals conflict on iOS — see
+  // REWARD_REVEAL_DELAY_MS); dismissing the reveal re-runs this and drains then.
+  useEffect(() => {
+    if (!currentEncounter && !rewardReveal && !rewardRevealTimerRef.current) {
+      checkWalkSummary();
+    }
+  }, [currentEncounter, rewardReveal]);
+
   const handleFlee = (): void => {
     if (fleeProcessedRef.current) {
       return;
@@ -804,8 +815,14 @@ export function useEncounter({
         // walk is never interrupted. Only when the player is STOPPED with the app open do we
         // present the turn-based opt-in. Rewards + a "while you walked" summary entry are handled
         // in resolvePassiveEncounter.
-        const isMoving =
-          LocationService.getCurrentSpeed() >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH;
+        //
+        // Use THIS segment's speed (distanceData.location.speed, m/s), NOT
+        // LocationService.getCurrentSpeed(): the distance callback fires before LocationService
+        // commits currentLocation, so getCurrentSpeed() would read the PREVIOUS fix's speed
+        // (LocationService invokes onDistanceUpdate, then sets currentLocation). Distance only
+        // accumulates from high-accuracy fixes, so location.speed is reliable at encounter time.
+        const segmentSpeedKmh = location.speed * 3.6;
+        const isMoving = segmentSpeedKmh >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH;
 
         if ((isInBackground || isMoving) && currentPlayer) {
           await resolvePassiveEncounter(encounter, isInBackground);

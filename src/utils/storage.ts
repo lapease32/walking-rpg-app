@@ -422,7 +422,14 @@ export async function readLocalPlayerSnapshot(): Promise<{
 
 export async function clearLocalPlayerData(): Promise<void> {
   try {
-    await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
+    // WALK_SUMMARY is per-account activity — clear it on account switch so the next user can't see
+    // the previous account's "while you walked" recap on foreground (in-memory state is cleared
+    // separately by useEncounter.clearEncounter). Account DELETION uses clearAllUserData.
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.PLAYER_DATA,
+      STORAGE_KEYS.PLAYER_SAVED_AT,
+      STORAGE_KEYS.WALK_SUMMARY,
+    ]);
   } catch (error) {
     console.error('clearLocalPlayerData: storage error, proceeding with reload:', error);
   }
