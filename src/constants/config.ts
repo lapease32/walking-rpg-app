@@ -106,6 +106,29 @@ export const COMBAT_CONFIG = {
 
   // XP earned from a loss (partial credit for attempting the encounter)
   LOSS_XP_FRACTION: 0.25,
+
+  // How much the passive auto-combat win chance shifts per level of difference between
+  // player and creature (player higher → chance up, creature higher → chance down).
+  // Balance placeholder — tune via playtesting.
+  AUTO_COMBAT_LEVEL_STEP: 0.05,
+
+  // Clamp bounds for the passive win chance so a big level gap never guarantees or forbids
+  // a win outright. Balance placeholders.
+  AUTO_COMBAT_MIN_WIN_RATE: 0.2,
+  AUTO_COMBAT_MAX_WIN_RATE: 0.95,
+
+  // Speed (km/h) at or above which the player is considered "moving" for the passive/active
+  // gate: an encounter that fires while moving auto-resolves instead of interrupting the walk.
+  // ~2 km/h is a slow amble — comfortably above GPS jitter, below a real walking pace.
+  // Balance placeholder.
+  PASSIVE_SPEED_THRESHOLD_KMH: 2,
+
+  // Fallback movement signal for the passive/active gate: distance (meters) covered in the GPS
+  // segment that triggered the encounter. GPS often reports speed as 0 even while walking (missing
+  // speed → 0), so speed alone misclassifies a walker as stopped; a segment that covered real
+  // ground means moving. Distance only accumulates from high-accuracy fixes, so this is reliable
+  // at encounter time. Balance placeholder.
+  PASSIVE_MOVE_DISTANCE_M: 3,
 } as const;
 
 // Each zone is this many km from the player's session start point.

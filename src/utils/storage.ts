@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerData } from '../models/Player';
-import { CreatureConstructorParams } from '../models/Creature';
+import { CreatureConstructorParams, Rarity } from '../models/Creature';
+import { Item } from '../models/Item';
 import { Location, EncounterStatus, ENCOUNTER_STATUSES } from '../models/Encounter';
 import CloudSyncService from '../services/CloudSyncService';
 
@@ -12,10 +13,17 @@ const STORAGE_KEYS = {
   PLAYER_SAVED_AT: '@walking_rpg:player_saved_at',
   SETTINGS: '@walking_rpg:settings',
   PENDING_ENCOUNTER: '@walking_rpg:pending_encounter',
+  WALK_SUMMARY: '@walking_rpg:walk_summary',
   TRACKING_STATE: '@walking_rpg:tracking_state',
   CONFLICT_PENDING: '@walking_rpg:conflict_pending',
   BATTERY_PROMPT_SHOWN: '@walking_rpg:battery_prompt_shown',
 } as const;
+
+// Cap the persisted walk-summary log so an unusually long walk (many auto-resolved encounters)
+// can't grow AsyncStorage without bound. Rewards are already applied to the player when each
+// entry is written, so trimming the oldest display records is loss-free — only the summary UI
+// (which shows totals + recent detail) is affected.
+const MAX_WALK_SUMMARY_ENTRIES = 100;
 
 export interface PendingConflictRecord {
   localData: PlayerData | null;
@@ -163,7 +171,13 @@ export async function loadSettings(): Promise<AppSettings | null> {
 }
 
 /**
- * Save pending encounter (for background encounters)
+ * Save pending encounter (for background encounters).
+ *
+ * SUPERSEDED by passive auto-combat: background encounters now auto-resolve into the walk summary
+ * (see useEncounter.resolvePassiveEncounter) rather than being saved for later turn-based play, so
+ * this has no callers. The pending-encounter read path (loadPendingEncounter/checkPendingEncounter)
+ * is kept to drain any encounter saved by a pre-update build; the whole mechanism is scheduled for
+ * removal in a follow-up cleanup.
  */
 export async function savePendingEncounter(encounter: EncounterData): Promise<boolean> {
   try {
@@ -224,6 +238,112 @@ export async function clearPendingEncounter(): Promise<boolean> {
   } catch (error) {
     console.error('Error clearing pending encounter:', error);
     return false;
+  }
+}
+
+/**
+ * One passively-resolved encounter, recorded for the "while you walked" summary shown on return.
+ * This is a DISPLAY record only — the XP/item were already applied to the player when it was
+ * written, so losing this log never loses rewards.
+ */
+export interface WalkSummaryEntry {
+  creatureName: string;
+  rarity: Rarity;
+  won: boolean;
+  xpGained: number;
+  item: Item | null;
+  timestamp: number;
+}
+
+function isValidWalkSummaryEntry(data: unknown): data is WalkSummaryEntry {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.creatureName === 'string' &&
+    typeof d.rarity === 'string' &&
+    typeof d.won === 'boolean' &&
+    typeof d.xpGained === 'number' &&
+    typeof d.timestamp === 'number' &&
+    (d.item === null || (typeof d.item === 'object' && d.item !== null))
+  );
+}
+
+/**
+ * Load the accumulated walk-summary log (oldest → newest). Returns [] when empty or corrupted
+ * (corrupted storage is cleared so it can't wedge the summary on every foreground).
+ */
+export async function loadWalkSummary(): Promise<WalkSummaryEntry[]> {
+  try {
+    const jsonData = await AsyncStorage.getItem(STORAGE_KEYS.WALK_SUMMARY);
+    if (!jsonData) {
+      return [];
+    }
+    const parsed: unknown = JSON.parse(jsonData);
+    if (!Array.isArray(parsed) || !parsed.every(isValidWalkSummaryEntry)) {
+      console.error('Corrupted walk-summary data in storage, clearing');
+      await AsyncStorage.removeItem(STORAGE_KEYS.WALK_SUMMARY);
+      return [];
+    }
+    return parsed;
+  } catch (error) {
+    console.error('Error loading walk summary:', error);
+    return [];
+  }
+}
+
+// Serializes appendWalkSummaryEntry's read-modify-write. Passive resolutions are fired from
+// un-awaited GPS distance callbacks, so two can overlap; without this chain their load→setItem
+// could interleave and silently drop entries. Each append waits for the previous to finish.
+let walkSummaryWriteChain: Promise<void> = Promise.resolve();
+
+/**
+ * Append one resolved-encounter record to the walk-summary log, trimmed to the most recent
+ * MAX_WALK_SUMMARY_ENTRIES. The read-modify-write is serialized through a module-level chain so
+ * concurrent appends queue instead of racing (a race could otherwise drop entries).
+ */
+export async function appendWalkSummaryEntry(entry: WalkSummaryEntry): Promise<boolean> {
+  const run = walkSummaryWriteChain.then(async () => {
+    const existing = await loadWalkSummary();
+    const next = [...existing, entry].slice(-MAX_WALK_SUMMARY_ENTRIES);
+    await AsyncStorage.setItem(STORAGE_KEYS.WALK_SUMMARY, JSON.stringify(next));
+  });
+  // Keep the chain alive even if this write throws, so one failure can't wedge later appends.
+  walkSummaryWriteChain = run.catch(() => {});
+  try {
+    await run;
+    return true;
+  } catch (error) {
+    console.error('Error appending walk summary entry:', error);
+    return false;
+  }
+}
+
+/**
+ * Atomically read AND clear the walk-summary log, returning the drained entries. Runs on the same
+ * serialization chain as appendWalkSummaryEntry, so a concurrent passive append can't land between
+ * the read and the clear (which would otherwise wipe a just-appended, never-shown fight). An append
+ * either finishes before this drain (included in the result) or after it (persisted for next time).
+ */
+export async function drainWalkSummary(): Promise<WalkSummaryEntry[]> {
+  const run = walkSummaryWriteChain.then(async () => {
+    const entries = await loadWalkSummary();
+    if (entries.length > 0) {
+      await AsyncStorage.removeItem(STORAGE_KEYS.WALK_SUMMARY);
+    }
+    return entries;
+  });
+  // Keep the chain alive (as void) regardless of this drain's outcome.
+  walkSummaryWriteChain = run.then(
+    () => {},
+    () => {},
+  );
+  try {
+    return await run;
+  } catch (error) {
+    console.error('Error draining walk summary:', error);
+    return [];
   }
 }
 
@@ -326,7 +446,14 @@ export async function readLocalPlayerSnapshot(): Promise<{
 
 export async function clearLocalPlayerData(): Promise<void> {
   try {
-    await AsyncStorage.multiRemove([STORAGE_KEYS.PLAYER_DATA, STORAGE_KEYS.PLAYER_SAVED_AT]);
+    // WALK_SUMMARY is per-account activity — clear it on account switch so the next user can't see
+    // the previous account's "while you walked" recap on foreground (in-memory state is cleared
+    // separately by useEncounter.clearEncounter). Account DELETION uses clearAllUserData.
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.PLAYER_DATA,
+      STORAGE_KEYS.PLAYER_SAVED_AT,
+      STORAGE_KEYS.WALK_SUMMARY,
+    ]);
   } catch (error) {
     console.error('clearLocalPlayerData: storage error, proceeding with reload:', error);
   }
@@ -347,6 +474,7 @@ export async function clearAllUserData(): Promise<void> {
     STORAGE_KEYS.PLAYER_DATA,
     STORAGE_KEYS.PLAYER_SAVED_AT,
     STORAGE_KEYS.PENDING_ENCOUNTER,
+    STORAGE_KEYS.WALK_SUMMARY,
     STORAGE_KEYS.TRACKING_STATE,
     STORAGE_KEYS.CONFLICT_PENDING,
   ]);

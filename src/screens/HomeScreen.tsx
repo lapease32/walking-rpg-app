@@ -27,6 +27,7 @@ import EquipmentDisplay from '../components/Equipment';
 import EncounterModal from '../components/EncounterModal';
 import CombatModal from '../components/CombatModal';
 import RewardRevealModal from '../components/RewardRevealModal';
+import WalkSummaryModal from '../components/WalkSummaryModal';
 import InventoryModal from '../components/InventoryModal';
 import SettingsModal from '../components/SettingsModal';
 import BetaIndicator from '../components/BetaIndicator';
@@ -89,6 +90,9 @@ export default function HomeScreen() {
     playerCombatStateRef,
     rewardReveal,
     dismissReward,
+    walkSummary,
+    checkWalkSummary,
+    dismissWalkSummary,
     isProcessingNotificationTapRef,
     checkPendingEncounter,
     handleFight,
@@ -135,7 +139,11 @@ export default function HomeScreen() {
 
   // Load player data and initialize notifications on mount
   useEffect(() => {
-    checkPendingEncounter();
+    // Resolve any pending encounter FIRST, then drain the walk summary (auto-resolved encounters
+    // from a prior backgrounded session). Sequenced, not parallel: checkWalkSummary bails when an
+    // encounter is showing, so running it after checkPendingEncounter settles prevents the summary
+    // and encounter modals from stacking (two RN Modals conflict on iOS).
+    checkPendingEncounter().finally(() => checkWalkSummary());
     // Auth must be ready before loadPlayerData so cloud data is available on first load
     initializeAuth();
     // initializeTracking must await initializeNotifications so the tracking
@@ -171,6 +179,11 @@ export default function HomeScreen() {
               isProcessingNotificationTapRef.current = false;
             }, 50);
           });
+      } else if (type === EventType.PRESS && detail.notification?.data?.type === 'walk_summary') {
+        // User tapped the passive-victory notification — show the "while you walked" recap.
+        checkWalkSummary().catch(error => {
+          console.error('Error handling walk summary notification:', error);
+        });
       }
     });
 
@@ -188,12 +201,16 @@ export default function HomeScreen() {
   useEffect(() => {
     // Only check if transitioning from non-active to active (not on initial mount)
     // Skip if notification tap is being processed (it will handle the check)
-    if (
-      appState === 'active' &&
-      prevAppStateRef.current !== 'active' &&
-      !isProcessingNotificationTapRef.current
-    ) {
-      checkPendingEncounter();
+    if (appState === 'active' && prevAppStateRef.current !== 'active') {
+      // Sequence the pending-encounter check and the walk-summary drain so their modals can't
+      // stack (checkWalkSummary bails when an encounter is showing — see the mount effect).
+      // When a notification tap is mid-flight, that handler owns the pending-encounter check, so
+      // here we only drain the summary.
+      if (isProcessingNotificationTapRef.current) {
+        checkWalkSummary();
+      } else {
+        checkPendingEncounter().finally(() => checkWalkSummary());
+      }
     }
     prevAppStateRef.current = appState;
     // prevAppStateRef is a stable ref from useAppLifecycle — not a reactive dep
@@ -469,6 +486,7 @@ export default function HomeScreen() {
         playerCombatStateRef={playerCombatStateRef}
       />
       <RewardRevealModal reveal={rewardReveal} onDismiss={dismissReward} />
+      <WalkSummaryModal entries={walkSummary} onDismiss={dismissWalkSummary} />
       <InventoryModal
         inventory={player?.inventory || []}
         player={player}

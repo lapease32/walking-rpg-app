@@ -72,6 +72,10 @@ class NotificationService {
     }
   }
 
+  // SUPERSEDED by passive auto-combat (see showPassiveVictoryNotification): encounters while
+  // walking/backgrounded now auto-resolve instead of prompting the player to come play, so this
+  // "come play" notification has no callers. Scheduled for removal with the pending-encounter
+  // mechanism in a follow-up cleanup.
   async showEncounterNotification(encounter: Encounter): Promise<string> {
     const creature = encounter.creature;
     const title = '🎮 Creature Encounter!';
@@ -108,6 +112,49 @@ class NotificationService {
       return notificationId;
     } catch (error) {
       console.error('Error showing encounter notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Notify the player that a notable item dropped from a passive (auto-resolved) fight while they
+   * were walking. Intentionally rare-only (fired by the caller for rare+ drops) so it's a "nice
+   * surprise," not spam. Tapping opens the app, where the full walk summary is shown on foreground.
+   */
+  async showPassiveVictoryNotification(creatureName: string, itemName: string): Promise<string> {
+    const title = '⚔️ Victory while walking!';
+    const body = `You defeated a ${creatureName} and found ${itemName}. Tap to see your haul.`;
+
+    try {
+      const notificationId = await notifee.displayNotification({
+        title,
+        body,
+        data: {
+          type: 'walk_summary',
+        },
+        android: {
+          channelId: this.channelId,
+          importance: AndroidImportance.HIGH,
+          pressAction: {
+            id: 'default',
+            launchActivity: 'default',
+          },
+          sound: 'default',
+          vibrationPattern: [300, 500],
+        },
+        ios: {
+          sound: 'default',
+          foregroundPresentationOptions: {
+            alert: true,
+            badge: true,
+            sound: true,
+          },
+        },
+      });
+
+      return notificationId;
+    } catch (error) {
+      console.error('Error showing passive victory notification:', error);
       throw error;
     }
   }
