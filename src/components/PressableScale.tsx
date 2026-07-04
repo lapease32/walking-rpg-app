@@ -4,11 +4,14 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { MOTION_SPRING } from '../constants/motion';
 
 /**
- * A Pressable whose content springs DOWN on press and back on release — tactile feedback for
- * primary buttons (graphics roadmap Phase 1). The visual style lands on an inner Animated.View that
- * scales; the Pressable stays the touch target. Drop-in replacement for a Pressable with a static
- * style: move the button's visual style here and the spring replaces any pressed-opacity styling.
+ * A Pressable that springs DOWN on press and back on release — tactile feedback for primary buttons
+ * (graphics roadmap Phase 1). The caller's `style` AND the scale live on the Pressable ITSELF (an
+ * animated Pressable), so it stays the flex child of its parent (e.g. `flex: 1` buttons keep sharing
+ * a row) and the whole button scales. Drop-in for a Pressable/TouchableOpacity with a static style;
+ * the spring replaces any pressed-opacity styling.
  */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 interface PressableScaleProps extends Omit<PressableProps, 'style' | 'children'> {
   style?: StyleProp<ViewStyle>;
   pressedScale?: number;
@@ -27,7 +30,7 @@ export default function PressableScale({
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
       onPressIn={e => {
         scale.value = withSpring(pressedScale, MOTION_SPRING.press);
@@ -36,8 +39,9 @@ export default function PressableScale({
       onPressOut={e => {
         scale.value = withSpring(1, MOTION_SPRING.press);
         onPressOut?.(e);
-      }}>
-      <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
-    </Pressable>
+      }}
+      style={[style, animatedStyle]}>
+      {children}
+    </AnimatedPressable>
   );
 }
