@@ -1,4 +1,5 @@
 import { Encounter, Location } from '../models/Encounter';
+import type { Rarity } from '../models/Creature';
 import type { DistanceData } from './LocationService';
 
 /**
@@ -87,8 +88,12 @@ export class EncounterService {
   /**
    * Generate a random encounter
    */
-  generateEncounter(location: Location, playerLevel: number = 1): Encounter {
-    return Encounter.createRandomEncounter(location, playerLevel);
+  generateEncounter(
+    location: Location,
+    playerLevel: number = 1,
+    rarityOverride?: Rarity,
+  ): Encounter {
+    return Encounter.createRandomEncounter(location, playerLevel, rarityOverride);
   }
 
   /**
@@ -161,8 +166,8 @@ export class EncounterService {
   /**
    * Force generate an encounter (for testing)
    */
-  forceEncounter(location: Location, playerLevel: number = 1): Encounter {
-    const encounter = this.generateEncounter(location, playerLevel);
+  forceEncounter(location: Location, playerLevel: number = 1, rarityOverride?: Rarity): Encounter {
+    const encounter = this.generateEncounter(location, playerLevel, rarityOverride);
     this.distanceSinceLastEncounter = 0;
     this.lastEncounterTime = Date.now();
     return encounter;

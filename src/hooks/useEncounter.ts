@@ -844,6 +844,53 @@ export function useEncounter({
     setTimeRemaining(EncounterService.getTimeRemainingUntilEncounter());
   };
 
+  // ─── Debug-only encounter-routing helpers (DebugPanel, gated by enableDebugMode) ───
+  // Unlike forceEncounter (which BYPASSES the gate straight to the turn-based modal), these route a
+  // rarity-forced encounter through the REAL logic so debug behaves exactly like production: a
+  // common → passive auto-resolve (walk summary), an elite → held "worthy foe" card.
+  const debugEncounterContext = (): { location: Location; level: number } => {
+    const loc = currentLocationRef.current;
+    const location: Location = loc
+      ? { latitude: loc.latitude, longitude: loc.longitude }
+      : { latitude: 37.7749, longitude: -122.4194 };
+    return { location, level: playerRef.current?.level ?? 1 };
+  };
+
+  const debugForceIdleEncounter = (rarity: Rarity = 'common'): void => {
+    const { location, level } = debugEncounterContext();
+    const encounter = EncounterService.forceEncounter(location, level, rarity);
+    // Real passive path (foreground): applies idle-tier rewards + appends to the walk summary.
+    resolvePassiveEncounter(encounter, false).catch(e =>
+      console.error('debug passive encounter failed:', e),
+    );
+  };
+
+  const debugForceEliteEncounter = (rarity: Rarity = 'rare'): void => {
+    const { location, level } = debugEncounterContext();
+    const encounter = EncounterService.forceEncounter(location, level, rarity);
+    // Real hold path (foreground): surfaces the "worthy foe" card.
+    holdEliteEncounter(encounter, false).catch(e =>
+      console.error('debug elite encounter failed:', e),
+    );
+  };
+
+  const debugSimulateWalk = (count: number = 5): void => {
+    const { location, level } = debugEncounterContext();
+    // Fire N common passive resolutions to build a multi-entry walk summary fast. Each reads the
+    // freshest player (setPlayerAndSave updates playerRef synchronously) so rewards compound, and
+    // the summary appends serialize via the storage chain (see appendWalkSummaryEntry).
+    for (let i = 0; i < count; i++) {
+      const encounter = EncounterService.forceEncounter(location, level, 'common');
+      resolvePassiveEncounter(encounter, false).catch(e =>
+        console.error('debug passive encounter failed:', e),
+      );
+    }
+  };
+
+  const debugShowWalkSummary = (): void => {
+    checkWalkSummary().catch(e => console.error('debug show walk summary failed:', e));
+  };
+
   const onDistanceEncounterUpdate = async (
     distanceData: DistanceData,
     currentPlayer: Player | null,
@@ -1009,6 +1056,10 @@ export function useEncounter({
     handleExpandMinimized,
     handleFlee,
     forceEncounter,
+    debugForceIdleEncounter,
+    debugForceEliteEncounter,
+    debugSimulateWalk,
+    debugShowWalkSummary,
     onDistanceEncounterUpdate,
     clearEncounter,
   };

@@ -4,6 +4,7 @@ import {
   CREATURE_TEMPLATES,
   rollEncounterRarity,
   pickEncounterTemplate,
+  pickEncounterTemplateOfRarity,
   isEliteCreature,
   ELITE_RARITIES,
 } from '../../models/Creature';
@@ -286,5 +287,21 @@ describe('isEliteCreature', () => {
 
   it('ELITE_RARITIES is exactly rare/epic/legendary', () => {
     expect([...ELITE_RARITIES].sort()).toEqual(['epic', 'legendary', 'rare']);
+  });
+});
+
+describe('pickEncounterTemplateOfRarity (debug forcing)', () => {
+  it('returns a template of the requested rarity when one exists', () => {
+    for (const r of ['common', 'uncommon', 'rare', 'epic'] as const) {
+      for (let i = 0; i < 20; i++) {
+        expect(pickEncounterTemplateOfRarity(r).rarity).toBe(r);
+      }
+    }
+  });
+
+  it('falls back to a real template when no template of that rarity exists (e.g. legendary)', () => {
+    const ids = new Set(CREATURE_TEMPLATES.map(t => t.id));
+    const t = pickEncounterTemplateOfRarity('legendary');
+    expect(ids.has(t.id)).toBe(true);
   });
 });
