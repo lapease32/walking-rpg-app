@@ -201,11 +201,14 @@ describe('Creature', () => {
 });
 
 describe('encounter rarity scaling (level-weighted)', () => {
-  const rareRate = (lvl: number, n = 1000) => {
-    let r = 0;
-    for (let i = 0; i < n; i++) if (rollEncounterRarity(lvl) === 'rare') r++;
-    return r;
+  const rateOf = (predicate: (r: string) => boolean, lvl: number, n = 2000) => {
+    let c = 0;
+    for (let i = 0; i < n; i++) if (predicate(rollEncounterRarity(lvl))) c++;
+    return c;
   };
+  const rareRate = (lvl: number) => rateOf(r => r === 'rare', lvl);
+  const eliteRate = (lvl: number) => rateOf(r => r === 'rare' || r === 'epic', lvl);
+  const epicRate = (lvl: number) => rateOf(r => r === 'epic', lvl);
 
   it('NEVER rolls rare at level 1 (no unwinnable above-common fights for new players)', () => {
     for (let i = 0; i < 400; i++) {
@@ -221,10 +224,17 @@ describe('encounter rarity scaling (level-weighted)', () => {
     expect(common).toBeGreaterThan(350); // >70%
   });
 
-  it('rare frequency increases with level band (and is 0 at L1)', () => {
+  it('elite frequency (rare+epic) increases with level band (and is 0 at L1)', () => {
     expect(rareRate(1)).toBe(0);
-    expect(rareRate(6)).toBeGreaterThan(rareRate(3));
-    expect(rareRate(12)).toBeGreaterThan(rareRate(6));
+    expect(eliteRate(6)).toBeGreaterThan(eliteRate(3));
+    expect(eliteRate(12)).toBeGreaterThan(eliteRate(6));
+    expect(eliteRate(20)).toBeGreaterThan(eliteRate(12));
+  });
+
+  it('epic only appears at high level and grows from there', () => {
+    expect(epicRate(6)).toBe(0); // no epic below the L12 band
+    expect(epicRate(12)).toBeGreaterThan(0);
+    expect(epicRate(20)).toBeGreaterThan(epicRate(12));
   });
 
   it('pickEncounterTemplate returns a real template, never rare at level 1', () => {
@@ -234,6 +244,26 @@ describe('encounter rarity scaling (level-weighted)', () => {
       expect(ids.has(t.id)).toBe(true);
       expect(t.rarity).not.toBe('rare');
     }
+  });
+});
+
+describe('elite creature roster', () => {
+  it('has a varied elite roster (multiple rare templates + at least one epic)', () => {
+    const rares = CREATURE_TEMPLATES.filter(t => t.rarity === 'rare');
+    const epics = CREATURE_TEMPLATES.filter(t => t.rarity === 'epic');
+    // No longer just Mountain Guardian — worthy foes should vary.
+    expect(rares.length).toBeGreaterThanOrEqual(2);
+    expect(epics.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('carries a template resistance profile through onto the created creature', () => {
+    const epic = CREATURE_TEMPLATES.find(t => t.id === 'ashen_colossus')!;
+    const creature = createCreatureFromTemplate(epic, 10);
+    // Resist fire, vulnerable to frost — makes damage-type choice matter against elites.
+    expect(creature.resistances.fire).toBeGreaterThan(0);
+    expect(creature.resistances.frost).toBeLessThan(0);
+    // Unspecified types fall back to the neutral default.
+    expect(creature.resistances.arcane).toBe(0);
   });
 });
 
