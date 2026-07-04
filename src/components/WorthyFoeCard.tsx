@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Encounter } from '../models/Encounter';
 import { getRarityColor } from '../constants/rarity';
 
@@ -21,7 +22,9 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
   const color = getRarityColor(creature.rarity);
 
   return (
-    <View
+    // Phase-0 graphics proof: a spring fade+slide entrance via Reanimated when a worthy foe appears.
+    <Animated.View
+      entering={FadeInDown.springify().damping(14)}
       style={[styles.card, { borderColor: color, shadowColor: color }]}
       testID="worthy-foe-card">
       <Text style={styles.label}>⚔️ A WORTHY FOE STALKS YOU</Text>
@@ -41,7 +44,7 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
         testID="worthy-foe-fight">
         <Text style={styles.buttonText}>Fight →</Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
