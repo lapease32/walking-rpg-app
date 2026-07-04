@@ -139,9 +139,11 @@ export default function HomeScreen() {
 
   // Load player data and initialize notifications on mount
   useEffect(() => {
-    checkPendingEncounter();
-    // Surface any encounters that auto-resolved while the app was closed/backgrounded last session.
-    checkWalkSummary();
+    // Resolve any pending encounter FIRST, then drain the walk summary (auto-resolved encounters
+    // from a prior backgrounded session). Sequenced, not parallel: checkWalkSummary bails when an
+    // encounter is showing, so running it after checkPendingEncounter settles prevents the summary
+    // and encounter modals from stacking (two RN Modals conflict on iOS).
+    checkPendingEncounter().finally(() => checkWalkSummary());
     // Auth must be ready before loadPlayerData so cloud data is available on first load
     initializeAuth();
     // initializeTracking must await initializeNotifications so the tracking
@@ -200,13 +202,14 @@ export default function HomeScreen() {
     // Only check if transitioning from non-active to active (not on initial mount)
     // Skip if notification tap is being processed (it will handle the check)
     if (appState === 'active' && prevAppStateRef.current !== 'active') {
-      // The "while you walked" summary drains on any foreground transition; checkWalkSummary has
-      // its own in-flight guard, so calling it here (and from the notification handler) is safe.
-      checkWalkSummary();
-      // Pending-encounter check is skipped while a notification tap is being processed (that path
-      // handles it) to avoid a duplicate check.
-      if (!isProcessingNotificationTapRef.current) {
-        checkPendingEncounter();
+      // Sequence the pending-encounter check and the walk-summary drain so their modals can't
+      // stack (checkWalkSummary bails when an encounter is showing — see the mount effect).
+      // When a notification tap is mid-flight, that handler owns the pending-encounter check, so
+      // here we only drain the summary.
+      if (isProcessingNotificationTapRef.current) {
+        checkWalkSummary();
+      } else {
+        checkPendingEncounter().finally(() => checkWalkSummary());
       }
     }
     prevAppStateRef.current = appState;

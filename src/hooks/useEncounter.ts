@@ -384,21 +384,25 @@ export function useEncounter({
     if (isCheckingWalkSummaryRef.current) {
       return;
     }
-    // Guard lives HERE (not just at the call sites) so every caller — mount, foreground, the
-    // encounter/reveal effect below — is protected. Don't open the summary over anything it would
-    // conflict with: an active encounter; a victory reward reveal, showing OR still pending on its
-    // deferred timer (two RN Modals conflict on iOS — see REWARD_REVEAL_DELAY_MS); or an
-    // already-open summary (replacing it would hide fights the player hasn't seen yet). When the
-    // blocker clears, the effect below (currentEncounter / rewardReveal) or the next foreground
-    // re-invokes this to drain then. Reads are call-time state, before any await — fresh because
-    // this closure is recreated each render and callers always use the latest instance.
-    if (encounterRef.current || rewardReveal || rewardRevealTimerRef.current || walkSummary) {
+    // Blockers the summary must never cover (two RN Modals conflict on iOS — see
+    // REWARD_REVEAL_DELAY_MS): an active encounter; a victory reward reveal, showing OR still
+    // pending on its deferred timer; or an already-open summary (replacing it would hide fights the
+    // player hasn't seen). Checked HERE (not just at call sites) so every caller is protected.
+    const blocked = () =>
+      !!encounterRef.current || !!rewardReveal || !!rewardRevealTimerRef.current || !!walkSummary;
+    if (blocked()) {
       return;
     }
     isCheckingWalkSummaryRef.current = true;
     try {
       const entries = await loadWalkSummary();
       if (entries.length === 0) {
+        return;
+      }
+      // Re-check AFTER the async load: encounterRef can flip mid-load — e.g. a parallel
+      // checkPendingEncounter opening the encounter modal. If blocked now, leave the entries in
+      // storage (drain on the next foreground) rather than stack two Modals.
+      if (blocked()) {
         return;
       }
       const cleared = await clearWalkSummary();
