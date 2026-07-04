@@ -180,7 +180,8 @@ export function useEncounter({
 
     try {
       if (encounterRef.current) {
-        await clearPendingEncounter();
+        // An encounter is already active — leave the held "worthy foe" in storage to present after
+        // it clears, rather than discarding it (it's a fight the player should still get).
         return;
       }
 
@@ -315,13 +316,17 @@ export function useEncounter({
 
   // Hold an ELITE encounter that fired while the app is backgrounded: persist it (the "worthy foe"
   // store) + fire a notification. The player engages it turn-based on next foreground via
-  // checkPendingEncounter (which opens the encounter modal). One worthy foe at a time — if one is
-  // already held, the new elite is skipped (no queue). Reuses the pending-encounter store.
-  const holdEliteEncounter = async (encounter: Encounter): Promise<void> => {
+  // checkPendingEncounter (which opens the encounter modal). One worthy foe at a time.
+  //
+  // Returns whether the foe was HELD. Returns false when it couldn't be — a foe is already held
+  // (overflow) or the save failed — so the caller resolves the encounter passively instead of
+  // losing it (the roll was already consumed upstream). Notification failure does NOT unset the
+  // hold (the foe is persisted regardless).
+  const holdEliteEncounter = async (encounter: Encounter): Promise<boolean> => {
     try {
       const existing = await loadPendingEncounter();
       if (existing) {
-        return;
+        return false;
       }
       const encounterData: EncounterData = {
         creature: {
@@ -345,12 +350,19 @@ export function useEncounter({
       };
       const saveSuccess = await savePendingEncounter(encounterData);
       if (!saveSuccess) {
-        console.error('Failed to hold elite encounter, skipping notification');
-        return;
+        console.error('Failed to hold elite encounter');
+        return false;
       }
-      await NotificationService.showEncounterNotification(encounter);
+      // Best-effort notification — the foe is already held whether or not this succeeds.
+      try {
+        await NotificationService.showEncounterNotification(encounter);
+      } catch (error) {
+        console.error('Elite held but notification failed:', error);
+      }
+      return true;
     } catch (error) {
       console.error('Error holding elite encounter:', error);
+      return false;
     }
   };
 
@@ -885,8 +897,12 @@ export function useEncounter({
         if (isEliteCreature(encounter.creature)) {
           if (isInBackground) {
             // Elite while backgrounded: hold it as a "worthy foe" + notify; engaged on next
-            // foreground via checkPendingEncounter.
-            await holdEliteEncounter(encounter);
+            // foreground via checkPendingEncounter. If it can't be held (a foe is already held, or
+            // the save failed), auto-resolve it passively so the encounter isn't lost.
+            const held = await holdEliteEncounter(encounter);
+            if (!held) {
+              await resolvePassiveEncounter(encounter, isInBackground);
+            }
           } else {
             // Elite while foreground: the worthy foe appears now (turn-based encounter modal).
             encounterRef.current = encounter;
