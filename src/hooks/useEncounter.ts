@@ -77,6 +77,10 @@ export function useEncounter({
   // Non-null → the "while you walked" summary modal is shown for these passively-resolved
   // encounters. Populated by checkWalkSummary on app-foreground; cleared on dismiss.
   const [walkSummary, setWalkSummary] = useState<WalkSummaryEntry[] | null>(null);
+  // Non-null → a held ELITE "worthy foe" is waiting; drives the inline WorthyFoeCard (NOT a modal,
+  // so it never conflicts with the summary/reveal modals). Reflected from the pending-encounter
+  // store by refreshHeldFoe; engageHeldFoe presents the turn-based fight on tap.
+  const [heldFoe, setHeldFoe] = useState<Encounter | null>(null);
   // Authoritative refs — always current, used for synchronous reads inside handlers.
   // playerCombatStateRef replaces the old playerResourceRef pattern and extends it to
   // the full state so every handler sees post-last-ability values, not stale closures.
@@ -87,7 +91,6 @@ export function useEncounter({
   const fleeProcessedRef = useRef<boolean>(false);
   const isCheckingPendingEncounterRef = useRef<boolean>(false);
   const isCheckingWalkSummaryRef = useRef<boolean>(false);
-  const isProcessingNotificationTapRef = useRef<boolean>(false);
   const encounterRef = useRef<Encounter | null>(null);
   const isMinimizedRef = useRef<boolean>(false);
   const showCombatModalRef = useRef<boolean>(false);
@@ -166,66 +169,69 @@ export function useEncounter({
       rewardRevealTimerRef.current = null;
     }
     setRewardReveal(null);
-    // Drop any in-memory walk summary so a previous account's passive haul can't linger over the
-    // new session (the persisted log is per-account and drained on foreground for the signed-in user).
+    // Drop any in-memory walk summary + held foe so a previous account's passive haul / worthy foe
+    // can't linger over the new session (the persisted stores are per-account and wiped by
+    // clearLocalPlayerData on account switch).
     setWalkSummary(null);
+    setHeldFoe(null);
   };
 
-  const checkPendingEncounter = async (): Promise<void> => {
-    if (isCheckingPendingEncounterRef.current) {
+  // Reflect the persisted "worthy foe" store into heldFoe state (drives the inline WorthyFoeCard).
+  // Peek only — no modal, no clear — so it can run freely on foreground/mount alongside the walk
+  // summary without any modal-stacking coordination (a card isn't a modal). engageHeldFoe presents
+  // the fight on tap. Skips while an encounter is active (the store is cleared then, and we don't
+  // want the card flashing over a fight).
+  const refreshHeldFoe = async (): Promise<void> => {
+    if (isCheckingPendingEncounterRef.current || encounterRef.current) {
       return;
     }
-
     isCheckingPendingEncounterRef.current = true;
-
     try {
-      // Don't present a held "worthy foe" over anything it would stack on (two RN Modals conflict on
-      // iOS): an active encounter, a reward reveal (showing OR pending on its timer), or a walk
-      // summary. Leave it stored — the effect on [currentEncounter, rewardReveal, walkSummary]
-      // re-attempts once they clear. (Never clears the store here, so the foe is preserved.)
-      if (encounterRef.current || rewardReveal || rewardRevealTimerRef.current || walkSummary) {
-        return;
-      }
-
       const pendingEncounterData = await loadPendingEncounter();
       if (pendingEncounterData) {
         const creature = new Creature(pendingEncounterData.creature);
-        const encounter = new Encounter({
-          creature,
-          location: pendingEncounterData.location,
-          timestamp: pendingEncounterData.timestamp,
-          playerLevel: pendingEncounterData.playerLevel,
-          status: pendingEncounterData.status,
-        });
-
-        encounterRef.current = encounter;
-        isMinimizedRef.current = false;
-        showCombatModalRef.current = false;
-        victoryProcessedRef.current = false;
-        fleeProcessedRef.current = false;
-
-        const clearSuccess = await clearPendingEncounter();
-        if (!clearSuccess) {
-          encounterRef.current = null;
-          isMinimizedRef.current = false;
-          showCombatModalRef.current = false;
-          victoryProcessedRef.current = false;
-          fleeProcessedRef.current = false;
-          console.error(
-            'Failed to clear pending encounter - skipping encounter display to prevent data loss',
-          );
-          return;
-        }
-
-        setCurrentEncounter(encounter);
-        setShowEncounterModal(true);
-        setIsEncounterModalMinimized(false);
+        setHeldFoe(
+          new Encounter({
+            creature,
+            location: pendingEncounterData.location,
+            timestamp: pendingEncounterData.timestamp,
+            playerLevel: pendingEncounterData.playerLevel,
+            status: pendingEncounterData.status,
+          }),
+        );
+      } else {
+        setHeldFoe(null);
       }
     } catch (error) {
-      console.error('Error checking pending encounter:', error);
+      console.error('Error refreshing held foe:', error);
     } finally {
       isCheckingPendingEncounterRef.current = false;
     }
+  };
+
+  // Engage the held "worthy foe" (WorthyFoeCard "Fight" tap): present it as the active turn-based
+  // encounter. Deliberate user action, so no modal-stacking concern (the card sits behind any
+  // modal; the player dismisses those to reach it). Clears the persisted hold FIRST so it can't be
+  // re-surfaced as a card during/after the fight; only presents if the clear succeeded.
+  const engageHeldFoe = async (): Promise<void> => {
+    const encounter = heldFoe;
+    if (!encounter || encounterRef.current) {
+      return;
+    }
+    const cleared = await clearPendingEncounter();
+    if (!cleared) {
+      console.error('Failed to clear held foe; not engaging to avoid a duplicate');
+      return;
+    }
+    encounterRef.current = encounter;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    victoryProcessedRef.current = false;
+    fleeProcessedRef.current = false;
+    setHeldFoe(null);
+    setCurrentEncounter(encounter);
+    setShowEncounterModal(true);
+    setIsEncounterModalMinimized(false);
   };
 
   const handleVictory = (playerToUse?: Player): void => {
@@ -360,8 +366,11 @@ export function useEncounter({
         console.error('Failed to hold elite encounter');
         return false;
       }
-      // Notify only when backgrounded (the player isn't looking); a foreground elite is presented
-      // immediately by the caller. Best-effort — the foe is held whether or not this succeeds.
+      // Surface the inline "worthy foe" card immediately (in memory) — non-modal, so no
+      // coordination needed. On a cold start from a backgrounded hold, refreshHeldFoe re-loads it.
+      setHeldFoe(encounter);
+      // Notify only when backgrounded (the player isn't looking); a foreground hold shows the card
+      // right away. Best-effort — the foe is held whether or not this succeeds.
       if (isBackground) {
         try {
           await NotificationService.showEncounterNotification(encounter);
@@ -499,23 +508,6 @@ export function useEncounter({
     // of leaving it until the next foreground. checkWalkSummary is intentionally omitted from deps:
     // it's recreated each render, so including it would run the drain (an AsyncStorage read) every
     // render; checkWalkSummary self-guards and reads fresh state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEncounter, rewardReveal, walkSummary]);
-
-  // Present a held "worthy foe" once nothing else is on screen. checkPendingEncounter bails while a
-  // fight is active (it leaves the foe stored — see its guard), and a fight ending mid-session
-  // doesn't otherwise re-trigger it, so re-attempt when the encounter / reward reveal / walk summary
-  // clear. Guarded so the held-foe encounter modal never stacks over the reveal or summary (two RN
-  // Modals conflict on iOS). Declared AFTER the walk-summary effect so a pending summary presents
-  // first; the foe surfaces once it's dismissed. checkPendingEncounter self-guards + is omitted from
-  // deps (recreated each render; including it would re-run every render).
-  useEffect(() => {
-    if (!currentEncounter && !rewardReveal && !rewardRevealTimerRef.current && !walkSummary) {
-      checkPendingEncounter();
-    }
-    // checkPendingEncounter is intentionally omitted from deps: it's recreated each render, so
-    // including it would run a storage read every render. Re-attempt only when the encounter /
-    // reveal / summary presence changes; checkPendingEncounter self-guards and reads fresh state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEncounter, rewardReveal, walkSummary]);
 
@@ -922,18 +914,13 @@ export function useEncounter({
         // the walk); ELITE creatures (rare+, isEliteCreature) are the deliberate turn-based "boss
         // fights" that pay the better-loot differential.
         if (isEliteCreature(encounter.creature)) {
-          // ALL elites route through the SAME hold + present path (foreground and background), so
-          // the "one foe at a time" overflow rule and the anti-modal-stacking guard apply uniformly.
+          // Hold the elite as a "worthy foe". holdEliteEncounter surfaces the inline card (foreground
+          // and background alike) and notifies when backgrounded — the player engages it turn-based
+          // from the card. If it can't be held (a foe is already held, or the save failed), resolve
+          // it passively so the encounter isn't lost.
           const held = await holdEliteEncounter(encounter, isInBackground);
           if (!held) {
-            // A foe is already held (overflow) or the save failed — resolve passively so the
-            // encounter isn't lost.
             await resolvePassiveEncounter(encounter, isInBackground);
-          } else if (!isInBackground) {
-            // Foreground: present the worthy foe now. checkPendingEncounter self-guards against
-            // stacking over a reward reveal / walk summary / active encounter (leaving it stored to
-            // present when they clear). Backgrounded holds are presented on next foreground.
-            await checkPendingEncounter();
           }
         } else {
           // Common: auto-resolve passively. resolvePassiveEncounter reads playerRef and no-ops if no
@@ -1011,8 +998,9 @@ export function useEncounter({
     walkSummary,
     checkWalkSummary,
     dismissWalkSummary,
-    isProcessingNotificationTapRef,
-    checkPendingEncounter,
+    heldFoe,
+    refreshHeldFoe,
+    engageHeldFoe,
     handleFight,
     handleAbility,
     handleDebugDefeat,
