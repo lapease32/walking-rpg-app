@@ -2,22 +2,25 @@ import { useState, useRef, useEffect, MutableRefObject } from 'react';
 import { Alert, AppStateStatus } from 'react-native';
 import { Player } from '../models/Player';
 import { Encounter, Location } from '../models/Encounter';
-import { Creature, Rarity } from '../models/Creature';
+import { Creature, Rarity, isEliteCreature } from '../models/Creature';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
-import { dropItem, generateItem } from '../services/LootService';
+import { dropActiveCombatItem, generateItem } from '../services/LootService';
 import { resolveAutoCombat } from '../models/AutoCombat';
+import { activeCombatXp } from '../models/combatRewards';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
   clearPendingEncounter,
+  savePendingEncounter,
   appendWalkSummaryEntry,
   drainWalkSummary,
   WalkSummaryEntry,
+  EncounterData,
 } from '../utils/storage';
-import { ENCOUNTER_CONFIG, COMBAT_CONFIG } from '../constants/config';
+import { ENCOUNTER_CONFIG } from '../constants/config';
 import {
   Ability,
   BuffDebuffAbility,
@@ -240,10 +243,13 @@ export function useEncounter({
     updatedPlayer.defeatCreature();
     updatedPlayer.incrementEncounters();
 
-    const expGain = currentEncounterState.creature.getExperienceReward();
+    // Turn-based wins are elite fights (see the encounter gate) — apply the active-combat reward
+    // differential: boosted XP + a higher drop chance + multiplier-scaled stat rolls. Passive
+    // (walking) wins stay idle-tier, so stopping to fight a worthy foe is genuinely worth it.
+    const expGain = activeCombatXp(currentEncounterState.creature.getExperienceReward());
     const levelsGained = updatedPlayer.addExperience(expGain);
 
-    const droppedItem = dropItem(forceItemDrop, updatedPlayer.level, forcedRarity);
+    const droppedItem = dropActiveCombatItem(forceItemDrop, updatedPlayer.level, forcedRarity);
     let inventoryFull = false;
     let isUpgrade = false;
     if (droppedItem) {
@@ -305,6 +311,47 @@ export function useEncounter({
       rewardRevealTimerRef.current = null;
       setRewardReveal(reveal);
     }, REWARD_REVEAL_DELAY_MS);
+  };
+
+  // Hold an ELITE encounter that fired while the app is backgrounded: persist it (the "worthy foe"
+  // store) + fire a notification. The player engages it turn-based on next foreground via
+  // checkPendingEncounter (which opens the encounter modal). One worthy foe at a time — if one is
+  // already held, the new elite is skipped (no queue). Reuses the pending-encounter store.
+  const holdEliteEncounter = async (encounter: Encounter): Promise<void> => {
+    try {
+      const existing = await loadPendingEncounter();
+      if (existing) {
+        return;
+      }
+      const encounterData: EncounterData = {
+        creature: {
+          id: encounter.creature.id,
+          name: encounter.creature.name,
+          type: encounter.creature.type,
+          level: encounter.creature.level,
+          hp: encounter.creature.hp,
+          maxHp: encounter.creature.maxHp,
+          attack: encounter.creature.attack,
+          defense: encounter.creature.defense,
+          speed: encounter.creature.speed,
+          rarity: encounter.creature.rarity,
+          description: encounter.creature.description,
+          encounterRate: encounter.creature.encounterRate,
+        },
+        location: encounter.location,
+        timestamp: encounter.timestamp,
+        playerLevel: encounter.playerLevel,
+        status: encounter.status,
+      };
+      const saveSuccess = await savePendingEncounter(encounterData);
+      if (!saveSuccess) {
+        console.error('Failed to hold elite encounter, skipping notification');
+        return;
+      }
+      await NotificationService.showEncounterNotification(encounter);
+    } catch (error) {
+      console.error('Error holding elite encounter:', error);
+    }
   };
 
   // Resolve an encounter passively (auto-combat) instead of opening the turn-based screen — used
@@ -830,46 +877,32 @@ export function useEncounter({
           encounter.playerLevel,
         );
         const isInBackground = appStateRef.current !== 'active';
-        // Passive/active gate (the hybrid idle/active loop): while the player is moving OR the app
-        // is backgrounded — i.e. they're walking, not looking — auto-resolve the encounter so the
-        // walk is never interrupted. Only when the player is STOPPED with the app open do we
-        // present the turn-based opt-in. Rewards + a "while you walked" summary entry are handled
-        // in resolvePassiveEncounter.
-        //
-        // Use THIS segment's speed (distanceData.location.speed, m/s), NOT
-        // LocationService.getCurrentSpeed(): the distance callback fires before LocationService
-        // commits currentLocation, so getCurrentSpeed() would read the PREVIOUS fix's speed
-        // (LocationService invokes onDistanceUpdate, then sets currentLocation). Distance only
-        // accumulates from high-accuracy fixes, so location.speed is reliable at encounter time.
-        // GPS often reports speed as 0 even while walking (missing speed → 0), so speed alone would
-        // misclassify a walker as stopped and wrongly interrupt them with the turn-based modal. Also
-        // treat a segment that covered real ground as moving — distance only accrues from
-        // high-accuracy fixes, so it's a reliable "walking" signal at encounter time. NOTE: because
-        // encounters only fire from accumulated movement, this routes natural encounters to passive
-        // by default; a dedicated "stop and fight this one" turn-based opt-in is a future design
-        // decision (a speed gate can't cleanly detect "stopped" — a stationary player generates no
-        // encounters). The turn-based path stays reachable via the debug force-encounter flow.
-        const segmentSpeedKmh = location.speed * 3.6;
-        const isMoving =
-          segmentSpeedKmh >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH ||
-          distanceData.incremental >= COMBAT_CONFIG.PASSIVE_MOVE_DISTANCE_M;
+        // RARITY gate (the hybrid idle/active loop). Rarity — not movement — decides the path, since
+        // encounters only fire from movement anyway (a speed gate can't tell "walking" from
+        // "stopped"): COMMON creatures auto-resolve passively into the walk summary (never interrupt
+        // the walk); ELITE creatures (rare+, isEliteCreature) are the deliberate turn-based "boss
+        // fights" that pay the better-loot differential.
+        if (isEliteCreature(encounter.creature)) {
+          if (isInBackground) {
+            // Elite while backgrounded: hold it as a "worthy foe" + notify; engaged on next
+            // foreground via checkPendingEncounter.
+            await holdEliteEncounter(encounter);
+          } else {
+            // Elite while foreground: the worthy foe appears now (turn-based encounter modal).
+            encounterRef.current = encounter;
+            isMinimizedRef.current = false;
+            showCombatModalRef.current = false;
+            victoryProcessedRef.current = false;
+            fleeProcessedRef.current = false;
 
-        if (isInBackground || isMoving) {
-          // Passive auto-resolve. resolvePassiveEncounter reads playerRef and no-ops if no player is
-          // loaded yet, so a backgrounded/moving encounter never falls through to open turn-based UI
-          // that wouldn't be visible (and couldn't be fought) while the app is backgrounded.
-          await resolvePassiveEncounter(encounter, isInBackground);
+            setCurrentEncounter(encounter);
+            setShowEncounterModal(true);
+            setIsEncounterModalMinimized(false);
+          }
         } else {
-          // Stopped + foreground → the turn-based opt-in.
-          encounterRef.current = encounter;
-          isMinimizedRef.current = false;
-          showCombatModalRef.current = false;
-          victoryProcessedRef.current = false;
-          fleeProcessedRef.current = false;
-
-          setCurrentEncounter(encounter);
-          setShowEncounterModal(true);
-          setIsEncounterModalMinimized(false);
+          // Common: auto-resolve passively. resolvePassiveEncounter reads playerRef and no-ops if no
+          // player is loaded yet, so it never falls through to open turn-based UI.
+          await resolvePassiveEncounter(encounter, isInBackground);
         }
 
         setEncounterChance(0);

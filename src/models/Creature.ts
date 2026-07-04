@@ -255,3 +255,18 @@ export function pickEncounterTemplate(playerLevel: number = 1): CreatureTemplate
   const pool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
   return pool[Math.floor(Math.random() * pool.length)];
 }
+
+// Rarities that make a creature "elite" — a worthy foe HELD for a deliberate turn-based fight
+// (better loot) instead of being auto-resolved passively while walking. Tunable; today only `rare`
+// has a template, so elites phase in with level via ENCOUNTER_RARITY_WEIGHTS (0% at L1-2 … 35% at
+// L12+). epic/legendary are future content but classify as elite when templates are added.
+export const ELITE_RARITIES: readonly Rarity[] = ['rare', 'epic', 'legendary'];
+
+/**
+ * True if a creature is "elite" (rare+): held for a deliberate turn-based fight rather than
+ * auto-resolved passively. Accepts anything with a `rarity` so it works on a Creature or serialized
+ * creature data.
+ */
+export function isEliteCreature(creature: { rarity: Rarity }): boolean {
+  return ELITE_RARITIES.includes(creature.rarity);
+}

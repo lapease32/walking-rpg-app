@@ -1,6 +1,7 @@
 import { Item, Affix, AffixStat } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { LOOT_CONFIG } from '../constants/config';
+import { activeCombatDropChance } from '../models/combatRewards';
 
 type ItemSlot = 'weapon' | 'offhand' | 'head' | 'chest' | 'legs' | 'boots' | 'gloves' | 'accessory';
 
@@ -123,15 +124,20 @@ function buildName(slot: ItemSlot, affixes: Affix[]): string {
   return `${pick(AFFIX_PREFIXES[dominant.stat])} ${base}`;
 }
 
-export function generateItem(playerLevel = 1, rarityOverride?: Rarity): Item {
+export function generateItem(playerLevel = 1, rarityOverride?: Rarity, statMultiplier = 1): Item {
   const slot = pick(SLOTS);
   // rarityOverride is a debug-only hook (DebugPanel "Drop Rarity" / "Preview Reveal"); normal
   // play always rolls. Stats/affixes still derive from the resulting rarity either way.
   const rarity = rarityOverride ?? rollRarity(playerLevel);
   const primaryStat = AFFIX_POOLS[slot][0];
   const baseRange = BASE_RANGES[rarity];
-  const baseValue = randInt(baseRange.min, baseRange.max);
-  const affixes = rollAffixes(slot, rarity);
+  // statMultiplier (>1 for active/turn-based elite wins — see ACTIVE_COMBAT_LOOT_MULTIPLIER) scales
+  // the rolled stat values so a deliberately-fought elite drops beefier gear. Default 1 leaves
+  // passive drops and every existing caller unchanged. Applied to the base AND affix values so the
+  // item's baked stats and its displayed affix "Modifiers" stay consistent.
+  const scaleStat = (v: number) => Math.floor(v * statMultiplier);
+  const baseValue = scaleStat(randInt(baseRange.min, baseRange.max));
+  const affixes = rollAffixes(slot, rarity).map(a => ({ ...a, value: scaleStat(a.value) }));
 
   // Pre-bake affix values into the item's stat fields.
   let attack: number | undefined;
@@ -183,6 +189,26 @@ export function dropItem(
 ): Item | null {
   if (forceDrop || shouldDropItem()) {
     return generateItem(playerLevel, rarityOverride ?? undefined);
+  }
+  return null;
+}
+
+/**
+ * Roll a drop for an ACTIVE (turn-based elite) win: a higher drop chance than passive
+ * (activeCombatDropChance) plus multiplier-scaled stat rolls (ACTIVE_COMBAT_LOOT_MULTIPLIER).
+ * Mirrors dropItem so the turn-based win path (handleVictory) stays symmetric with the passive one.
+ */
+export function dropActiveCombatItem(
+  forceDrop = false,
+  playerLevel = 1,
+  rarityOverride?: Rarity | null,
+): Item | null {
+  if (forceDrop || Math.random() < activeCombatDropChance()) {
+    return generateItem(
+      playerLevel,
+      rarityOverride ?? undefined,
+      LOOT_CONFIG.ACTIVE_COMBAT_LOOT_MULTIPLIER,
+    );
   }
   return null;
 }

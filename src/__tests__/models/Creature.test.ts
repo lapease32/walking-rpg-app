@@ -4,6 +4,8 @@ import {
   CREATURE_TEMPLATES,
   rollEncounterRarity,
   pickEncounterTemplate,
+  isEliteCreature,
+  ELITE_RARITIES,
 } from '../../models/Creature';
 import { DEFAULT_RESISTANCES, applyResistance } from '../../models/DamageType';
 
@@ -232,5 +234,27 @@ describe('encounter rarity scaling (level-weighted)', () => {
       expect(ids.has(t.id)).toBe(true);
       expect(t.rarity).not.toBe('rare');
     }
+  });
+});
+
+describe('isEliteCreature', () => {
+  it('classifies rare and above as elite (held for turn-based)', () => {
+    expect(isEliteCreature({ rarity: 'rare' })).toBe(true);
+    expect(isEliteCreature({ rarity: 'epic' })).toBe(true);
+    expect(isEliteCreature({ rarity: 'legendary' })).toBe(true);
+  });
+
+  it('classifies common and uncommon as non-elite (auto-resolved passively)', () => {
+    expect(isEliteCreature({ rarity: 'common' })).toBe(false);
+    expect(isEliteCreature({ rarity: 'uncommon' })).toBe(false);
+  });
+
+  it('works on a full Creature instance', () => {
+    expect(isEliteCreature(makeCreature({ rarity: 'rare' }))).toBe(true);
+    expect(isEliteCreature(makeCreature({ rarity: 'common' }))).toBe(false);
+  });
+
+  it('ELITE_RARITIES is exactly rare/epic/legendary', () => {
+    expect([...ELITE_RARITIES].sort()).toEqual(['epic', 'legendary', 'rare']);
   });
 });

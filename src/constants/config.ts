@@ -116,19 +116,6 @@ export const COMBAT_CONFIG = {
   // a win outright. Balance placeholders.
   AUTO_COMBAT_MIN_WIN_RATE: 0.2,
   AUTO_COMBAT_MAX_WIN_RATE: 0.95,
-
-  // Speed (km/h) at or above which the player is considered "moving" for the passive/active
-  // gate: an encounter that fires while moving auto-resolves instead of interrupting the walk.
-  // ~2 km/h is a slow amble — comfortably above GPS jitter, below a real walking pace.
-  // Balance placeholder.
-  PASSIVE_SPEED_THRESHOLD_KMH: 2,
-
-  // Fallback movement signal for the passive/active gate: distance (meters) covered in the GPS
-  // segment that triggered the encounter. GPS often reports speed as 0 even while walking (missing
-  // speed → 0), so speed alone misclassifies a walker as stopped; a segment that covered real
-  // ground means moving. Distance only accumulates from high-accuracy fixes, so this is reliable
-  // at encounter time. Balance placeholder.
-  PASSIVE_MOVE_DISTANCE_M: 3,
 } as const;
 
 // Each zone is this many km from the player's session start point.
