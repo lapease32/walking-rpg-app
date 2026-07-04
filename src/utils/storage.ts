@@ -293,16 +293,26 @@ export async function loadWalkSummary(): Promise<WalkSummaryEntry[]> {
   }
 }
 
+// Serializes appendWalkSummaryEntry's read-modify-write. Passive resolutions are fired from
+// un-awaited GPS distance callbacks, so two can overlap; without this chain their load→setItem
+// could interleave and silently drop entries. Each append waits for the previous to finish.
+let walkSummaryWriteChain: Promise<void> = Promise.resolve();
+
 /**
  * Append one resolved-encounter record to the walk-summary log, trimmed to the most recent
- * MAX_WALK_SUMMARY_ENTRIES. Read-modify-write; callers resolve encounters serially so there is
- * no concurrent-append race.
+ * MAX_WALK_SUMMARY_ENTRIES. The read-modify-write is serialized through a module-level chain so
+ * concurrent appends queue instead of racing (a race could otherwise drop entries).
  */
 export async function appendWalkSummaryEntry(entry: WalkSummaryEntry): Promise<boolean> {
-  try {
+  const run = walkSummaryWriteChain.then(async () => {
     const existing = await loadWalkSummary();
     const next = [...existing, entry].slice(-MAX_WALK_SUMMARY_ENTRIES);
     await AsyncStorage.setItem(STORAGE_KEYS.WALK_SUMMARY, JSON.stringify(next));
+  });
+  // Keep the chain alive even if this write throws, so one failure can't wedge later appends.
+  walkSummaryWriteChain = run.catch(() => {});
+  try {
+    await run;
     return true;
   } catch (error) {
     console.error('Error appending walk summary entry:', error);

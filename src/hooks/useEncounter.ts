@@ -835,9 +835,13 @@ export function useEncounter({
         const segmentSpeedKmh = location.speed * 3.6;
         const isMoving = segmentSpeedKmh >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH;
 
-        if ((isInBackground || isMoving) && currentPlayer) {
+        if (isInBackground || isMoving) {
+          // Passive auto-resolve. resolvePassiveEncounter reads playerRef and no-ops if no player is
+          // loaded yet, so a backgrounded/moving encounter never falls through to open turn-based UI
+          // that wouldn't be visible (and couldn't be fought) while the app is backgrounded.
           await resolvePassiveEncounter(encounter, isInBackground);
         } else {
+          // Stopped + foreground → the turn-based opt-in.
           encounterRef.current = encounter;
           isMinimizedRef.current = false;
           showCombatModalRef.current = false;

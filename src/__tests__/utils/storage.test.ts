@@ -328,6 +328,30 @@ describe('appendWalkSummaryEntry', () => {
     mockSetItem.mockRejectedValue(new Error('storage error'));
     expect(await appendWalkSummaryEntry(makeSummaryEntry())).toBe(false);
   });
+
+  it('does not drop entries when two appends overlap (serialized read-modify-write)', async () => {
+    // Back the mock with a real store whose get/set YIELD, so two un-awaited appends interleave —
+    // the exact overlap that could drop an entry without the module-level write chain.
+    let store: string | null = null;
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key !== '@walking_rpg:walk_summary') return null;
+      await Promise.resolve();
+      return store;
+    });
+    mockSetItem.mockImplementation(async (key: string, val: string) => {
+      if (key !== '@walking_rpg:walk_summary') return;
+      await Promise.resolve();
+      store = val;
+    });
+
+    const a = makeSummaryEntry({ creatureName: 'A', timestamp: 1 });
+    const b = makeSummaryEntry({ creatureName: 'B', timestamp: 2 });
+    // Fire both without awaiting the first — a lost update here would drop one entry.
+    await Promise.all([appendWalkSummaryEntry(a), appendWalkSummaryEntry(b)]);
+
+    const finalEntries = JSON.parse(store ?? '[]') as WalkSummaryEntry[];
+    expect(finalEntries.map(e => e.creatureName).sort()).toEqual(['A', 'B']);
+  });
 });
 
 describe('clearWalkSummary', () => {
