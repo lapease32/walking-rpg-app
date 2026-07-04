@@ -868,22 +868,28 @@ export function useEncounter({
   const debugForceEliteEncounter = (rarity: Rarity = 'rare'): void => {
     const { location, level } = debugEncounterContext();
     const encounter = EncounterService.forceEncounter(location, level, rarity);
-    // Real hold path (foreground): surfaces the "worthy foe" card.
-    holdEliteEncounter(encounter, false).catch(e =>
-      console.error('debug elite encounter failed:', e),
-    );
+    // Real hold path (foreground): surfaces the "worthy foe" card. Mirror the production gate — if
+    // the elite can't be held (one is already held, or the save failed), fall back to a passive
+    // resolution so the forced encounter is never silently dropped.
+    holdEliteEncounter(encounter, false)
+      .then(held => (held ? undefined : resolvePassiveEncounter(encounter, false)))
+      .catch(e => console.error('debug elite encounter failed:', e));
   };
 
-  const debugSimulateWalk = (count: number = 5): void => {
+  const debugSimulateWalk = async (count: number = 5): Promise<void> => {
     const { location, level } = debugEncounterContext();
-    // Fire N common passive resolutions to build a multi-entry walk summary fast. Each reads the
-    // freshest player (setPlayerAndSave updates playerRef synchronously) so rewards compound, and
-    // the summary appends serialize via the storage chain (see appendWalkSummaryEntry).
+    // Fire N common passive resolutions to build a multi-entry walk summary. AWAIT each one so the
+    // runs are strictly sequential: resolvePassiveEncounter reads playerRef and setPlayerAndSave
+    // updates it, so awaiting lets rewards compound off the prior result and serializes the storage
+    // saves (player + summary append). Firing them in parallel would leave the saves racing to land
+    // in order — the sequential form matches how a real walk resolves one encounter at a time.
     for (let i = 0; i < count; i++) {
       const encounter = EncounterService.forceEncounter(location, level, 'common');
-      resolvePassiveEncounter(encounter, false).catch(e =>
-        console.error('debug passive encounter failed:', e),
-      );
+      try {
+        await resolvePassiveEncounter(encounter, false);
+      } catch (e) {
+        console.error('debug passive encounter failed:', e);
+      }
     }
   };
 
