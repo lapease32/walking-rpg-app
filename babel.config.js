@@ -6,6 +6,11 @@ module.exports = function (api) {
   api.cache.using(() => process.env.APP_ENV);
   return {
     presets: ['module:@react-native/babel-preset'],
+    // Powers react-native-reanimated (v4 splits worklets into react-native-worklets). This plugin
+    // MUST be listed last. It rewrites 'worklet'-directive functions + Reanimated hooks to run on
+    // the UI thread; on non-animated code it's a no-op, so it's safe app-wide (incl. jest, where
+    // reanimated is additionally mocked in jest.setup.js).
+    plugins: ['react-native-worklets/plugin'],
     env: {
       // Release bundling runs with BABEL_ENV=production. Inline APP_ENV into the
       // bundle there so build-time environment selection is baked into the binary.
