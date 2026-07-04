@@ -179,9 +179,11 @@ export function useEncounter({
     isCheckingPendingEncounterRef.current = true;
 
     try {
-      if (encounterRef.current) {
-        // An encounter is already active — leave the held "worthy foe" in storage to present after
-        // it clears, rather than discarding it (it's a fight the player should still get).
+      // Don't present a held "worthy foe" over anything it would stack on (two RN Modals conflict on
+      // iOS): an active encounter, a reward reveal (showing OR pending on its timer), or a walk
+      // summary. Leave it stored — the effect on [currentEncounter, rewardReveal, walkSummary]
+      // re-attempts once they clear. (Never clears the store here, so the foe is preserved.)
+      if (encounterRef.current || rewardReveal || rewardRevealTimerRef.current || walkSummary) {
         return;
       }
 
@@ -314,15 +316,20 @@ export function useEncounter({
     }, REWARD_REVEAL_DELAY_MS);
   };
 
-  // Hold an ELITE encounter that fired while the app is backgrounded: persist it (the "worthy foe"
-  // store) + fire a notification. The player engages it turn-based on next foreground via
-  // checkPendingEncounter (which opens the encounter modal). One worthy foe at a time.
+  // Hold an ELITE encounter as the "worthy foe": persist it. ALL elites (foreground and background)
+  // route through here — the caller then presents it via checkPendingEncounter (one guarded
+  // presentation path, so an elite modal never stacks over a reveal/summary and the "one foe at a
+  // time" overflow rule applies uniformly). A notification is fired only when BACKGROUNDED (a
+  // foreground elite is presented immediately, so it needs no notification).
   //
   // Returns whether the foe was HELD. Returns false when it couldn't be — a foe is already held
   // (overflow) or the save failed — so the caller resolves the encounter passively instead of
   // losing it (the roll was already consumed upstream). Notification failure does NOT unset the
   // hold (the foe is persisted regardless).
-  const holdEliteEncounter = async (encounter: Encounter): Promise<boolean> => {
+  const holdEliteEncounter = async (
+    encounter: Encounter,
+    isBackground: boolean,
+  ): Promise<boolean> => {
     try {
       const existing = await loadPendingEncounter();
       if (existing) {
@@ -353,11 +360,14 @@ export function useEncounter({
         console.error('Failed to hold elite encounter');
         return false;
       }
-      // Best-effort notification — the foe is already held whether or not this succeeds.
-      try {
-        await NotificationService.showEncounterNotification(encounter);
-      } catch (error) {
-        console.error('Elite held but notification failed:', error);
+      // Notify only when backgrounded (the player isn't looking); a foreground elite is presented
+      // immediately by the caller. Best-effort — the foe is held whether or not this succeeds.
+      if (isBackground) {
+        try {
+          await NotificationService.showEncounterNotification(encounter);
+        } catch (error) {
+          console.error('Elite held but notification failed:', error);
+        }
       }
       return true;
     } catch (error) {
@@ -503,6 +513,10 @@ export function useEncounter({
     if (!currentEncounter && !rewardReveal && !rewardRevealTimerRef.current && !walkSummary) {
       checkPendingEncounter();
     }
+    // checkPendingEncounter is intentionally omitted from deps: it's recreated each render, so
+    // including it would run a storage read every render. Re-attempt only when the encounter /
+    // reveal / summary presence changes; checkPendingEncounter self-guards and reads fresh state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEncounter, rewardReveal, walkSummary]);
 
   const handleFlee = (): void => {
@@ -908,25 +922,18 @@ export function useEncounter({
         // the walk); ELITE creatures (rare+, isEliteCreature) are the deliberate turn-based "boss
         // fights" that pay the better-loot differential.
         if (isEliteCreature(encounter.creature)) {
-          if (isInBackground) {
-            // Elite while backgrounded: hold it as a "worthy foe" + notify; engaged on next
-            // foreground via checkPendingEncounter. If it can't be held (a foe is already held, or
-            // the save failed), auto-resolve it passively so the encounter isn't lost.
-            const held = await holdEliteEncounter(encounter);
-            if (!held) {
-              await resolvePassiveEncounter(encounter, isInBackground);
-            }
-          } else {
-            // Elite while foreground: the worthy foe appears now (turn-based encounter modal).
-            encounterRef.current = encounter;
-            isMinimizedRef.current = false;
-            showCombatModalRef.current = false;
-            victoryProcessedRef.current = false;
-            fleeProcessedRef.current = false;
-
-            setCurrentEncounter(encounter);
-            setShowEncounterModal(true);
-            setIsEncounterModalMinimized(false);
+          // ALL elites route through the SAME hold + present path (foreground and background), so
+          // the "one foe at a time" overflow rule and the anti-modal-stacking guard apply uniformly.
+          const held = await holdEliteEncounter(encounter, isInBackground);
+          if (!held) {
+            // A foe is already held (overflow) or the save failed — resolve passively so the
+            // encounter isn't lost.
+            await resolvePassiveEncounter(encounter, isInBackground);
+          } else if (!isInBackground) {
+            // Foreground: present the worthy foe now. checkPendingEncounter self-guards against
+            // stacking over a reward reveal / walk summary / active encounter (leaving it stored to
+            // present when they clear). Backgrounded holds are presented on next foreground.
+            await checkPendingEncounter();
           }
         } else {
           // Common: auto-resolve passively. resolvePassiveEncounter reads playerRef and no-ops if no
