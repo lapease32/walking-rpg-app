@@ -384,12 +384,19 @@ export function useEncounter({
     if (isCheckingWalkSummaryRef.current) {
       return;
     }
+    // Guard lives HERE (not just at the call sites) so every caller — mount, foreground, the
+    // encounter/reveal effect below — is protected. Don't open the summary over anything it would
+    // conflict with: an active encounter; a victory reward reveal, showing OR still pending on its
+    // deferred timer (two RN Modals conflict on iOS — see REWARD_REVEAL_DELAY_MS); or an
+    // already-open summary (replacing it would hide fights the player hasn't seen yet). When the
+    // blocker clears, the effect below (currentEncounter / rewardReveal) or the next foreground
+    // re-invokes this to drain then. Reads are call-time state, before any await — fresh because
+    // this closure is recreated each render and callers always use the latest instance.
+    if (encounterRef.current || rewardReveal || rewardRevealTimerRef.current || walkSummary) {
+      return;
+    }
     isCheckingWalkSummaryRef.current = true;
     try {
-      // Don't cover an active encounter or an already-open summary.
-      if (encounterRef.current) {
-        return;
-      }
       const entries = await loadWalkSummary();
       if (entries.length === 0) {
         return;
@@ -409,15 +416,15 @@ export function useEncounter({
 
   const dismissWalkSummary = (): void => setWalkSummary(null);
 
-  // checkWalkSummary bails when an encounter is showing (it must not cover an active encounter),
-  // so a summary can be left in storage if an encounter won the cold-start race or the player was
-  // mid-fight. Re-attempt the drain once the encounter clears. Guarded on the reward reveal so the
-  // summary never stacks over/under a victory reveal (two RN Modals conflict on iOS — see
-  // REWARD_REVEAL_DELAY_MS); dismissing the reveal re-runs this and drains then.
+  // Re-attempt a skipped summary drain when a blocker clears. checkWalkSummary self-guards against
+  // an active encounter, a reward reveal, and an already-open summary, so this only needs to
+  // re-invoke it when the encounter or reveal presence changes (e.g. a reveal was just dismissed).
   useEffect(() => {
-    if (!currentEncounter && !rewardReveal && !rewardRevealTimerRef.current) {
-      checkWalkSummary();
-    }
+    checkWalkSummary();
+    // checkWalkSummary is intentionally omitted from deps: it's recreated each render, so including
+    // it would run the drain (an AsyncStorage read) every render. We only want to re-attempt when
+    // the encounter or reveal presence changes; checkWalkSummary self-guards and reads fresh state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentEncounter, rewardReveal]);
 
   const handleFlee = (): void => {
