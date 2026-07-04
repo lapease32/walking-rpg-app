@@ -191,6 +191,79 @@ export const CREATURE_TEMPLATES: CreatureTemplate[] = [
     description: 'An agile creature that moves with the wind',
     encounterRate: 0.35,
   },
+  // ─── ELITE roster (rare/epic) — the "worthy foe" turn-based fights. Varied stat profiles +
+  // resist/vulnerability pairs so damage-type choice matters (PR 3 resistances). All stats +
+  // resistances are balance PLACEHOLDERS, tuned via playtest.
+  {
+    id: 'grove_warden',
+    name: 'Grove Warden',
+    type: 'Nature',
+    // Bark-armored tank: shrugs off physical, but wood burns.
+    maxHp: 95,
+    attack: 22,
+    defense: 15,
+    speed: 12,
+    rarity: 'rare',
+    description: "An ancient guardian woven from the forest's oldest roots.",
+    encounterRate: 0.15,
+    resistances: { physical: 0.2, fire: -0.25 },
+  },
+  {
+    id: 'void_stalker',
+    name: 'Void Stalker',
+    type: 'Shadow',
+    // Glass predator: hits hard and fast, fragile; unbothered by frost.
+    maxHp: 72,
+    attack: 28,
+    defense: 8,
+    speed: 30,
+    rarity: 'rare',
+    description: 'A predator from between the streetlights — all fang and shadow.',
+    encounterRate: 0.12,
+    resistances: { frost: 0.25 },
+  },
+  {
+    id: 'tidal_behemoth',
+    name: 'Tidal Behemoth',
+    type: 'Water',
+    // HP bruiser: soaks damage, douses fire, but frost locks it down.
+    maxHp: 115,
+    attack: 21,
+    defense: 13,
+    speed: 8,
+    rarity: 'rare',
+    description: 'A leviathan that drags the tide behind it.',
+    encounterRate: 0.12,
+    resistances: { fire: 0.3, frost: -0.25 },
+  },
+  {
+    id: 'ashen_colossus',
+    name: 'Ashen Colossus',
+    type: 'Earth',
+    // Epic wall: heavy HP + armor, fire-forged (resists fire/physical), cracks under frost.
+    maxHp: 150,
+    attack: 30,
+    defense: 20,
+    speed: 8,
+    rarity: 'epic',
+    description: 'A mountain given wrath; its every step splits the earth.',
+    encounterRate: 0.06,
+    resistances: { fire: 0.4, physical: 0.15, frost: -0.2 },
+  },
+  {
+    id: 'tempest_djinn',
+    name: 'Tempest Djinn',
+    type: 'Air',
+    // Epic striker: blistering attack + speed, rides out frost, thin armor.
+    maxHp: 120,
+    attack: 36,
+    defense: 14,
+    speed: 32,
+    rarity: 'epic',
+    description: 'A storm bound into furious form.',
+    encounterRate: 0.06,
+    resistances: { frost: 0.3, physical: -0.15 },
+  },
 ];
 
 /**
@@ -218,13 +291,15 @@ export function createCreatureFromTemplate(
 }
 
 // Encounter rarity weights by player level. Early levels skew hard to common (winnable with
-// starting stats); higher rarities phase in as the player's attack outgrows creature defense.
-// Previously encounters picked a template UNIFORMLY (~60% uncommon-or-rare regardless of level),
-// throwing L1 players unwinnable fights. Only rarities that have templates appear here.
+// starting stats); ELITE rarities (rare, then epic) phase in with level — "constrain early, open
+// late." Rare alone plateaus at the top as epic takes the higher slots, but total elite frequency
+// keeps rising. Only rarities that have templates appear here. Weights are balance PLACEHOLDERS
+// (tune via playtest); they need not sum to 100 (rollEncounterRarity normalizes by total).
 // Ordered high→low minLevel; the first band whose minLevel <= playerLevel applies.
 const ENCOUNTER_RARITY_WEIGHTS: [number, Partial<Record<Rarity, number>>][] = [
-  [12, { common: 20, uncommon: 45, rare: 35 }],
-  [6, { common: 35, uncommon: 45, rare: 20 }],
+  [20, { common: 25, uncommon: 45, rare: 18, epic: 12 }],
+  [12, { common: 32, uncommon: 48, rare: 16, epic: 4 }],
+  [6, { common: 40, uncommon: 45, rare: 15 }],
   [3, { common: 55, uncommon: 43, rare: 2 }],
   [1, { common: 85, uncommon: 15, rare: 0 }],
 ];
