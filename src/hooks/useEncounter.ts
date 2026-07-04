@@ -877,13 +877,16 @@ export function useEncounter({
   };
 
   const debugSimulateWalk = async (count: number = 5): Promise<void> => {
-    const { location, level } = debugEncounterContext();
     // Fire N common passive resolutions to build a multi-entry walk summary. AWAIT each one so the
     // runs are strictly sequential: resolvePassiveEncounter reads playerRef and setPlayerAndSave
     // updates it, so awaiting lets rewards compound off the prior result and serializes the storage
     // saves (player + summary append). Firing them in parallel would leave the saves racing to land
     // in order — the sequential form matches how a real walk resolves one encounter at a time.
     for (let i = 0; i < count; i++) {
+      // Re-read the context each iteration: an awaited resolution can level the player, and
+      // production spawns every encounter at the CURRENT level (the gate reads playerRef.current
+      // each tick), so later encounters must scale to the just-updated level, not a stale snapshot.
+      const { location, level } = debugEncounterContext();
       const encounter = EncounterService.forceEncounter(location, level, 'common');
       try {
         await resolvePassiveEncounter(encounter, false);
