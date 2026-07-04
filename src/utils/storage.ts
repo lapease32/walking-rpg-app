@@ -321,15 +321,29 @@ export async function appendWalkSummaryEntry(entry: WalkSummaryEntry): Promise<b
 }
 
 /**
- * Clear the walk-summary log (after it has been shown to the player).
+ * Atomically read AND clear the walk-summary log, returning the drained entries. Runs on the same
+ * serialization chain as appendWalkSummaryEntry, so a concurrent passive append can't land between
+ * the read and the clear (which would otherwise wipe a just-appended, never-shown fight). An append
+ * either finishes before this drain (included in the result) or after it (persisted for next time).
  */
-export async function clearWalkSummary(): Promise<boolean> {
+export async function drainWalkSummary(): Promise<WalkSummaryEntry[]> {
+  const run = walkSummaryWriteChain.then(async () => {
+    const entries = await loadWalkSummary();
+    if (entries.length > 0) {
+      await AsyncStorage.removeItem(STORAGE_KEYS.WALK_SUMMARY);
+    }
+    return entries;
+  });
+  // Keep the chain alive (as void) regardless of this drain's outcome.
+  walkSummaryWriteChain = run.then(
+    () => {},
+    () => {},
+  );
   try {
-    await AsyncStorage.removeItem(STORAGE_KEYS.WALK_SUMMARY);
-    return true;
+    return await run;
   } catch (error) {
-    console.error('Error clearing walk summary:', error);
-    return false;
+    console.error('Error draining walk summary:', error);
+    return [];
   }
 }
 

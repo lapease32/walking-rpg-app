@@ -17,7 +17,7 @@ import {
   clearAllUserData,
   appendWalkSummaryEntry,
   loadWalkSummary,
-  clearWalkSummary,
+  drainWalkSummary,
   WalkSummaryEntry,
 } from '../../utils/storage';
 
@@ -354,20 +354,65 @@ describe('appendWalkSummaryEntry', () => {
   });
 });
 
-describe('clearWalkSummary', () => {
+describe('drainWalkSummary', () => {
   beforeEach(() => {
+    mockGetItem.mockReset();
+    mockSetItem.mockReset();
     (AsyncStorage.removeItem as jest.Mock).mockReset();
   });
 
-  it('removes the walk-summary key', async () => {
+  it('returns the entries and clears storage', async () => {
+    const entries = [
+      makeSummaryEntry({ creatureName: 'A' }),
+      makeSummaryEntry({ creatureName: 'B' }),
+    ];
+    mockGetItem.mockResolvedValue(JSON.stringify(entries));
     (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
-    const result = await clearWalkSummary();
-    expect(result).toBe(true);
+
+    const drained = await drainWalkSummary();
+    expect(drained).toEqual(entries);
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@walking_rpg:walk_summary');
   });
 
-  it('returns false when AsyncStorage throws', async () => {
-    (AsyncStorage.removeItem as jest.Mock).mockRejectedValue(new Error('storage error'));
-    expect(await clearWalkSummary()).toBe(false);
+  it('returns empty and does not clear when nothing is stored', async () => {
+    mockGetItem.mockResolvedValue(null);
+    const drained = await drainWalkSummary();
+    expect(drained).toEqual([]);
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('does not lose an append that lands during a concurrent drain (serialized)', async () => {
+    // Backing store whose get/set/remove YIELD, so a drain and an append interleave — the exact
+    // race that could wipe a just-appended fight without the shared serialization chain.
+    let store: string | null = JSON.stringify([
+      makeSummaryEntry({ creatureName: 'A', timestamp: 1 }),
+    ]);
+    mockGetItem.mockImplementation(async (key: string) => {
+      if (key !== '@walking_rpg:walk_summary') return null;
+      await Promise.resolve();
+      return store;
+    });
+    mockSetItem.mockImplementation(async (key: string, val: string) => {
+      if (key !== '@walking_rpg:walk_summary') return;
+      await Promise.resolve();
+      store = val;
+    });
+    (AsyncStorage.removeItem as jest.Mock).mockImplementation(async (key: string) => {
+      if (key !== '@walking_rpg:walk_summary') return;
+      await Promise.resolve();
+      store = null;
+    });
+
+    const b = makeSummaryEntry({ creatureName: 'B', timestamp: 2 });
+    // Drain (reads+clears) and append fired together; serialized, so B is either drained with A or
+    // survives in storage — never wiped.
+    const [drained] = await Promise.all([drainWalkSummary(), appendWalkSummaryEntry(b)]);
+
+    const survivors = new Set(drained.map(e => e.creatureName));
+    if (store) {
+      for (const e of JSON.parse(store) as WalkSummaryEntry[]) survivors.add(e.creatureName);
+    }
+    expect(survivors.has('A')).toBe(true);
+    expect(survivors.has('B')).toBe(true);
   });
 });

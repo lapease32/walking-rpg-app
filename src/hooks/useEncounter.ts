@@ -14,8 +14,7 @@ import {
   loadPendingEncounter,
   clearPendingEncounter,
   appendWalkSummaryEntry,
-  loadWalkSummary,
-  clearWalkSummary,
+  drainWalkSummary,
   WalkSummaryEntry,
 } from '../utils/storage';
 import { ENCOUNTER_CONFIG, COMBAT_CONFIG } from '../constants/config';
@@ -395,19 +394,19 @@ export function useEncounter({
     }
     isCheckingWalkSummaryRef.current = true;
     try {
-      const entries = await loadWalkSummary();
+      // Atomic read+clear, serialized against passive appends (see drainWalkSummary) so a
+      // concurrent fight can't be wiped between the read and the clear.
+      const entries = await drainWalkSummary();
       if (entries.length === 0) {
         return;
       }
-      // Re-check AFTER the async load: encounterRef can flip mid-load — e.g. a parallel
-      // checkPendingEncounter opening the encounter modal. If blocked now, leave the entries in
-      // storage (drain on the next foreground) rather than stack two Modals.
+      // A blocker (encounter / reward reveal / already-open summary) can appear during the async
+      // drain. Storage is already cleared, so re-append the entries rather than lose them — they
+      // surface on the next drain once the blocker clears, instead of stacking a modal now.
       if (blocked()) {
-        return;
-      }
-      const cleared = await clearWalkSummary();
-      if (!cleared) {
-        // Leave it for the next foreground rather than risk showing the same haul twice.
+        for (const entry of entries) {
+          await appendWalkSummaryEntry(entry);
+        }
         return;
       }
       setWalkSummary(entries);
@@ -842,8 +841,18 @@ export function useEncounter({
         // commits currentLocation, so getCurrentSpeed() would read the PREVIOUS fix's speed
         // (LocationService invokes onDistanceUpdate, then sets currentLocation). Distance only
         // accumulates from high-accuracy fixes, so location.speed is reliable at encounter time.
+        // GPS often reports speed as 0 even while walking (missing speed → 0), so speed alone would
+        // misclassify a walker as stopped and wrongly interrupt them with the turn-based modal. Also
+        // treat a segment that covered real ground as moving — distance only accrues from
+        // high-accuracy fixes, so it's a reliable "walking" signal at encounter time. NOTE: because
+        // encounters only fire from accumulated movement, this routes natural encounters to passive
+        // by default; a dedicated "stop and fight this one" turn-based opt-in is a future design
+        // decision (a speed gate can't cleanly detect "stopped" — a stationary player generates no
+        // encounters). The turn-based path stays reachable via the debug force-encounter flow.
         const segmentSpeedKmh = location.speed * 3.6;
-        const isMoving = segmentSpeedKmh >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH;
+        const isMoving =
+          segmentSpeedKmh >= COMBAT_CONFIG.PASSIVE_SPEED_THRESHOLD_KMH ||
+          distanceData.incremental >= COMBAT_CONFIG.PASSIVE_MOVE_DISTANCE_M;
 
         if (isInBackground || isMoving) {
           // Passive auto-resolve. resolvePassiveEncounter reads playerRef and no-ops if no player is
