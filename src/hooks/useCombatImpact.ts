@@ -16,9 +16,12 @@ import type { CombatFloater } from '../components/FloatingCombatText';
  * drop/gain, spawn a floating number + flash the struck panel + shake the modal. Baselines reset on
  * a new encounter so a fresh full-HP foe doesn't register a phantom hit against the last one.
  *
- * LIMITATION by design: HP deltas only carry a NET amount per turn — no damage TYPE and no split of
- * a DoT tick from the direct hit. Phase 2b adds a real hit-event from the combat hook for that
- * fidelity (typed Skia bursts + resistance tells).
+ * LIMITATIONS (both by design; Phase 2b's real hit-event from the combat hook resolves them):
+ *  - HP deltas carry only a NET amount per turn — no damage TYPE, no DoT-vs-direct split.
+ *  - The FIGHT-ENDING blow shows no FX: useEncounter batches the lethal HP change with the encounter
+ *    teardown (and a post-fight fullHeal) in one commit, so this hook only sees encounterId go null
+ *    and re-baselines instead of emitting the final delta. Low impact — that same turn closes the
+ *    combat modal (the reward reveal takes over), so a number there wouldn't be seen anyway.
  */
 
 const FLASH_MAX_OPACITY = 0.35;
@@ -93,6 +96,9 @@ export function useCombatImpact({
       fxEncounterRef.current = encounterId;
       prevCreatureHpRef.current = creatureHp;
       prevPlayerHpRef.current = playerHp;
+      // Drop numbers still animating from the prior fight — CombatModal stays mounted on HomeScreen
+      // across encounters, so leftover floaters would otherwise linger on the next fight's panels.
+      setFloaters([]);
       return;
     }
 
