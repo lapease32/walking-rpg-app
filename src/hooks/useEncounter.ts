@@ -589,6 +589,9 @@ export function useEncounter({
     setShowEncounterModal(false);
     setCurrentEncounter(null);
     setPlayerCombatState(null);
+    // Reset the hit feed on flee too (like clearEncounter / the next handleFight) so no events
+    // linger past this fight — keeps every combat-teardown path consistent.
+    setCombatHits([]);
   };
 
   const handleFight = (): void => {
