@@ -12,6 +12,7 @@ import {
 import { Item } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { getRarityColor } from '../constants/rarity';
+import RewardGlowCanvas from './RewardGlowCanvas';
 
 /**
  * Data describing a single victory's rewards. Built by useEncounter and handed to
@@ -120,6 +121,9 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
   ).current;
   // Identity of the reveal whose start-state we've already applied — see reset below.
   const shownRevealRef = useRef<RewardReveal | null>(null);
+  // Bumps on each new reveal so the Skia glow (keyed on it) remounts + replays its intro even when
+  // one reveal directly replaces another (no null in between).
+  const revealSeqRef = useRef(0);
   // The running staggered particle burst, so a re-show (or unmount) can stop its pending
   // launches before starting a fresh one.
   const burstAnimRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -137,6 +141,7 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
   // and the ref guard means an in-flight animation (same reveal re-rendering) is never reset.
   if (reveal && reveal !== shownRevealRef.current) {
     shownRevealRef.current = reveal;
+    revealSeqRef.current += 1;
     backdrop.setValue(0);
     cardScale.setValue(0.6);
     cardOpacity.setValue(0);
@@ -273,6 +278,8 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
       <Pressable style={styles.fill} onPress={onDismiss} testID="reward-reveal">
         <Animated.View style={[styles.backdrop, { opacity: backdrop }]} />
         <Animated.View style={[styles.center, { transform: [{ translateX: shakeX }] }]}>
+          {/* Skia rarity glow behind everything (Phase 3) — reads the rarity before the card resolves */}
+          {rarity && <RewardGlowCanvas key={revealSeqRef.current} rarity={rarity} />}
           {/* Particle origin (centre) — particles burst from behind the card */}
           <View style={styles.particleOrigin} pointerEvents="none">
             {fx &&
