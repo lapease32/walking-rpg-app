@@ -156,6 +156,7 @@ export default function CombatModal({
     playerFlashStyle,
     shakeStyle,
     creatureRecoilStyle,
+    playerRecoilStyle,
   } = useCombatImpact({ encounterId: encounter?.timestamp ?? null, hits: combatHits });
 
   if (!encounter || !encounter.creature || !player) {
@@ -330,7 +331,7 @@ export default function CombatModal({
           </Animated.View>
 
           {/* Player info + resource bar */}
-          <View style={[styles.combatantInfo, styles.playerInfoBg]}>
+          <Animated.View style={[styles.combatantInfo, styles.playerInfoBg, playerRecoilStyle]}>
             <Text style={styles.combatantName}>You ({archetypeCfg.name})</Text>
             <View style={styles.hpBar}>
               <Animated.View
@@ -389,7 +390,7 @@ export default function CombatModal({
                   <FloatingCombatText key={f.id} item={f} onDone={removeFloater} />
                 ))}
             </View>
-          </View>
+          </Animated.View>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Text style={styles.sectionTitle}>Choose an Ability</Text>
