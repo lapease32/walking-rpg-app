@@ -7,3 +7,7 @@ require('react-native-gesture-handler/jestSetup');
 // JS stubs instead of touching the native/UI-thread runtime. (No render tests import it today, but
 // this keeps future ones — and any transitive import — from loading the real native module.)
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+
+// Skia (combat FX canvas, Phase 2b.2): its official jest setup swaps the native canvas for JS
+// stubs so components importing Skia don't touch the native module under jest.
+require('@shopify/react-native-skia/jestSetup');

@@ -23,6 +23,7 @@ import { DamageType } from '../models/DamageType';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 import PressableScale from './PressableScale';
 import FloatingCombatText from './FloatingCombatText';
+import CombatFxCanvas from './CombatFxCanvas';
 import { useCombatImpact } from '../hooks/useCombatImpact';
 import type { CombatHitEvent } from '../models/CombatHitEvent';
 import { MOTION_BAR_TIMING } from '../constants/motion';
@@ -149,6 +150,8 @@ export default function CombatModal({
   const {
     floaters,
     removeFloater,
+    bursts,
+    removeBurst,
     creatureFlashStyle,
     playerFlashStyle,
     shakeStyle,
@@ -313,6 +316,10 @@ export default function CombatModal({
               pointerEvents="none"
               style={[styles.hitFlash, styles.hitFlashCreature, creatureFlashStyle]}
             />
+            <CombatFxCanvas
+              bursts={bursts.filter(b => b.target === 'creature')}
+              onBurstDone={removeBurst}
+            />
             <View pointerEvents="none" style={styles.floaterLayer}>
               {floaters
                 .filter(f => f.target === 'creature')
@@ -370,6 +377,10 @@ export default function CombatModal({
             <Animated.View
               pointerEvents="none"
               style={[styles.hitFlash, styles.hitFlashPlayer, playerFlashStyle]}
+            />
+            <CombatFxCanvas
+              bursts={bursts.filter(b => b.target === 'player')}
+              onBurstDone={removeBurst}
             />
             <View pointerEvents="none" style={styles.floaterLayer}>
               {floaters

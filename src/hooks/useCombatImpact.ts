@@ -9,6 +9,7 @@ import {
 import { MOTION_EASING, MOTION_SHAKE } from '../constants/motion';
 import { hitFloaterStyle } from '../utils/combatText';
 import type { CombatFloater } from '../components/FloatingCombatText';
+import type { CombatBurst } from '../components/CombatFxCanvas';
 import type { CombatHitEvent } from '../models/CombatHitEvent';
 
 /**
@@ -70,7 +71,9 @@ export interface UseCombatImpactParams {
 
 export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
   const [floaters, setFloaters] = useState<CombatFloater[]>([]);
+  const [bursts, setBursts] = useState<CombatBurst[]>([]);
   const nextFloaterIdRef = useRef(0);
+  const nextBurstIdRef = useRef(0);
   const lastSeenHitIdRef = useRef(-1);
   const fxEncounterRef = useRef<number | null>(null);
 
@@ -93,12 +96,16 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
   const removeFloater = useCallback((id: number) => {
     setFloaters(list => list.filter(f => f.id !== id));
   }, []);
+  const removeBurst = useCallback((id: number) => {
+    setBursts(list => list.filter(b => b.id !== id));
+  }, []);
 
   useEffect(() => {
-    // Clear leftover numbers when the fight changes (CombatModal stays mounted across encounters).
+    // Clear leftover FX when the fight changes (CombatModal stays mounted across encounters).
     if (fxEncounterRef.current !== encounterId) {
       fxEncounterRef.current = encounterId;
       setFloaters([]);
+      setBursts([]);
     }
 
     const fresh = hits.filter(h => h.id > lastSeenHitIdRef.current);
@@ -118,6 +125,7 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
     });
     setFloaters(list => [...list, ...spawned]);
 
+    const spawnedBursts: CombatBurst[] = [];
     for (const h of fresh) {
       if (h.kind === 'heal') continue;
       triggerShake(shake, h.amount, h.targetMaxHp);
@@ -127,12 +135,23 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
       } else {
         triggerFlash(playerFlash);
       }
+      spawnedBursts.push({
+        id: nextBurstIdRef.current++,
+        target: h.target,
+        damageType: h.damageType,
+        resist: h.resist,
+      });
+    }
+    if (spawnedBursts.length > 0) {
+      setBursts(list => [...list, ...spawnedBursts]);
     }
   }, [encounterId, hits, creatureFlash, playerFlash, shake, creatureScale]);
 
   return {
     floaters,
     removeFloater,
+    bursts,
+    removeBurst,
     creatureFlashStyle,
     playerFlashStyle,
     shakeStyle,
