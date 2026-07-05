@@ -22,6 +22,8 @@ import { ARCHETYPE_CONFIGS } from '../models/Archetype';
 import { DamageType } from '../models/DamageType';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 import PressableScale from './PressableScale';
+import FloatingCombatText from './FloatingCombatText';
+import { useCombatImpact } from '../hooks/useCombatImpact';
 import { MOTION_BAR_TIMING } from '../constants/motion';
 
 interface CombatModalProps {
@@ -138,6 +140,17 @@ export default function CombatModal({
     resourceWidth,
   ]);
 
+  // Impact FX (Phase 2a): floating damage/heal numbers + panel hit-flash + modal shake, derived
+  // from HP deltas so the combat hook stays untouched. Values are null-safe before the guard.
+  const { floaters, removeFloater, creatureFlashStyle, playerFlashStyle, shakeStyle } =
+    useCombatImpact({
+      encounterId: encounter?.timestamp ?? null,
+      creatureHp: encounter?.creature?.hp ?? null,
+      creatureMaxHp: encounter?.creature?.maxHp ?? null,
+      playerHp: player?.hp ?? null,
+      playerMaxHp: player?.maxHp ?? null,
+    });
+
   if (!encounter || !encounter.creature || !player) {
     return null;
   }
@@ -237,8 +250,8 @@ export default function CombatModal({
       onRequestClose={onClose}
       presentationStyle="overFullScreen">
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View
-          style={styles.modalContent}
+        <Animated.View
+          style={[styles.modalContent, shakeStyle]}
           onStartShouldSetResponder={() => true}
           testID="combat-modal">
           <View style={styles.header}>
@@ -292,6 +305,17 @@ export default function CombatModal({
                   );
                 })}
             </View>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.hitFlash, styles.hitFlashCreature, creatureFlashStyle]}
+            />
+            <View pointerEvents="none" style={styles.floaterLayer}>
+              {floaters
+                .filter(f => f.target === 'creature')
+                .map(f => (
+                  <FloatingCombatText key={f.id} item={f} onDone={removeFloater} />
+                ))}
+            </View>
           </View>
 
           {/* Player info + resource bar */}
@@ -338,6 +362,17 @@ export default function CombatModal({
             <View style={styles.statsRow}>
               <Text style={styles.statChip}>ATK {player.attack}</Text>
               <Text style={styles.statChip}>DEF {player.defense}</Text>
+            </View>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.hitFlash, styles.hitFlashPlayer, playerFlashStyle]}
+            />
+            <View pointerEvents="none" style={styles.floaterLayer}>
+              {floaters
+                .filter(f => f.target === 'player')
+                .map(f => (
+                  <FloatingCombatText key={f.id} item={f} onDone={removeFloater} />
+                ))}
             </View>
           </View>
 
@@ -401,7 +436,7 @@ export default function CombatModal({
               </View>
             )}
           </ScrollView>
-        </View>
+        </Animated.View>
       </Pressable>
     </Modal>
   );
@@ -447,6 +482,11 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   playerInfoBg: { backgroundColor: '#f0f7ff' },
+  // Phase 2a impact FX: both overlays fill their combatant panel; opacity/children are animated.
+  hitFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  hitFlashCreature: { backgroundColor: '#ffffff' }, // a white flash reads as a landed hit
+  hitFlashPlayer: { backgroundColor: '#ff3b30' }, // red when the player is the one struck
+  floaterLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   combatantName: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 4 },
   hpBar: {
     height: 12,

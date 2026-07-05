@@ -27,3 +27,14 @@ export const MOTION_BAR_TIMING = {
   duration: MOTION_DURATION.bar,
   easing: MOTION_EASING.standard,
 } as const;
+
+/**
+ * Screen-shake on a combat hit (Phase 2a). A short 4-leg translateX wobble; magnitude scales
+ * between base (a glancing hit) and max (a hit worth ~a quarter of the target's HP). Placeholder
+ * feel — tune by playtesting.
+ */
+export const MOTION_SHAKE = {
+  legMs: 40, // duration of each translate leg
+  baseMagnitude: 3, // px floor, even a light hit nudges
+  maxMagnitude: 9, // px at a heavy hit
+} as const;
