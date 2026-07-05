@@ -2,6 +2,7 @@ import { MutableRefObject } from 'react';
 import { Alert } from 'react-native';
 import { Player } from '../models/Player';
 import { Rarity } from '../models/Creature';
+import { Archetype, ARCHETYPE_CONFIGS } from '../models/Archetype';
 import CloudSyncService, { CloudSyncStatus } from '../services/CloudSyncService';
 import { generateItem } from '../services/LootService';
 import { LocationData, DistanceData } from '../services/LocationService';
@@ -42,6 +43,8 @@ export interface DebugActions {
   showWalkSummary: () => void;
   /** Jump to an exact level with the canonical stats for it (panel offers L1/5/10/20/50). */
   setLevel: (targetLevel: number) => void;
+  /** Switch the player's class in place (debug) — test each archetype's abilities/resource/FX. */
+  setArchetype: (archetype: Archetype) => void;
   addXP: (amount: number) => void;
   restoreHp: () => void;
   /** Empty the inventory (equipped items kept) — for testing repeated drops without filling up. */
@@ -153,6 +156,18 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
     Alert.alert('Level Set', `You are now level ${updatedPlayer.level}.`);
   };
 
+  const setArchetype = (archetype: Archetype): void => {
+    const currentPlayer = playerRef.current;
+    if (!currentPlayer) return;
+    const updatedPlayer = new Player(currentPlayer.toJSON());
+    updatedPlayer.setArchetype(archetype);
+    setPlayerAndSave(updatedPlayer);
+    Alert.alert(
+      'Class Changed',
+      `You are now a ${ARCHETYPE_CONFIGS[archetype].name}. Start a fight to test its abilities.`,
+    );
+  };
+
   const addXP = (amount: number): void => {
     const currentPlayer = playerRef.current;
     if (!currentPlayer) return;
@@ -227,6 +242,7 @@ export function useDebugActions(params: UseDebugActionsParams): DebugController 
       simulateWalk: debugSimulateWalk,
       showWalkSummary: debugShowWalkSummary,
       setLevel,
+      setArchetype,
       addXP,
       restoreHp,
       clearInventory,

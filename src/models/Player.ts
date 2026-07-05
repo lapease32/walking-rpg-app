@@ -289,6 +289,22 @@ export class Player {
     this.hp = this.maxHp;
   }
 
+  /**
+   * Switch archetype in place, recomputing attributes for the new class at the CURRENT level (each
+   * archetype has its own base + per-level str/agi/int growth). recalculateStats then re-derives
+   * attack/defense/maxHp and re-adds equipped gear; HP tops up. Keeps level, gear, and inventory.
+   * Debug-only use today (test each class's abilities/resource/FX without a new character).
+   */
+  setArchetype(archetype: Archetype): void {
+    this.archetype = archetype;
+    const attrs = computeAttributes(archetype, this.level);
+    this.str = attrs.str;
+    this.agi = attrs.agi;
+    this.int = attrs.int;
+    this.recalculateStats();
+    this.hp = this.maxHp;
+  }
+
   getStats(): PlayerStats {
     return {
       id: this.id,

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Player } from '../models/Player';
 import { Rarity } from '../models/Creature';
+import { Archetype, ARCHETYPE_CONFIGS } from '../models/Archetype';
 import { getRarityColor } from '../constants/rarity';
 import { DebugController } from '../hooks/useDebugActions';
 import { ENV_CONFIG } from '../constants/environment';
@@ -239,6 +240,19 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
             style={[styles.debugButton, styles.levelControlButton]}
             onPress={() => actions.setLevel(lvl)}>
             <Text style={styles.debugButtonText}>L{lvl}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.xpButtonContainer}>
+        {/* Switch class in place to test each archetype's abilities/resource/FX (then Force Encounter). */}
+        <Text style={styles.xpButtonLabel}>Class (test abilities):</Text>
+        {[Archetype.Martial, Archetype.Agile, Archetype.Mage].map(a => (
+          <TouchableOpacity
+            key={a}
+            style={[styles.debugButton, styles.levelControlButton]}
+            onPress={() => actions.setArchetype(a)}
+            testID={`debug-set-archetype-${a}`}>
+            <Text style={styles.debugButtonText}>{ARCHETYPE_CONFIGS[a].name}</Text>
           </TouchableOpacity>
         ))}
       </View>

@@ -124,6 +124,29 @@ describe('Player', () => {
     });
   });
 
+  describe('setArchetype (debug class switch)', () => {
+    it('recomputes attributes + derived stats to match a fresh player of the new class at the same level', () => {
+      const switched = new Player({ archetype: Archetype.Martial, level: 10 });
+      switched.setArchetype(Archetype.Mage);
+      const freshMage = new Player({ archetype: Archetype.Mage, level: 10 });
+      expect(switched.archetype).toBe(Archetype.Mage);
+      expect(switched.str).toBe(freshMage.str);
+      expect(switched.agi).toBe(freshMage.agi);
+      expect(switched.int).toBe(freshMage.int);
+      expect(switched.maxHp).toBe(freshMage.maxHp);
+      expect(switched.attack).toBe(freshMage.attack);
+      expect(switched.defense).toBe(freshMage.defense);
+    });
+
+    it('preserves level and tops HP up to the new maxHp', () => {
+      const p = new Player({ archetype: Archetype.Martial, level: 8 });
+      p.takeDamage(20);
+      p.setArchetype(Archetype.Agile);
+      expect(p.level).toBe(8);
+      expect(p.hp).toBe(p.maxHp);
+    });
+  });
+
   describe('getExperienceForNextLevel', () => {
     it('returns 100 at level 1', () => {
       const player = new Player({ level: 1 });
