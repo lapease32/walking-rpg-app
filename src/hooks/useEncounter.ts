@@ -118,11 +118,15 @@ export function useEncounter({
     isMinimizedRef.current = isEncounterModalMinimized;
   }, [isEncounterModalMinimized]);
 
-  // Clear any pending deferred reward reveal on unmount so its timer can't setState afterward.
+  // Clear pending deferred timers (reward reveal + kill-beat) on unmount so neither can setState
+  // after teardown.
   useEffect(() => {
     return () => {
       if (rewardRevealTimerRef.current) {
         clearTimeout(rewardRevealTimerRef.current);
+      }
+      if (killBeatTimerRef.current) {
+        clearTimeout(killBeatTimerRef.current);
       }
     };
   }, []);
@@ -268,6 +272,14 @@ export function useEncounter({
     }
 
     victoryProcessedRef.current = true;
+    // Victory is now resolving — end the kill-beat here, whatever path reached handleVictory (the
+    // beat timer, or a direct resolution). Clearing the guard/timer at the single resolution point
+    // guarantees the pending flag can't outlive the fight and freeze the next encounter's inputs.
+    if (killBeatTimerRef.current) {
+      clearTimeout(killBeatTimerRef.current);
+      killBeatTimerRef.current = null;
+    }
+    killBeatPendingRef.current = false;
 
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
@@ -354,8 +366,7 @@ export function useEncounter({
     killBeatPendingRef.current = true;
     if (killBeatTimerRef.current) clearTimeout(killBeatTimerRef.current);
     killBeatTimerRef.current = setTimeout(() => {
-      killBeatTimerRef.current = null;
-      killBeatPendingRef.current = false;
+      killBeatTimerRef.current = null; // timer fired; handleVictory clears the pending guard
       showCombatModalRef.current = false;
       handleVictory(playerToUse);
     }, KILL_BEAT_MS);
