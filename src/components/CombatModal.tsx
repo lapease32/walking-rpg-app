@@ -24,6 +24,7 @@ import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 import PressableScale from './PressableScale';
 import FloatingCombatText from './FloatingCombatText';
 import { useCombatImpact } from '../hooks/useCombatImpact';
+import type { CombatHitEvent } from '../models/CombatHitEvent';
 import { MOTION_BAR_TIMING } from '../constants/motion';
 
 interface CombatModalProps {
@@ -34,6 +35,8 @@ interface CombatModalProps {
   onClose: () => void;
   playerCombatState: CombatantState | null;
   playerCombatStateRef: MutableRefObject<CombatantState | null>;
+  /** Transient hit-event feed (Phase 2b) → typed floating numbers + resistance tells. */
+  combatHits: CombatHitEvent[];
 }
 
 const DAMAGE_TYPE_COLORS: Record<string, string> = {
@@ -59,6 +62,7 @@ export default function CombatModal({
   onClose,
   playerCombatState,
   playerCombatStateRef,
+  combatHits,
 }: CombatModalProps) {
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
   const cooldownsRef = useRef<Record<string, number>>({});
@@ -140,16 +144,16 @@ export default function CombatModal({
     resourceWidth,
   ]);
 
-  // Impact FX (Phase 2a): floating damage/heal numbers + panel hit-flash + modal shake, derived
-  // from HP deltas so the combat hook stays untouched. Values are null-safe before the guard.
-  const { floaters, removeFloater, creatureFlashStyle, playerFlashStyle, shakeStyle } =
-    useCombatImpact({
-      encounterId: encounter?.timestamp ?? null,
-      creatureHp: encounter?.creature?.hp ?? null,
-      creatureMaxHp: encounter?.creature?.maxHp ?? null,
-      playerHp: player?.hp ?? null,
-      playerMaxHp: player?.maxHp ?? null,
-    });
+  // Impact FX (Phase 2a/2b): typed floating numbers + panel hit-flash + modal shake + creature
+  // hurt-punch, driven by the combatHits event feed from useEncounter (carries damage type + resist).
+  const {
+    floaters,
+    removeFloater,
+    creatureFlashStyle,
+    playerFlashStyle,
+    shakeStyle,
+    creatureRecoilStyle,
+  } = useCombatImpact({ encounterId: encounter?.timestamp ?? null, hits: combatHits });
 
   if (!encounter || !encounter.creature || !player) {
     return null;
@@ -265,7 +269,7 @@ export default function CombatModal({
           </View>
 
           {/* Creature info */}
-          <View style={styles.combatantInfo}>
+          <Animated.View style={[styles.combatantInfo, creatureRecoilStyle]}>
             <Text style={styles.combatantName}>{creature.name}</Text>
             <View style={styles.hpBar}>
               <Animated.View
@@ -316,7 +320,7 @@ export default function CombatModal({
                   <FloatingCombatText key={f.id} item={f} onDone={removeFloater} />
                 ))}
             </View>
-          </View>
+          </Animated.View>
 
           {/* Player info + resource bar */}
           <View style={[styles.combatantInfo, styles.playerInfoBg]}>

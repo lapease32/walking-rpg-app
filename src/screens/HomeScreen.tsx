@@ -89,6 +89,7 @@ export default function HomeScreen() {
     debugPreviewReveal,
     playerCombatState,
     playerCombatStateRef,
+    combatHits,
     rewardReveal,
     dismissReward,
     walkSummary,
@@ -478,6 +479,7 @@ export default function HomeScreen() {
         onClose={handleCloseCombatModal}
         playerCombatState={playerCombatState}
         playerCombatStateRef={playerCombatStateRef}
+        combatHits={combatHits}
       />
       <RewardRevealModal reveal={rewardReveal} onDismiss={dismissReward} />
       <WalkSummaryModal entries={walkSummary} onDismiss={dismissWalkSummary} />
