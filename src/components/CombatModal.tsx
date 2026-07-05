@@ -8,6 +8,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Encounter } from '../models/Encounter';
 import { Player } from '../models/Player';
 import {
@@ -20,6 +21,8 @@ import {
 import { ARCHETYPE_CONFIGS } from '../models/Archetype';
 import { DamageType } from '../models/DamageType';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
+import PressableScale from './PressableScale';
+import { MOTION_BAR_TIMING } from '../constants/motion';
 
 interface CombatModalProps {
   encounter: Encounter | null;
@@ -37,6 +40,14 @@ const DAMAGE_TYPE_COLORS: Record<string, string> = {
   frost: '#03A9F4',
   arcane: '#9C27B0',
 };
+
+/** Clamp a raw percentage into [0, 100] for animated bar widths. */
+const clampPct = (n: number): number => Math.max(0, Math.min(100, n));
+const toPct = (value: number, max: number): number => (max > 0 ? clampPct((value / max) * 100) : 0);
+
+/** Instant snap (no ease) — used the first render of each encounter so bars appear at their
+ *  starting fill rather than sweeping up from the previous fight's values. */
+const SNAP_TIMING = { duration: 0 } as const;
 
 export default function CombatModal({
   encounter,
@@ -83,6 +94,50 @@ export default function CombatModal({
     return () => clearInterval(interval);
   }, [visible]);
 
+  // ─── Tier-1 combat motion: HP + resource bars ease between values instead of jumping. ───
+  // Shared values hold each bar's current width % (0–100); useAnimatedStyle maps them to `width`.
+  // Declared before the early return below so hook order stays stable when encounter/player are null.
+  const creatureHpWidth = useSharedValue(100);
+  const playerHpWidth = useSharedValue(100);
+  const resourceWidth = useSharedValue(0);
+
+  const creatureHpAnimStyle = useAnimatedStyle(() => ({ width: `${creatureHpWidth.value}%` }));
+  const playerHpAnimStyle = useAnimatedStyle(() => ({ width: `${playerHpWidth.value}%` }));
+  const resourceAnimStyle = useAnimatedStyle(() => ({ width: `${resourceWidth.value}%` }));
+
+  // Targets computed null-safely from props (locals like `creature`/`resourceCfg` are derived after
+  // the guard). resource mirrors the label math below: current resource over the archetype max.
+  const creatureHpTargetPct = encounter?.creature
+    ? toPct(encounter.creature.hp, encounter.creature.maxHp)
+    : 100;
+  const playerHpTargetPct = player ? toPct(player.hp, player.maxHp) : 100;
+  const resourceTargetPct = player
+    ? toPct(
+        playerCombatState?.resource ?? RESOURCE_CONFIGS[player.archetype].startValue,
+        RESOURCE_CONFIGS[player.archetype].max,
+      )
+    : 0;
+
+  // Snap the bars on the first render of each encounter (new fight), then ease within the fight —
+  // otherwise a fresh full-HP creature would sweep up from the previous foe's dead-empty bar.
+  const barsEncounterRef = useRef<number | null>(null);
+  useEffect(() => {
+    const encId = encounter?.timestamp ?? null;
+    const timing = barsEncounterRef.current === encId ? MOTION_BAR_TIMING : SNAP_TIMING;
+    barsEncounterRef.current = encId;
+    creatureHpWidth.value = withTiming(creatureHpTargetPct, timing);
+    playerHpWidth.value = withTiming(playerHpTargetPct, timing);
+    resourceWidth.value = withTiming(resourceTargetPct, timing);
+  }, [
+    encounter?.timestamp,
+    creatureHpTargetPct,
+    playerHpTargetPct,
+    resourceTargetPct,
+    creatureHpWidth,
+    playerHpWidth,
+    resourceWidth,
+  ]);
+
   if (!encounter || !encounter.creature || !player) {
     return null;
   }
@@ -96,7 +151,6 @@ export default function CombatModal({
   const resourceCfg = RESOURCE_CONFIGS[archetype];
   const resource = playerCombatState?.resource ?? resourceCfg.startValue;
   const resourceMax = resourceCfg.max;
-  const resourcePct = resourceMax > 0 ? Math.min(1, resource / resourceMax) : 0;
   const resourceLabel =
     archetypeCfg.resource.charAt(0).toUpperCase() + archetypeCfg.resource.slice(1);
 
@@ -170,8 +224,6 @@ export default function CombatModal({
     return '#2196F3';
   };
 
-  const hpPct = (hp: number, maxHp: number) => (maxHp > 0 ? Math.max(0, (hp / maxHp) * 100) : 0);
-
   const hpColor = (hp: number, maxHp: number): string => {
     const ratio = maxHp > 0 ? hp / maxHp : 0;
     return ratio > 0.5 ? '#4CAF50' : ratio > 0.25 ? '#FF9800' : '#F44336';
@@ -203,13 +255,11 @@ export default function CombatModal({
           <View style={styles.combatantInfo}>
             <Text style={styles.combatantName}>{creature.name}</Text>
             <View style={styles.hpBar}>
-              <View
+              <Animated.View
                 style={[
                   styles.hpFill,
-                  {
-                    width: `${hpPct(creature.hp, creature.maxHp)}%`,
-                    backgroundColor: hpColor(creature.hp, creature.maxHp),
-                  },
+                  { backgroundColor: hpColor(creature.hp, creature.maxHp) },
+                  creatureHpAnimStyle,
                 ]}
               />
             </View>
@@ -248,13 +298,11 @@ export default function CombatModal({
           <View style={[styles.combatantInfo, styles.playerInfoBg]}>
             <Text style={styles.combatantName}>You ({archetypeCfg.name})</Text>
             <View style={styles.hpBar}>
-              <View
+              <Animated.View
                 style={[
                   styles.hpFill,
-                  {
-                    width: `${hpPct(player.hp, player.maxHp)}%`,
-                    backgroundColor: hpColor(player.hp, player.maxHp),
-                  },
+                  { backgroundColor: hpColor(player.hp, player.maxHp) },
+                  playerHpAnimStyle,
                 ]}
               />
             </View>
@@ -266,7 +314,7 @@ export default function CombatModal({
             <View style={styles.resourceRow}>
               <Text style={styles.resourceLabel}>{resourceLabel}</Text>
               <View style={styles.resourceBarBg}>
-                <View style={[styles.resourceBarFill, { width: `${resourcePct * 100}%` }]} />
+                <Animated.View style={[styles.resourceBarFill, resourceAnimStyle]} />
               </View>
               <Text style={styles.resourceText}>
                 {Math.floor(resource)}/{resourceMax}
@@ -307,7 +355,7 @@ export default function CombatModal({
               const preview = getDamagePreview(ability);
 
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={ability.id}
                   testID={`ability-button-${ability.id}`}
                   style={[
@@ -316,8 +364,7 @@ export default function CombatModal({
                     isDisabled && styles.abilityButtonDisabled,
                   ]}
                   onPress={() => handleAbilityPress(ability)}
-                  disabled={isDisabled}
-                  activeOpacity={0.8}>
+                  disabled={isDisabled}>
                   <View style={styles.abilityContent}>
                     <Text style={styles.abilityIcon}>{ability.icon}</Text>
                     <View style={styles.abilityInfo}>
@@ -342,7 +389,7 @@ export default function CombatModal({
                   {isOnCooldown && (
                     <View style={[styles.cooldownOverlay, { width: `${cooldownPct * 100}%` }]} />
                   )}
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
 
