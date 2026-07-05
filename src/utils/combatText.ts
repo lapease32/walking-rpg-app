@@ -58,16 +58,27 @@ const DAMAGE_TYPE_COLOR: Record<DamageType, string> = {
   arcane: '#BA68C8',
 };
 const RESISTED_COLOR = '#90A4AE'; // muted blue-grey — the hit "bounced"
+const BUFF_COLOR = '#FFD54F'; // warm gold — empowered
+const DEBUFF_COLOR = '#B39DDB'; // desaturated violet — weakened
+const STATUS_FONT_SIZE = 18;
 
 /**
  * Style a floating number for a typed combat hit (Phase 2b). Reuses combatTextStyle for the
  * magnitude→size mapping, then layers the damage-type color and the resistance TELL: a resisted hit
  * is muted + "RESIST" and a touch smaller; a vulnerable hit keeps the type color + "WEAK" and reads
- * bigger. Heals defer entirely to the heal styling.
+ * bigger. Heals defer to the heal styling; buff/debuff show their stat label in a warm/cool tone so
+ * a status cast reads as empower/weaken rather than damage.
  */
 export function hitFloaterStyle(event: CombatHitEvent): CombatTextStyle {
   if (event.kind === 'heal') {
     return combatTextStyle(event.amount, event.targetMaxHp, 'heal');
+  }
+  if (event.kind === 'buff' || event.kind === 'debuff') {
+    return {
+      label: event.label ?? (event.kind === 'buff' ? '▲' : '▼'),
+      color: event.kind === 'buff' ? BUFF_COLOR : DEBUFF_COLOR,
+      fontSize: STATUS_FONT_SIZE,
+    };
   }
 
   const { fontSize } = combatTextStyle(event.amount, event.targetMaxHp, 'damage');

@@ -100,4 +100,22 @@ describe('hitFloaterStyle', () => {
       fontSize: 22,
     });
   });
+
+  it('shows a buff in warm gold with its stat label', () => {
+    expect(
+      hitFloaterStyle(makeEvent({ kind: 'buff', damageType: null, label: 'ATK ↑ +10' })),
+    ).toEqual({ label: 'ATK ↑ +10', color: '#FFD54F', fontSize: 18 });
+  });
+
+  it('shows a debuff in cool violet with its stat label', () => {
+    expect(
+      hitFloaterStyle(makeEvent({ kind: 'debuff', damageType: null, label: 'DEF ↓ -5' })),
+    ).toEqual({ label: 'DEF ↓ -5', color: '#B39DDB', fontSize: 18 });
+  });
+
+  it('falls back to an arrow glyph when a buff/debuff has no label', () => {
+    expect(
+      hitFloaterStyle(makeEvent({ kind: 'buff', damageType: null, label: undefined })).label,
+    ).toBe('▲');
+  });
 });

@@ -62,6 +62,14 @@ function triggerRecoil(scale: SharedValue<number>): void {
   );
 }
 
+const EMPOWER_SCALE = 1.08; // a status cast POPS the panel UP (vs the hurt recoil punching it down)
+function triggerEmpower(scale: SharedValue<number>): void {
+  scale.value = withSequence(
+    withTiming(EMPOWER_SCALE, { duration: 110 }),
+    withTiming(1, { duration: 230, easing: MOTION_EASING.standard }),
+  );
+}
+
 export interface UseCombatImpactParams {
   /** Encounter identity — a change drops floaters left animating from the previous fight. */
   encounterId: number | null;
@@ -81,6 +89,7 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
   const playerFlash = useSharedValue(0);
   const shake = useSharedValue(0);
   const creatureScale = useSharedValue(1);
+  const playerScale = useSharedValue(1);
 
   const creatureFlashStyle = useAnimatedStyle(() => ({
     opacity: creatureFlash.value * FLASH_MAX_OPACITY,
@@ -91,6 +100,9 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
   const creatureRecoilStyle = useAnimatedStyle(() => ({
     transform: [{ scale: creatureScale.value }],
+  }));
+  const playerRecoilStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: playerScale.value }],
   }));
 
   const removeFloater = useCallback((id: number) => {
@@ -127,7 +139,23 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
 
     const spawnedBursts: CombatBurst[] = [];
     for (const h of fresh) {
-      if (h.kind === 'heal') continue;
+      if (h.kind === 'heal') continue; // heal shows its green floater above; no burst/flash
+
+      if (h.kind === 'buff' || h.kind === 'debuff') {
+        // Empower/weaken cue — deliberately NOT a hit: no shake, no red flash, no impact burst, so
+        // a status cast never reads as damage. The panel pops and a gold/violet burst plays.
+        triggerEmpower(h.target === 'creature' ? creatureScale : playerScale);
+        spawnedBursts.push({
+          id: nextBurstIdRef.current++,
+          target: h.target,
+          damageType: null,
+          resist: h.resist,
+          kind: h.kind,
+        });
+        continue;
+      }
+
+      // Damage (hit / dot): impact feedback.
       triggerShake(shake, h.amount, h.targetMaxHp);
       if (h.target === 'creature') {
         triggerFlash(creatureFlash);
@@ -140,12 +168,13 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
         target: h.target,
         damageType: h.damageType,
         resist: h.resist,
+        kind: 'damage',
       });
     }
     if (spawnedBursts.length > 0) {
       setBursts(list => [...list, ...spawnedBursts]);
     }
-  }, [encounterId, hits, creatureFlash, playerFlash, shake, creatureScale]);
+  }, [encounterId, hits, creatureFlash, playerFlash, shake, creatureScale, playerScale]);
 
   return {
     floaters,
@@ -156,5 +185,6 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
     playerFlashStyle,
     shakeStyle,
     creatureRecoilStyle,
+    playerRecoilStyle,
   };
 }

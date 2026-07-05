@@ -34,7 +34,7 @@ import {
 } from '../models/Ability';
 import { applyResistance } from '../models/DamageType';
 import { mitigateDamage } from '../models/combat';
-import { classifyResist, type CombatHitEvent } from '../models/CombatHitEvent';
+import { classifyResist, formatStatModLabel, type CombatHitEvent } from '../models/CombatHitEvent';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -764,6 +764,23 @@ export function useEncounter({
       } else {
         enemyEffects.push(effect);
       }
+    }
+
+    // Publish a buff/debuff cue (Phase-2 follow-up): a status cast deals no damage, so without its
+    // own event the only visible FX would be the enemy's counter — misreading as "the buff hurt me".
+    // A self-buff empowers the player; a debuff weakens the creature. `label` carries the stat change.
+    if (ability.primitive === 'buff_debuff') {
+      const buffAbility = ability as BuffDebuffAbility;
+      const toSelf = buffAbility.targetSelf;
+      pushHit({
+        target: toSelf ? 'player' : 'creature',
+        amount: 0,
+        damageType: null,
+        resist: 'neutral',
+        kind: toSelf ? 'buff' : 'debuff',
+        targetMaxHp: toSelf ? updatedPlayer.maxHp : creature.maxHp,
+        label: formatStatModLabel(buffAbility.statModifiers),
+      });
     }
 
     // Compute new player state synchronously from the ref and write back immediately.

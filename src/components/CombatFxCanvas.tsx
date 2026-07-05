@@ -27,6 +27,8 @@ export interface CombatBurst {
   target: 'creature' | 'player';
   damageType: DamageType | null;
   resist: ResistTier;
+  /** 'damage' (default) uses the damage-type preset; 'buff'/'debuff' use the status presets. */
+  kind?: 'damage' | 'buff' | 'debuff';
 }
 
 interface BurstPreset {
@@ -79,6 +81,27 @@ const PARTICLE_PRESETS: Record<DamageType, BurstPreset> = {
   },
 };
 
+// Status bursts (Phase-2 follow-up) — NOT damage: a buff empowers (gold, floats UP), a debuff
+// weakens (violet, sinks DOWN). Colors match the buff/debuff floating-number colors.
+const BUFF_PRESET: BurstPreset = {
+  color: '#FFD54F',
+  count: 16,
+  speed: 30,
+  size: 5,
+  lifetimeMs: 700,
+  upwardBias: 0.85,
+  gravity: -34,
+};
+const DEBUFF_PRESET: BurstPreset = {
+  color: '#B39DDB',
+  count: 12,
+  speed: 26,
+  size: 5,
+  lifetimeMs: 650,
+  upwardBias: 0,
+  gravity: 22,
+};
+
 // resist → burst emphasis, mirroring the RESIST/WEAK floating-number tell.
 const RESIST_COUNT_SCALE: Record<ResistTier, number> = {
   resisted: 0.5,
@@ -119,7 +142,12 @@ function ParticleBurst({
   cy: number;
   onDone: (id: number) => void;
 }) {
-  const preset = PARTICLE_PRESETS[burst.damageType ?? 'physical'];
+  const preset =
+    burst.kind === 'buff'
+      ? BUFF_PRESET
+      : burst.kind === 'debuff'
+        ? DEBUFF_PRESET
+        : PARTICLE_PRESETS[burst.damageType ?? 'physical'];
   const maxOpacity = RESIST_OPACITY[burst.resist];
   // Generated once — preset + resist are immutable for a given burst instance (keyed by id at the
   // call site), so this memo runs a single time and the random dots stay frozen for the burst's life
