@@ -1,4 +1,16 @@
-import { combatTextStyle } from '../../utils/combatText';
+import { combatTextStyle, hitFloaterStyle } from '../../utils/combatText';
+import type { CombatHitEvent } from '../../models/CombatHitEvent';
+
+const makeEvent = (overrides: Partial<CombatHitEvent> = {}): CombatHitEvent => ({
+  id: 0,
+  target: 'creature',
+  amount: 15,
+  damageType: 'fire',
+  resist: 'neutral',
+  kind: 'hit',
+  targetMaxHp: 100,
+  ...overrides,
+});
 
 describe('combatTextStyle', () => {
   describe('heal', () => {
@@ -50,6 +62,42 @@ describe('combatTextStyle', () => {
 
     it('clamps negative amounts to 0', () => {
       expect(combatTextStyle(-5, 100, 'damage').label).toBe('0');
+    });
+  });
+});
+
+describe('hitFloaterStyle', () => {
+  it('colors a neutral hit by damage type and shows a plain number', () => {
+    expect(hitFloaterStyle(makeEvent({ damageType: 'frost', resist: 'neutral' }))).toEqual({
+      label: '15',
+      color: '#4FC3F7',
+      fontSize: 26, // 15/100 = solid tier
+    });
+  });
+
+  it('tags a resisted hit with RESIST, mutes the color, and shrinks it', () => {
+    const s = hitFloaterStyle(makeEvent({ amount: 15, resist: 'resisted' }));
+    expect(s.label).toBe('15 RESIST');
+    expect(s.color).toBe('#90A4AE');
+    expect(s.fontSize).toBe(Math.round(26 * 0.85));
+  });
+
+  it('tags a vulnerable hit with WEAK, keeps the type color, and enlarges it', () => {
+    const s = hitFloaterStyle(makeEvent({ amount: 15, damageType: 'fire', resist: 'vulnerable' }));
+    expect(s.label).toBe('15 WEAK');
+    expect(s.color).toBe('#FF7043');
+    expect(s.fontSize).toBe(Math.round(26 * 1.15));
+  });
+
+  it('falls back to the physical color when damageType is null', () => {
+    expect(hitFloaterStyle(makeEvent({ damageType: null })).color).toBe('#ECEFF1');
+  });
+
+  it('defers a heal to the heal styling (green +N), ignoring type/resist', () => {
+    expect(hitFloaterStyle(makeEvent({ kind: 'heal', amount: 8, damageType: null }))).toEqual({
+      label: '+8',
+      color: '#43A047',
+      fontSize: 22,
     });
   });
 });

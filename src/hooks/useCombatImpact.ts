@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   useSharedValue,
   useAnimatedStyle,
@@ -7,21 +7,20 @@ import {
   type SharedValue,
 } from 'react-native-reanimated';
 import { MOTION_EASING, MOTION_SHAKE } from '../constants/motion';
-import { combatTextStyle } from '../utils/combatText';
+import { hitFloaterStyle } from '../utils/combatText';
 import type { CombatFloater } from '../components/FloatingCombatText';
+import type { CombatHitEvent } from '../models/CombatHitEvent';
 
 /**
- * Derives combat "impact" feedback (Phase 2a) purely from HP changes, so the combat hook
- * (useEncounter) stays untouched: each render we compare the current HP to the previous and, on a
- * drop/gain, spawn a floating number + flash the struck panel + shake the modal. Baselines reset on
- * a new encounter so a fresh full-HP foe doesn't register a phantom hit against the last one.
+ * Turns the combat hit-event feed (graphics roadmap Phase 2b) into impact FX: a typed floating
+ * number per hit (color = damage type, tell = RESIST/WEAK, size = magnitude), a hit-flash on the
+ * struck panel, a modal shake, and a hurt-punch on the creature panel. Events are processed exactly
+ * once, by ascending id — the feed is append-only and reset per encounter upstream (useEncounter),
+ * so on an encounter change we also drop any floaters still animating from the previous fight.
  *
- * LIMITATIONS (both by design; Phase 2b's real hit-event from the combat hook resolves them):
- *  - HP deltas carry only a NET amount per turn — no damage TYPE, no DoT-vs-direct split.
- *  - The FIGHT-ENDING blow shows no FX: useEncounter batches the lethal HP change with the encounter
- *    teardown (and a post-fight fullHeal) in one commit, so this hook only sees encounterId go null
- *    and re-baselines instead of emitting the final delta. Low impact — that same turn closes the
- *    combat modal (the reward reveal takes over), so a number there wouldn't be seen anyway.
+ * This supersedes 2a's derive-from-HP-deltas approach: the event carries damage TYPE + resist that
+ * HP deltas couldn't, and it emits at the moment of the hit (so, unlike 2a, the killing blow lands
+ * an event — the kill-beat in useEncounter keeps the modal open long enough to show it).
  */
 
 const FLASH_MAX_OPACITY = 0.35;
@@ -30,6 +29,9 @@ const FLASH_DOWN_MS = 200;
 /** A hit worth this fraction of max HP produces a full-strength shake. */
 const SHAKE_FULL_AT_FRACTION = 0.25;
 const FLOATER_DX_SPREAD = 18; // ± horizontal jitter (px)
+const RECOIL_SCALE = 0.94; // creature panel compresses when struck
+const RECOIL_DOWN_MS = 70;
+const RECOIL_UP_MS = 160;
 
 function triggerFlash(flash: SharedValue<number>): void {
   flash.value = withSequence(
@@ -52,31 +54,30 @@ function triggerShake(shake: SharedValue<number>, amount: number, maxHp: number)
   );
 }
 
-export interface UseCombatImpactParams {
-  /** Encounter identity — a change resets the HP baselines (new fight). */
-  encounterId: number | null;
-  creatureHp: number | null;
-  creatureMaxHp: number | null;
-  playerHp: number | null;
-  playerMaxHp: number | null;
+function triggerRecoil(scale: SharedValue<number>): void {
+  scale.value = withSequence(
+    withTiming(RECOIL_SCALE, { duration: RECOIL_DOWN_MS }),
+    withTiming(1, { duration: RECOIL_UP_MS, easing: MOTION_EASING.standard }),
+  );
 }
 
-export function useCombatImpact({
-  encounterId,
-  creatureHp,
-  creatureMaxHp,
-  playerHp,
-  playerMaxHp,
-}: UseCombatImpactParams) {
+export interface UseCombatImpactParams {
+  /** Encounter identity — a change drops floaters left animating from the previous fight. */
+  encounterId: number | null;
+  /** Append-only combat hit feed from useEncounter; processed once, by ascending id. */
+  hits: CombatHitEvent[];
+}
+
+export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
   const [floaters, setFloaters] = useState<CombatFloater[]>([]);
-  const nextIdRef = useRef(0);
-  const prevCreatureHpRef = useRef<number | null>(null);
-  const prevPlayerHpRef = useRef<number | null>(null);
+  const nextFloaterIdRef = useRef(0);
+  const lastSeenHitIdRef = useRef(-1);
   const fxEncounterRef = useRef<number | null>(null);
 
   const creatureFlash = useSharedValue(0);
   const playerFlash = useSharedValue(0);
   const shake = useSharedValue(0);
+  const creatureScale = useSharedValue(1);
 
   const creatureFlashStyle = useAnimatedStyle(() => ({
     opacity: creatureFlash.value * FLASH_MAX_OPACITY,
@@ -85,70 +86,56 @@ export function useCombatImpact({
     opacity: playerFlash.value * FLASH_MAX_OPACITY,
   }));
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
+  const creatureRecoilStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: creatureScale.value }],
+  }));
 
   const removeFloater = useCallback((id: number) => {
     setFloaters(list => list.filter(f => f.id !== id));
   }, []);
 
   useEffect(() => {
-    // New encounter (or first mount): baseline the refs, emit nothing.
+    // Clear leftover numbers when the fight changes (CombatModal stays mounted across encounters).
     if (fxEncounterRef.current !== encounterId) {
       fxEncounterRef.current = encounterId;
-      prevCreatureHpRef.current = creatureHp;
-      prevPlayerHpRef.current = playerHp;
-      // Drop numbers still animating from the prior fight — CombatModal stays mounted on HomeScreen
-      // across encounters, so leftover floaters would otherwise linger on the next fight's panels.
       setFloaters([]);
-      return;
     }
 
-    const spawned: CombatFloater[] = [];
+    const fresh = hits.filter(h => h.id > lastSeenHitIdRef.current);
+    if (fresh.length === 0) return;
+    lastSeenHitIdRef.current = fresh[fresh.length - 1].id; // ids are monotonic → last is the max
 
-    const applyHit = (
-      target: CombatFloater['target'],
-      cur: number | null,
-      prevRef: MutableRefObject<number | null>,
-      maxHp: number | null,
-      flash: SharedValue<number>,
-    ): void => {
-      if (cur == null) return;
-      const prev = prevRef.current;
-      prevRef.current = cur;
-      if (prev == null || cur === prev) return;
-
-      const delta = prev - cur; // + = damage taken, - = healed
-      const kind = delta > 0 ? 'damage' : 'heal';
-      const style = combatTextStyle(Math.abs(delta), maxHp ?? 0, kind);
-      spawned.push({
-        id: nextIdRef.current++,
-        target,
+    const spawned: CombatFloater[] = fresh.map(h => {
+      const style = hitFloaterStyle(h);
+      return {
+        id: nextFloaterIdRef.current++,
+        target: h.target,
         label: style.label,
         color: style.color,
         fontSize: style.fontSize,
         dx: (Math.random() * 2 - 1) * FLOATER_DX_SPREAD,
-      });
-      if (delta > 0) {
-        triggerFlash(flash);
-        triggerShake(shake, delta, maxHp ?? 1);
+      };
+    });
+    setFloaters(list => [...list, ...spawned]);
+
+    for (const h of fresh) {
+      if (h.kind === 'heal') continue;
+      triggerShake(shake, h.amount, h.targetMaxHp);
+      if (h.target === 'creature') {
+        triggerFlash(creatureFlash);
+        triggerRecoil(creatureScale); // the foe flinches when it takes a hit
+      } else {
+        triggerFlash(playerFlash);
       }
-    };
-
-    applyHit('creature', creatureHp, prevCreatureHpRef, creatureMaxHp, creatureFlash);
-    applyHit('player', playerHp, prevPlayerHpRef, playerMaxHp, playerFlash);
-
-    if (spawned.length > 0) {
-      setFloaters(list => [...list, ...spawned]);
     }
-  }, [
-    encounterId,
-    creatureHp,
-    playerHp,
-    creatureMaxHp,
-    playerMaxHp,
-    creatureFlash,
-    playerFlash,
-    shake,
-  ]);
+  }, [encounterId, hits, creatureFlash, playerFlash, shake, creatureScale]);
 
-  return { floaters, removeFloater, creatureFlashStyle, playerFlashStyle, shakeStyle };
+  return {
+    floaters,
+    removeFloater,
+    creatureFlashStyle,
+    playerFlashStyle,
+    shakeStyle,
+    creatureRecoilStyle,
+  };
 }

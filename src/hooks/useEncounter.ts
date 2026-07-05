@@ -34,6 +34,7 @@ import {
 } from '../models/Ability';
 import { applyResistance } from '../models/DamageType';
 import { mitigateDamage } from '../models/combat';
+import { classifyResist, type CombatHitEvent } from '../models/CombatHitEvent';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -47,6 +48,9 @@ interface UseEncounterParams {
 // rarity "tell" must burst on a clear stage to be readable — so we wait for the combat modal's
 // dismiss animation before revealing. Tuned to the Modal fade/slide (~300ms) with headroom.
 const REWARD_REVEAL_DELAY_MS = 380;
+// Kill-beat (Phase 2b): hold the combat modal open this long after the finishing blow so its FX
+// (floating number + creature recoil + shake) plays before the victory teardown closes it.
+const KILL_BEAT_MS = 500;
 
 // Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
 // uncommon drops are frequent, so notifying on them would be spam — they still appear in the
@@ -73,6 +77,11 @@ export function useEncounter({
   // guarantee a drop of that rarity). null = roll normally. See DebugPanel "Drop Rarity".
   const [forcedRarity, setForcedRarity] = useState<Rarity | null>(null);
   const [playerCombatState, setPlayerCombatState] = useState<CombatantState | null>(null);
+  // Transient combat "hit" feed for the presentation layer (Phase 2b) — appended during a turn,
+  // reset per encounter (startCombat) to bound growth. Ids are monotonic so CombatModal can process
+  // by ascending id; this only PUBLISHES values the combat math already computed (no logic change).
+  const [combatHits, setCombatHits] = useState<CombatHitEvent[]>([]);
+  const hitIdRef = useRef(0);
   const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
   // Non-null → the "while you walked" summary modal is shown for these passively-resolved
   // encounters. Populated by checkWalkSummary on app-foreground; cleared on dismiss.
@@ -96,6 +105,10 @@ export function useEncounter({
   const showCombatModalRef = useRef<boolean>(false);
   // Holds the pending deferred reward reveal (see REWARD_REVEAL_DELAY_MS / handleVictory).
   const rewardRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Kill-beat timer + guard (see scheduleVictory / KILL_BEAT_MS). killBeatPendingRef freezes the
+  // fight during the beat so a stray tap can't double-resolve before handleVictory runs.
+  const killBeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const killBeatPendingRef = useRef<boolean>(false);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
@@ -105,11 +118,15 @@ export function useEncounter({
     isMinimizedRef.current = isEncounterModalMinimized;
   }, [isEncounterModalMinimized]);
 
-  // Clear any pending deferred reward reveal on unmount so its timer can't setState afterward.
+  // Clear pending deferred timers (reward reveal + kill-beat) on unmount so neither can setState
+  // after teardown.
   useEffect(() => {
     return () => {
       if (rewardRevealTimerRef.current) {
         clearTimeout(rewardRevealTimerRef.current);
+      }
+      if (killBeatTimerRef.current) {
+        clearTimeout(killBeatTimerRef.current);
       }
     };
   }, []);
@@ -161,6 +178,14 @@ export function useEncounter({
     setShowCombatModal(false);
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
+    setCombatHits([]);
+    // Cancel any in-flight kill-beat so a torn-down fight (e.g. account switch) can't resolve its
+    // victory into the new session (mirrors the reward-reveal cancel below).
+    if (killBeatTimerRef.current) {
+      clearTimeout(killBeatTimerRef.current);
+      killBeatTimerRef.current = null;
+    }
+    killBeatPendingRef.current = false;
     // Clear any in-flight victory reveal — both an already-shown one AND a still-pending
     // deferred timer — so a previous account's reward can't fire/linger over the new session
     // after an account switch (clearEncounter runs then), even within REWARD_REVEAL_DELAY_MS.
@@ -247,6 +272,14 @@ export function useEncounter({
     }
 
     victoryProcessedRef.current = true;
+    // Victory is now resolving — end the kill-beat here, whatever path reached handleVictory (the
+    // beat timer, or a direct resolution). Clearing the guard/timer at the single resolution point
+    // guarantees the pending flag can't outlive the fight and freeze the next encounter's inputs.
+    if (killBeatTimerRef.current) {
+      clearTimeout(killBeatTimerRef.current);
+      killBeatTimerRef.current = null;
+    }
+    killBeatPendingRef.current = false;
 
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
@@ -320,6 +353,23 @@ export function useEncounter({
       rewardRevealTimerRef.current = null;
       setRewardReveal(reveal);
     }, REWARD_REVEAL_DELAY_MS);
+  };
+
+  // Kill-beat (Phase 2b): keep the combat modal open through KILL_BEAT_MS so the finishing blow's
+  // FX plays, then resolve the victory (handleVictory closes the modal + defers the reward reveal).
+  // Freezes the fight immediately via killBeatPendingRef so a stray tap can't double-resolve during
+  // the beat. Reward math stays in handleVictory; only its timing shifts by the beat. Torn-down mid-
+  // beat (account switch) → clearEncounter cancels the timer; an early user close still resolves it
+  // (handleCloseCombatModal only hides the modal, leaving encounterRef valid for handleVictory).
+  const scheduleVictory = (playerToUse: Player): void => {
+    if (victoryProcessedRef.current || killBeatPendingRef.current) return;
+    killBeatPendingRef.current = true;
+    if (killBeatTimerRef.current) clearTimeout(killBeatTimerRef.current);
+    killBeatTimerRef.current = setTimeout(() => {
+      killBeatTimerRef.current = null; // timer fired; handleVictory clears the pending guard
+      showCombatModalRef.current = false;
+      handleVictory(playerToUse);
+    }, KILL_BEAT_MS);
   };
 
   // Hold an ELITE encounter as the "worthy foe": persist it. ALL elites (foreground and background)
@@ -539,6 +589,9 @@ export function useEncounter({
     setShowEncounterModal(false);
     setCurrentEncounter(null);
     setPlayerCombatState(null);
+    // Reset the hit feed on flee too (like clearEncounter / the next handleFight) so no events
+    // linger past this fight — keeps every combat-teardown path consistent.
+    setCombatHits([]);
   };
 
   const handleFight = (): void => {
@@ -569,11 +622,19 @@ export function useEncounter({
       const initialState = initCombatState(currentPlayer.archetype);
       playerCombatStateRef.current = initialState;
       setPlayerCombatState(initialState);
+      // Fresh hit feed for this fight (only on the first open — reopening mid-encounter keeps state).
+      setCombatHits([]);
     }
     if (creatureCombatStateRef.current === null) {
       creatureCombatStateRef.current = { statusEffects: [], resource: 0 };
     }
     AnalyticsService.combatStarted(creature.name, currentPlayer.level);
+  };
+
+  // Publish a transient combat hit for the presentation layer (Phase 2b). Monotonic id; React
+  // batches the per-turn calls into one update. Never mutates combat state.
+  const pushHit = (event: Omit<CombatHitEvent, 'id'>): void => {
+    setCombatHits(prev => [...prev, { ...event, id: hitIdRef.current++ }]);
   };
 
   const handleAbility = (ability: Ability): boolean => {
@@ -583,7 +644,7 @@ export function useEncounter({
     const currentPlayerState = playerCombatStateRef.current;
 
     if (!currentEncounterState || !currentPlayer || !currentPlayerState) return false;
-    if (victoryProcessedRef.current) return false;
+    if (victoryProcessedRef.current || killBeatPendingRef.current) return false;
 
     const creature = currentEncounterState.creature;
 
@@ -616,10 +677,19 @@ export function useEncounter({
       const { dotEffects, updatedState } = tickStatusEffects(newCreatureState);
       let resistedDot = 0;
       for (const { damage, damageType } of dotEffects) {
-        resistedDot += applyResistance(
-          damage,
-          damageType ? (creature.resistances[damageType] ?? 0) : 0,
-        );
+        const resistVal = damageType ? (creature.resistances[damageType] ?? 0) : 0;
+        const dealt = applyResistance(damage, resistVal);
+        resistedDot += dealt;
+        if (dealt > 0) {
+          pushHit({
+            target: 'creature',
+            amount: dealt,
+            damageType: damageType ?? null,
+            resist: classifyResist(resistVal),
+            kind: 'dot',
+            targetMaxHp: creature.maxHp,
+          });
+        }
       }
       if (resistedDot > 0) creature.takeDamage(resistedDot);
       newCreatureState = updatedState;
@@ -634,10 +704,8 @@ export function useEncounter({
       playerCombatStateRef.current = tickedPlayer;
       setPlayerCombatState(tickedPlayer);
       creatureCombatStateRef.current = newCreatureState;
-      showCombatModalRef.current = false;
-      setShowCombatModal(false);
-      setShowEncounterModal(false);
-      handleVictory(updatedPlayer);
+      // Kill-beat: the DoT tick delivered the finishing blow — let its number land before teardown.
+      scheduleVictory(updatedPlayer);
       return false;
     }
 
@@ -662,7 +730,30 @@ export function useEncounter({
     );
 
     creature.takeDamage(abilityResult.damage);
-    if (abilityResult.heal > 0) updatedPlayer.restoreHp(abilityResult.heal);
+    if (abilityResult.damage > 0) {
+      // Only 'direct' abilities deal immediate typed damage (dot/buff/defensive have 0 here).
+      const dmgType = ability.primitive === 'direct' ? ability.damageType : null;
+      const resistVal = dmgType ? (creature.resistances[dmgType] ?? 0) : 0;
+      pushHit({
+        target: 'creature',
+        amount: abilityResult.damage,
+        damageType: dmgType,
+        resist: classifyResist(resistVal),
+        kind: 'hit',
+        targetMaxHp: creature.maxHp,
+      });
+    }
+    if (abilityResult.heal > 0) {
+      updatedPlayer.restoreHp(abilityResult.heal);
+      pushHit({
+        target: 'player',
+        amount: abilityResult.heal,
+        damageType: null,
+        resist: 'neutral',
+        kind: 'heal',
+        targetMaxHp: updatedPlayer.maxHp,
+      });
+    }
 
     // Route applied effects to the right combatant.
     const selfEffects: StatusEffect[] = [];
@@ -707,6 +798,17 @@ export function useEncounter({
     if (!creature.isDefeated()) {
       const creatureDamage = mitigateDamage(creatureEffectiveAttack, playerEffective.defense);
       updatedPlayer.takeDamage(creatureDamage);
+      if (creatureDamage > 0) {
+        // The basic counter is physical; the player has no resistances yet, so it's always neutral.
+        pushHit({
+          target: 'player',
+          amount: creatureDamage,
+          damageType: 'physical',
+          resist: 'neutral',
+          kind: 'hit',
+          targetMaxHp: updatedPlayer.maxHp,
+        });
+      }
     }
 
     setPlayerAndSave(updatedPlayer);
@@ -723,10 +825,9 @@ export function useEncounter({
     setCurrentEncounter(updatedEncounter);
 
     if (creature.isDefeated()) {
-      showCombatModalRef.current = false;
-      setShowCombatModal(false);
-      setShowEncounterModal(false);
-      handleVictory(updatedPlayer);
+      // Kill-beat: the encounter above already shows the creature at 0 HP; keep the modal open so
+      // the finishing blow's FX plays, then resolve the victory (which closes it + reveals reward).
+      scheduleVictory(updatedPlayer);
     } else if (updatedPlayer.isDefeated()) {
       const healedPlayer = new Player(updatedPlayer.toJSON());
       healedPlayer.fullHeal();
@@ -1049,6 +1150,7 @@ export function useEncounter({
     debugPreviewReveal,
     playerCombatState,
     playerCombatStateRef,
+    combatHits,
     rewardReveal,
     dismissReward,
     walkSummary,
