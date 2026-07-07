@@ -105,6 +105,7 @@ export default function HomeScreen() {
     handleCloseCombatModal,
     handleExpandMinimized,
     handleFlee,
+    handleAutoResolve,
     forceEncounter,
     debugForceIdleEncounter,
     debugForceEliteEncounter,
@@ -467,6 +468,7 @@ export default function HomeScreen() {
         playerMaxHp={player?.maxHp}
         onFight={handleFight}
         onFlee={handleFlee}
+        onAutoResolve={handleAutoResolve}
         onMinimize={handleMinimize}
         debugMode={ENV_CONFIG.enableDebugMode && debugMode}
         onDebugDefeat={handleDebugDefeat}

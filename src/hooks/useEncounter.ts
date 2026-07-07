@@ -35,6 +35,7 @@ import {
 import { applyResistance } from '../models/DamageType';
 import { mitigateDamage } from '../models/combat';
 import { classifyResist, formatStatModLabel, type CombatHitEvent } from '../models/CombatHitEvent';
+import { resolveEncounterRoute } from '../models/encounterRouting';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
@@ -928,6 +929,38 @@ export function useEncounter({
     setShowEncounterModal(true);
   };
 
+  // Present an encounter as an ACTIVE, engageable fight (opens the EncounterModal). Shared by the
+  // foreground gate and forceEncounter; resets the combat/flow refs so the fresh encounter is clean.
+  const presentEncounter = (encounter: Encounter): void => {
+    encounterRef.current = encounter;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    victoryProcessedRef.current = false;
+    fleeProcessedRef.current = false;
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
+    setPlayerCombatState(null);
+    setCurrentEncounter(encounter);
+    setShowEncounterModal(true);
+    setIsEncounterModalMinimized(false);
+  };
+
+  // Auto-Resolve (skip) a below-rare encounter: grant the SAME active-tier reward as fighting via
+  // handleVictory, minus the turn-based fight. Elites are never auto-resolvable (the button is hidden
+  // for them; guarded here too), so meaningful content still has to be engaged.
+  const handleAutoResolve = (): void => {
+    const currentPlayer = playerRef.current;
+    const enc = encounterRef.current;
+    if (!currentPlayer || !enc || isEliteCreature(enc.creature)) {
+      return;
+    }
+    showCombatModalRef.current = false;
+    setShowCombatModal(false);
+    setShowEncounterModal(false);
+    setIsEncounterModalMinimized(false);
+    handleVictory(currentPlayer);
+  };
+
   const forceEncounter = (): void => {
     const currentLocationData = currentLocationRef.current;
     const currentPlayer = playerRef.current;
@@ -944,18 +977,7 @@ export function useEncounter({
 
     const encounter = EncounterService.forceEncounter(location, currentPlayer?.level || 1);
 
-    encounterRef.current = encounter;
-    isMinimizedRef.current = false;
-    showCombatModalRef.current = false;
-    victoryProcessedRef.current = false;
-    fleeProcessedRef.current = false;
-
-    playerCombatStateRef.current = null;
-    creatureCombatStateRef.current = null;
-    setPlayerCombatState(null);
-    setCurrentEncounter(encounter);
-    setShowEncounterModal(true);
-    setIsEncounterModalMinimized(false);
+    presentEncounter(encounter);
     setEncounterChance(0);
     const blocking = EncounterService.isTimeConstraintBlocking();
     setIsTimeBlocking(blocking);
@@ -1082,23 +1104,28 @@ export function useEncounter({
           encounter.playerLevel,
         );
         const isInBackground = appStateRef.current !== 'active';
-        // RARITY gate (the hybrid idle/active loop). Rarity — not movement — decides the path, since
-        // encounters only fire from movement anyway (a speed gate can't tell "walking" from
-        // "stopped"): COMMON creatures auto-resolve passively into the walk summary (never interrupt
-        // the walk); ELITE creatures (rare+, isEliteCreature) are the deliberate turn-based "boss
-        // fights" that pay the better-loot differential.
-        if (isEliteCreature(encounter.creature)) {
-          // Hold the elite as a "worthy foe". holdEliteEncounter surfaces the inline card (foreground
-          // and background alike) and notifies when backgrounded — the player engages it turn-based
-          // from the card. If it can't be held (a foe is already held, or the save failed), resolve
-          // it passively so the encounter isn't lost.
+        // Hybrid idle/active gate (resolveEncounterRoute):
+        //  - FOREGROUND & free → present EVERY encounter as an engageable fight. Below-rare can be
+        //    Auto-Resolved (same reward, skips the tedium); elites must be fought. This is the fix for
+        //    "active play had too few real fights" — commons no longer silently idle-resolve.
+        //  - BACKGROUND → hold elites as worthy foes (card + notify), auto-resolve commons.
+        //  - FOREGROUND but already mid-encounter (busy) → resolve idle so the open one isn't clobbered.
+        const route = resolveEncounterRoute({
+          isBackground: isInBackground,
+          isElite: isEliteCreature(encounter.creature),
+          busy: encounterRef.current !== null,
+        });
+        if (route === 'present') {
+          presentEncounter(encounter);
+        } else if (route === 'hold') {
+          // If it can't be held (a foe is already held, or the save failed), resolve it passively so
+          // the encounter isn't lost.
           const held = await holdEliteEncounter(encounter, isInBackground);
           if (!held) {
             await resolvePassiveEncounter(encounter, isInBackground);
           }
         } else {
-          // Common: auto-resolve passively. resolvePassiveEncounter reads playerRef and no-ops if no
-          // player is loaded yet, so it never falls through to open turn-based UI.
+          // resolvePassiveEncounter reads playerRef and no-ops if no player is loaded yet.
           await resolvePassiveEncounter(encounter, isInBackground);
         }
 
@@ -1183,6 +1210,7 @@ export function useEncounter({
     handleCloseCombatModal,
     handleExpandMinimized,
     handleFlee,
+    handleAutoResolve,
     forceEncounter,
     debugForceIdleEncounter,
     debugForceEliteEncounter,

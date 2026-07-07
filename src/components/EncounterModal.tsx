@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Encounter } from '../models/Encounter';
-import { Rarity } from '../models/Creature';
+import { Rarity, isEliteCreature } from '../models/Creature';
 import { DamageType } from '../models/DamageType';
 import PressableScale from './PressableScale';
 
@@ -22,6 +22,8 @@ interface EncounterModalProps {
   playerMaxHp?: number;
   onFight: () => void;
   onFlee: () => void;
+  /** Auto-Resolve (skip) — instant same-reward win. Only offered for below-rare creatures. */
+  onAutoResolve?: () => void;
   onMinimize?: () => void;
   debugMode?: boolean;
   onDebugDefeat?: () => void;
@@ -39,6 +41,7 @@ export default function EncounterModal({
   playerMaxHp,
   onFight,
   onFlee,
+  onAutoResolve,
   onMinimize,
   debugMode = false,
   onDebugDefeat,
@@ -48,6 +51,8 @@ export default function EncounterModal({
   }
 
   const creature = encounter.creature;
+  // Below-rare only: elites (rare+) must be fought, so they never offer the skip.
+  const canAutoResolve = !!onAutoResolve && !isEliteCreature(creature);
   const rarityColors: Record<Rarity, string> = {
     common: '#9E9E9E',
     uncommon: '#4CAF50',
@@ -242,6 +247,19 @@ export default function EncounterModal({
                 {isDefeated ? 'Defeated' : playerDefeated ? 'You are Defeated' : 'Fight'}
               </Text>
             </PressableScale>
+            {canAutoResolve && (
+              <PressableScale
+                style={[
+                  styles.button,
+                  styles.autoResolveButton,
+                  (isDefeated || playerDefeated) && styles.buttonDisabled,
+                ]}
+                onPress={onAutoResolve}
+                disabled={isDefeated || playerDefeated}
+                testID="encounter-auto-resolve-button">
+                <Text style={styles.buttonText}>Auto-Resolve</Text>
+              </PressableScale>
+            )}
             <PressableScale style={[styles.button, styles.fleeButton]} onPress={onFlee}>
               <Text style={styles.buttonText}>Flee</Text>
             </PressableScale>
@@ -380,6 +398,9 @@ const styles = StyleSheet.create({
   },
   fightButton: {
     backgroundColor: '#FF5722',
+  },
+  autoResolveButton: {
+    backgroundColor: '#5C6BC0', // indigo — distinct from Fight (orange) / Flee (grey)
   },
   fleeButton: {
     backgroundColor: '#9E9E9E',
