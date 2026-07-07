@@ -1104,16 +1104,16 @@ export function useEncounter({
           encounter.playerLevel,
         );
         const isInBackground = appStateRef.current !== 'active';
-        // Hybrid idle/active gate (resolveEncounterRoute):
-        //  - FOREGROUND & free → present EVERY encounter as an engageable fight. Below-rare can be
+        // Hybrid idle/active gate (resolveEncounterRoute). Only reached when NO encounter is already
+        // active — the `if (currentEncounterState) return` guard above bails while one is open or
+        // minimized, so overlapping rolls are simply skipped (pacing preserved), never double-stacked.
+        //  - FOREGROUND → present EVERY encounter as an engageable fight. Below-rare can be
         //    Auto-Resolved (same reward, skips the tedium); elites must be fought. This is the fix for
         //    "active play had too few real fights" — commons no longer silently idle-resolve.
         //  - BACKGROUND → hold elites as worthy foes (card + notify), auto-resolve commons.
-        //  - FOREGROUND but already mid-encounter (busy) → resolve idle so the open one isn't clobbered.
         const route = resolveEncounterRoute({
           isBackground: isInBackground,
           isElite: isEliteCreature(encounter.creature),
-          busy: encounterRef.current !== null,
         });
         if (route === 'present') {
           presentEncounter(encounter);
