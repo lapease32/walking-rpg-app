@@ -1041,6 +1041,13 @@ export function useEncounter({
   };
 
   const handleCloseCombatModal = (): void => {
+    // The enemy's turn is resolving (counter beat in flight) — block closing/minimizing until the
+    // strike lands, mirroring the flee/ability input-freeze on counterPendingRef. Otherwise the
+    // close button (or an overlay tap) would dismiss the modal and the counter would apply off-screen
+    // with no feedback.
+    if (counterPendingRef.current) {
+      return;
+    }
     showCombatModalRef.current = false;
     setShowCombatModal(false);
   };
