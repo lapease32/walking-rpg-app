@@ -92,6 +92,9 @@ export function useEncounter({
   // by ascending id; this only PUBLISHES values the combat math already computed (no logic change).
   const [combatHits, setCombatHits] = useState<CombatHitEvent[]>([]);
   const hitIdRef = useRef(0);
+  // True while the creature's counter-attack beat is in flight (the "enemy turn"). Drives the
+  // CombatModal's turn banner + ability dimming so a counter never reads as the player's own action.
+  const [isEnemyTurn, setIsEnemyTurn] = useState<boolean>(false);
   const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
   // Non-null → the "while you walked" summary modal is shown for these passively-resolved
   // encounters. Populated by checkWalkSummary on app-foreground; cleared on dismiss.
@@ -193,6 +196,7 @@ export function useEncounter({
       counterTimerRef.current = null;
     }
     counterPendingRef.current = false;
+    setIsEnemyTurn(false);
   };
 
   const clearEncounter = (): void => {
@@ -738,6 +742,7 @@ export function useEncounter({
       return;
     }
     counterPendingRef.current = true;
+    setIsEnemyTurn(true); // the creature's turn, for the duration of the beat
     if (counterTimerRef.current) {
       clearTimeout(counterTimerRef.current);
     }
@@ -748,6 +753,7 @@ export function useEncounter({
     counterTimerRef.current = setTimeout(() => {
       counterTimerRef.current = null;
       counterPendingRef.current = false;
+      setIsEnemyTurn(false); // strike resolved (or fight changed) → back to the player's turn
       if (encounterRef.current !== scheduledEncounter) {
         return;
       }
@@ -1313,6 +1319,7 @@ export function useEncounter({
     playerCombatState,
     playerCombatStateRef,
     combatHits,
+    isEnemyTurn,
     rewardReveal,
     dismissReward,
     walkSummary,
