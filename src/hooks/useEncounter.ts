@@ -8,6 +8,7 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { dropActiveCombatItem, generateItem } from '../services/LootService';
+import { Item } from '../models/Item';
 import { resolveAutoCombat } from '../models/AutoCombat';
 import { activeCombatXp } from '../models/combatRewards';
 import { RewardReveal } from '../components/RewardRevealModal';
@@ -35,12 +36,16 @@ import {
 import { applyResistance } from '../models/DamageType';
 import { mitigateDamage } from '../models/combat';
 import { classifyResist, formatStatModLabel, type CombatHitEvent } from '../models/CombatHitEvent';
+import { resolveEncounterRoute } from '../models/encounterRouting';
 
 interface UseEncounterParams {
   playerRef: MutableRefObject<Player | null>;
   setPlayerAndSave: (player: Player) => void;
   appStateRef: MutableRefObject<AppStateStatus>;
   currentLocationRef: MutableRefObject<LocationData | null>;
+  // Idle-mode toggle (useAutoResolveSetting): a ref so the async GPS gate reads the live value, not
+  // a stale closure. When true, below-rare foreground encounters auto-resolve instead of presenting.
+  autoResolveBelowRareRef: MutableRefObject<boolean>;
 }
 
 // Delay between closing the combat/encounter modal and presenting the reward reveal. Two RN
@@ -62,6 +67,7 @@ export function useEncounter({
   setPlayerAndSave,
   appStateRef,
   currentLocationRef,
+  autoResolveBelowRareRef,
 }: UseEncounterParams) {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
@@ -435,14 +441,18 @@ export function useEncounter({
     }
   };
 
-  // Resolve an encounter passively (auto-combat) instead of opening the turn-based screen — used
-  // when the player is moving or the app is backgrounded (see onDistanceEncounterUpdate). Rewards
-  // are idle-tier and applied immediately (so they're never lost), and a display record is appended
-  // to the walk summary shown on return. Non-punishing: a loss only pays a smaller XP share, never
-  // HP. No modal or encounterRef is touched — the walk is never interrupted.
+  // Resolve an encounter WITHOUT opening the turn-based screen — the walk is never interrupted.
+  // Rewards are applied immediately (so they're never lost) and a display record is appended to the
+  // walk summary shown on return. Two tiers:
+  //  - 'idle' (default: walking / background) — a non-punishing auto-combat roll; a loss only pays a
+  //    smaller XP share, never HP.
+  //  - 'active' (foreground idle-mode toggle → resolveEncounterRoute 'autoResolve') — the SAME
+  //    reward as fighting: auto-win + active XP + an active-tier drop (mirrors handleVictory), so
+  //    skipping trivial content via the toggle costs the player nothing versus fighting it.
   const resolvePassiveEncounter = async (
     encounter: Encounter,
     isBackground: boolean,
+    rewardTier: 'idle' | 'active' = 'idle',
   ): Promise<void> => {
     // Base rewards off the freshest player. setPlayerAndSave updates playerRef synchronously, so
     // playerRef.current already includes the distance just added this tick (handleDistanceUpdate
@@ -453,16 +463,37 @@ export function useEncounter({
       return;
     }
     const creature = encounter.creature;
-    const outcome = resolveAutoCombat(basePlayer.level, creature);
+
+    let won: boolean;
+    let xpGained: number;
+    let item: Item | null;
+    if (rewardTier === 'active') {
+      // Same as a manual win (handleVictory), minus the turn-based fight. The active-tier drop is
+      // rolled AFTER addExperience (below, off updatedPlayer.level) so a toggle auto-resolve that
+      // levels you up scales its loot exactly like fighting the creature would.
+      won = true;
+      xpGained = activeCombatXp(creature.getExperienceReward());
+      item = null;
+    } else {
+      const outcome = resolveAutoCombat(basePlayer.level, creature);
+      won = outcome.won;
+      xpGained = outcome.xpGained;
+      item = outcome.item;
+    }
 
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.incrementEncounters();
-    if (outcome.won) {
+    if (won) {
       updatedPlayer.defeatCreature();
     }
-    const levelsGained = updatedPlayer.addExperience(outcome.xpGained);
+    const levelsGained = updatedPlayer.addExperience(xpGained);
 
-    let item = outcome.item;
+    // Active-tier loot rolls at the post-XP level (mirrors handleVictory); idle-tier loot already
+    // came from resolveAutoCombat above. No debug drop-forcing — that's a combat-only affordance.
+    if (rewardTier === 'active') {
+      item = dropActiveCombatItem(false, updatedPlayer.level, null);
+    }
+
     if (item) {
       const inventoryIndex = updatedPlayer.addItemToInventory(item);
       if (inventoryIndex === -1) {
@@ -485,8 +516,8 @@ export function useEncounter({
     const entry: WalkSummaryEntry = {
       creatureName: creature.name,
       rarity: creature.rarity,
-      won: outcome.won,
-      xpGained: outcome.xpGained,
+      won,
+      xpGained,
       item,
       timestamp: Date.now(),
     };
@@ -928,6 +959,38 @@ export function useEncounter({
     setShowEncounterModal(true);
   };
 
+  // Present an encounter as an ACTIVE, engageable fight (opens the EncounterModal). Shared by the
+  // foreground gate and forceEncounter; resets the combat/flow refs so the fresh encounter is clean.
+  const presentEncounter = (encounter: Encounter): void => {
+    encounterRef.current = encounter;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    victoryProcessedRef.current = false;
+    fleeProcessedRef.current = false;
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
+    setPlayerCombatState(null);
+    setCurrentEncounter(encounter);
+    setShowEncounterModal(true);
+    setIsEncounterModalMinimized(false);
+  };
+
+  // Auto-Resolve (skip) a below-rare encounter: grant the SAME active-tier reward as fighting via
+  // handleVictory, minus the turn-based fight. Elites are never auto-resolvable (the button is hidden
+  // for them; guarded here too), so meaningful content still has to be engaged.
+  const handleAutoResolve = (): void => {
+    const currentPlayer = playerRef.current;
+    const enc = encounterRef.current;
+    if (!currentPlayer || !enc || isEliteCreature(enc.creature)) {
+      return;
+    }
+    showCombatModalRef.current = false;
+    setShowCombatModal(false);
+    setShowEncounterModal(false);
+    setIsEncounterModalMinimized(false);
+    handleVictory(currentPlayer);
+  };
+
   const forceEncounter = (): void => {
     const currentLocationData = currentLocationRef.current;
     const currentPlayer = playerRef.current;
@@ -944,18 +1007,7 @@ export function useEncounter({
 
     const encounter = EncounterService.forceEncounter(location, currentPlayer?.level || 1);
 
-    encounterRef.current = encounter;
-    isMinimizedRef.current = false;
-    showCombatModalRef.current = false;
-    victoryProcessedRef.current = false;
-    fleeProcessedRef.current = false;
-
-    playerCombatStateRef.current = null;
-    creatureCombatStateRef.current = null;
-    setPlayerCombatState(null);
-    setCurrentEncounter(encounter);
-    setShowEncounterModal(true);
-    setIsEncounterModalMinimized(false);
+    presentEncounter(encounter);
     setEncounterChance(0);
     const blocking = EncounterService.isTimeConstraintBlocking();
     setIsTimeBlocking(blocking);
@@ -1082,23 +1134,33 @@ export function useEncounter({
           encounter.playerLevel,
         );
         const isInBackground = appStateRef.current !== 'active';
-        // RARITY gate (the hybrid idle/active loop). Rarity — not movement — decides the path, since
-        // encounters only fire from movement anyway (a speed gate can't tell "walking" from
-        // "stopped"): COMMON creatures auto-resolve passively into the walk summary (never interrupt
-        // the walk); ELITE creatures (rare+, isEliteCreature) are the deliberate turn-based "boss
-        // fights" that pay the better-loot differential.
-        if (isEliteCreature(encounter.creature)) {
-          // Hold the elite as a "worthy foe". holdEliteEncounter surfaces the inline card (foreground
-          // and background alike) and notifies when backgrounded — the player engages it turn-based
-          // from the card. If it can't be held (a foe is already held, or the save failed), resolve
-          // it passively so the encounter isn't lost.
+        // Hybrid idle/active gate (resolveEncounterRoute). Only reached when NO encounter is already
+        // active — the `if (currentEncounterState) return` guard above bails while one is open or
+        // minimized, so overlapping rolls are simply skipped (pacing preserved), never double-stacked.
+        //  - FOREGROUND → present EVERY encounter as an engageable fight, UNLESS the player has
+        //    idle-mode on (the "auto-resolve below-rare" toggle): then below-rare encounters
+        //    auto-resolve at active-tier reward into the summary. Elites always require a fight.
+        //  - BACKGROUND → hold elites as worthy foes (card + notify), idle-resolve below-rare.
+        const route = resolveEncounterRoute({
+          isBackground: isInBackground,
+          isElite: isEliteCreature(encounter.creature),
+          autoResolveBelowRare: autoResolveBelowRareRef.current,
+        });
+        if (route === 'present') {
+          presentEncounter(encounter);
+        } else if (route === 'autoResolve') {
+          // Idle-mode toggle: auto-resolve a below-rare foreground encounter at ACTIVE reward (same
+          // as fighting it) into the walk summary — no modal interrupts the walk.
+          await resolvePassiveEncounter(encounter, isInBackground, 'active');
+        } else if (route === 'hold') {
+          // If it can't be held (a foe is already held, or the save failed), resolve it passively so
+          // the encounter isn't lost.
           const held = await holdEliteEncounter(encounter, isInBackground);
           if (!held) {
             await resolvePassiveEncounter(encounter, isInBackground);
           }
         } else {
-          // Common: auto-resolve passively. resolvePassiveEncounter reads playerRef and no-ops if no
-          // player is loaded yet, so it never falls through to open turn-based UI.
+          // resolvePassiveEncounter reads playerRef and no-ops if no player is loaded yet.
           await resolvePassiveEncounter(encounter, isInBackground);
         }
 
@@ -1183,6 +1245,7 @@ export function useEncounter({
     handleCloseCombatModal,
     handleExpandMinimized,
     handleFlee,
+    handleAutoResolve,
     forceEncounter,
     debugForceIdleEncounter,
     debugForceEliteEncounter,

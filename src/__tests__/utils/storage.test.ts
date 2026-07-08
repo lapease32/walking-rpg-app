@@ -14,6 +14,8 @@ import {
   isValidEncounterData,
   saveTrackingState,
   loadTrackingState,
+  saveAutoResolveBelowRare,
+  loadAutoResolveBelowRare,
   clearAllUserData,
   appendWalkSummaryEntry,
   loadWalkSummary,
@@ -198,6 +200,54 @@ describe('loadTrackingState', () => {
   it('returns false when AsyncStorage throws', async () => {
     mockGetItem.mockRejectedValue(new Error('storage error'));
     expect(await loadTrackingState()).toBe(false);
+  });
+});
+
+describe('saveAutoResolveBelowRare', () => {
+  beforeEach(() => {
+    mockSetItem.mockReset();
+    mockGetItem.mockReset();
+  });
+
+  it('persists true', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    const result = await saveAutoResolveBelowRare(true);
+    expect(result).toBe(true);
+    expect(mockSetItem).toHaveBeenCalledWith('@walking_rpg:auto_resolve_below_rare', 'true');
+  });
+
+  it('persists false', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    const result = await saveAutoResolveBelowRare(false);
+    expect(result).toBe(true);
+    expect(mockSetItem).toHaveBeenCalledWith('@walking_rpg:auto_resolve_below_rare', 'false');
+  });
+
+  it('returns false when AsyncStorage throws', async () => {
+    mockSetItem.mockRejectedValue(new Error('storage error'));
+    expect(await saveAutoResolveBelowRare(true)).toBe(false);
+  });
+});
+
+describe('loadAutoResolveBelowRare', () => {
+  beforeEach(() => {
+    mockSetItem.mockReset();
+    mockGetItem.mockReset();
+  });
+
+  it('returns the stored value', async () => {
+    mockGetItem.mockResolvedValue('true');
+    expect(await loadAutoResolveBelowRare()).toBe(true);
+  });
+
+  it('defaults to false when nothing is stored (active-by-default)', async () => {
+    mockGetItem.mockResolvedValue(null);
+    expect(await loadAutoResolveBelowRare()).toBe(false);
+  });
+
+  it('returns false when AsyncStorage throws', async () => {
+    mockGetItem.mockRejectedValue(new Error('storage error'));
+    expect(await loadAutoResolveBelowRare()).toBe(false);
   });
 });
 
