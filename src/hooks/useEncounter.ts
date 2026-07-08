@@ -60,6 +60,10 @@ const KILL_BEAT_MS = 500;
 // The creature's counter-attack is deferred into a turn-based "beat" (see scheduleCounterAttack).
 // Its duration auto-shortens as the player gains combat experience — long enough to read the "enemy
 // turn" cue while learning, snappy once they've got it — see combatPacing.counterBeatMs.
+// Within that beat, the strike lands ~this long before the end, then the enemy turn holds so the red
+// hit-flash renders WHILE it's still the enemy's turn — never in the same frame as the "your turn"
+// flip. Kept < the min beat so the brace phase is always positive.
+const COUNTER_STRIKE_HOLD_MS = 450;
 
 // Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
 // uncommon drops are frequent, so notifying on them would be spam — they still appear in the
@@ -753,21 +757,27 @@ export function useEncounter({
     // (teardown or a new encounter presented), the strike must NOT land on a different fight — a
     // non-null encounterRef isn't enough, since it could be a *new* one.
     const scheduledEncounter = encounterRef.current;
+    // Strike lands after the brace, then the enemy turn holds for COUNTER_STRIKE_HOLD_MS so the red
+    // flash renders while it's still the enemy's turn. Total enemy-turn ≈ beatMs (the tuned value).
+    const braceMs = Math.max(0, beatMs - COUNTER_STRIKE_HOLD_MS);
+    // End the enemy turn: unfreeze input + flip the banner back to the player. Deferred PAST the
+    // strike so the flip never batches into the same render as the counter's pushHit (which would
+    // make the flash read as the player's own action again).
+    const endEnemyTurn = (): void => {
+      counterPendingRef.current = false;
+      setIsEnemyTurn(false);
+    };
     counterTimerRef.current = setTimeout(() => {
       counterTimerRef.current = null;
-      counterPendingRef.current = false;
-      setIsEnemyTurn(false); // strike resolved (or fight changed) → back to the player's turn
-      if (encounterRef.current !== scheduledEncounter) {
+      // Fight cleared/replaced during the brace, or no player loaded → end the turn, apply nothing.
+      if (encounterRef.current !== scheduledEncounter || !playerRef.current) {
+        endEnemyTurn();
         return;
       }
       // Apply the strike to the FRESHEST player (playerRef.current), NOT the instance captured when
       // the ability ran — a distance tick (or other save) during the beat may have advanced the
       // player, and mutating/saving the stale clone would clobber that progress.
-      const currentPlayer = playerRef.current;
-      if (!currentPlayer) {
-        return;
-      }
-      const counteredPlayer = new Player(currentPlayer.toJSON());
+      const counteredPlayer = new Player(playerRef.current.toJSON());
       // Count this beat as an active-combat turn (drives the auto-shortening pace) even if the
       // counter is fully mitigated to 0 — the player still saw the beat.
       counteredPlayer.incrementCombatTurns();
@@ -787,9 +797,17 @@ export function useEncounter({
       setPlayerAndSave(counteredPlayer);
 
       if (counteredPlayer.isDefeated()) {
+        endEnemyTurn();
         handlePlayerDefeat(counteredPlayer, creature);
+        return;
       }
-    }, beatMs);
+      // Strike + flash have landed while it's still visibly the enemy's turn — hold briefly, THEN
+      // hand control back (a later render) so the flash never coincides with the "your turn" flip.
+      counterTimerRef.current = setTimeout(() => {
+        counterTimerRef.current = null;
+        endEnemyTurn();
+      }, COUNTER_STRIKE_HOLD_MS);
+    }, braceMs);
   };
 
   const handleAbility = (ability: Ability): boolean => {
