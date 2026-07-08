@@ -18,6 +18,7 @@ import { usePlayer } from '../hooks/usePlayer';
 import { useEncounter } from '../hooks/useEncounter';
 import { useLocation } from '../hooks/useLocation';
 import { useDebugActions } from '../hooks/useDebugActions';
+import { useAutoResolveSetting } from '../hooks/useAutoResolveSetting';
 import notifee, { EventType } from '@notifee/react-native';
 import { Player } from '../models/Player';
 import { loadTrackingState } from '../utils/storage';
@@ -71,6 +72,9 @@ export default function HomeScreen() {
 
   const { appState, appStateRef, prevAppStateRef } = useAppLifecycle();
 
+  const { autoResolveBelowRare, setAutoResolveBelowRare, autoResolveBelowRareRef } =
+    useAutoResolveSetting();
+
   const {
     currentEncounter,
     showEncounterModal,
@@ -113,7 +117,13 @@ export default function HomeScreen() {
     debugShowWalkSummary,
     onDistanceEncounterUpdate,
     clearEncounter,
-  } = useEncounter({ playerRef, setPlayerAndSave, appStateRef, currentLocationRef });
+  } = useEncounter({
+    playerRef,
+    setPlayerAndSave,
+    appStateRef,
+    currentLocationRef,
+    autoResolveBelowRareRef,
+  });
 
   const {
     authUser,
@@ -532,6 +542,8 @@ export default function HomeScreen() {
         onAppleSignIn={handleAppleSignIn}
         onSignOut={handleSignOut}
         onDeleteAccount={handleDeleteAccount}
+        autoResolveBelowRare={autoResolveBelowRare}
+        onToggleAutoResolveBelowRare={setAutoResolveBelowRare}
       />
       {conflictState && (
         <AccountConflictModal conflictState={conflictState} onResolve={resolveConflict} />

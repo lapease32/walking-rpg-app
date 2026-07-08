@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Switch,
 } from 'react-native';
 import { AuthUser } from '../services/AuthService';
 
@@ -25,6 +26,8 @@ interface SettingsModalProps {
   onAppleSignIn: () => void;
   onSignOut: () => void;
   onDeleteAccount: () => void;
+  autoResolveBelowRare: boolean;
+  onToggleAutoResolveBelowRare: (enabled: boolean) => void;
 }
 
 export default function SettingsModal({
@@ -36,6 +39,8 @@ export default function SettingsModal({
   onAppleSignIn,
   onSignOut,
   onDeleteAccount,
+  autoResolveBelowRare,
+  onToggleAutoResolveBelowRare,
 }: SettingsModalProps) {
   const isSignedIn = authUser && !authUser.isAnonymous;
   const displayName = authUser?.displayName ?? authUser?.email ?? 'Signed in';
@@ -99,6 +104,26 @@ export default function SettingsModal({
                   <Text style={styles.deleteAccountButtonText}>Delete account & data</Text>
                 </TouchableOpacity>
               )}
+            </View>
+
+            {/* Gameplay section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Gameplay</Text>
+              <View style={styles.settingRow}>
+                <View style={styles.settingRowText}>
+                  <Text style={styles.settingLabel}>Auto-resolve minor encounters</Text>
+                  <Text style={styles.settingDescription}>
+                    Skip common and uncommon fights automatically — you still earn the same rewards,
+                    collected in your walk summary. Rare and tougher foes always appear for you to
+                    fight.
+                  </Text>
+                </View>
+                <Switch
+                  testID="auto-resolve-toggle"
+                  value={autoResolveBelowRare}
+                  onValueChange={onToggleAutoResolveBelowRare}
+                />
+              </View>
             </View>
 
             {/* Legal section */}
@@ -173,6 +198,26 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
     lineHeight: 20,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingRowText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
   },
   loader: {
     marginVertical: 16,

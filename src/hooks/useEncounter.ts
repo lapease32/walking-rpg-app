@@ -8,6 +8,7 @@ import EncounterService from '../services/EncounterService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { dropActiveCombatItem, generateItem } from '../services/LootService';
+import { Item } from '../models/Item';
 import { resolveAutoCombat } from '../models/AutoCombat';
 import { activeCombatXp } from '../models/combatRewards';
 import { RewardReveal } from '../components/RewardRevealModal';
@@ -42,6 +43,9 @@ interface UseEncounterParams {
   setPlayerAndSave: (player: Player) => void;
   appStateRef: MutableRefObject<AppStateStatus>;
   currentLocationRef: MutableRefObject<LocationData | null>;
+  // Idle-mode toggle (useAutoResolveSetting): a ref so the async GPS gate reads the live value, not
+  // a stale closure. When true, below-rare foreground encounters auto-resolve instead of presenting.
+  autoResolveBelowRareRef: MutableRefObject<boolean>;
 }
 
 // Delay between closing the combat/encounter modal and presenting the reward reveal. Two RN
@@ -63,6 +67,7 @@ export function useEncounter({
   setPlayerAndSave,
   appStateRef,
   currentLocationRef,
+  autoResolveBelowRareRef,
 }: UseEncounterParams) {
   const [currentEncounter, setCurrentEncounter] = useState<Encounter | null>(null);
   const [showEncounterModal, setShowEncounterModal] = useState<boolean>(false);
@@ -436,14 +441,18 @@ export function useEncounter({
     }
   };
 
-  // Resolve an encounter passively (auto-combat) instead of opening the turn-based screen — used
-  // when the player is moving or the app is backgrounded (see onDistanceEncounterUpdate). Rewards
-  // are idle-tier and applied immediately (so they're never lost), and a display record is appended
-  // to the walk summary shown on return. Non-punishing: a loss only pays a smaller XP share, never
-  // HP. No modal or encounterRef is touched — the walk is never interrupted.
+  // Resolve an encounter WITHOUT opening the turn-based screen — the walk is never interrupted.
+  // Rewards are applied immediately (so they're never lost) and a display record is appended to the
+  // walk summary shown on return. Two tiers:
+  //  - 'idle' (default: walking / background) — a non-punishing auto-combat roll; a loss only pays a
+  //    smaller XP share, never HP.
+  //  - 'active' (foreground idle-mode toggle → resolveEncounterRoute 'autoResolve') — the SAME
+  //    reward as fighting: auto-win + active XP + an active-tier drop (mirrors handleVictory), so
+  //    skipping trivial content via the toggle costs the player nothing versus fighting it.
   const resolvePassiveEncounter = async (
     encounter: Encounter,
     isBackground: boolean,
+    rewardTier: 'idle' | 'active' = 'idle',
   ): Promise<void> => {
     // Base rewards off the freshest player. setPlayerAndSave updates playerRef synchronously, so
     // playerRef.current already includes the distance just added this tick (handleDistanceUpdate
@@ -454,16 +463,30 @@ export function useEncounter({
       return;
     }
     const creature = encounter.creature;
-    const outcome = resolveAutoCombat(basePlayer.level, creature);
+
+    let won: boolean;
+    let xpGained: number;
+    let item: Item | null;
+    if (rewardTier === 'active') {
+      // Same as a manual win (handleVictory), minus the turn-based fight. No debug drop-forcing here
+      // (that's a combat-only affordance) — a normal active-tier roll.
+      won = true;
+      xpGained = activeCombatXp(creature.getExperienceReward());
+      item = dropActiveCombatItem(false, basePlayer.level, null);
+    } else {
+      const outcome = resolveAutoCombat(basePlayer.level, creature);
+      won = outcome.won;
+      xpGained = outcome.xpGained;
+      item = outcome.item;
+    }
 
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.incrementEncounters();
-    if (outcome.won) {
+    if (won) {
       updatedPlayer.defeatCreature();
     }
-    const levelsGained = updatedPlayer.addExperience(outcome.xpGained);
+    const levelsGained = updatedPlayer.addExperience(xpGained);
 
-    let item = outcome.item;
     if (item) {
       const inventoryIndex = updatedPlayer.addItemToInventory(item);
       if (inventoryIndex === -1) {
@@ -486,8 +509,8 @@ export function useEncounter({
     const entry: WalkSummaryEntry = {
       creatureName: creature.name,
       rarity: creature.rarity,
-      won: outcome.won,
-      xpGained: outcome.xpGained,
+      won,
+      xpGained,
       item,
       timestamp: Date.now(),
     };
@@ -1107,16 +1130,21 @@ export function useEncounter({
         // Hybrid idle/active gate (resolveEncounterRoute). Only reached when NO encounter is already
         // active — the `if (currentEncounterState) return` guard above bails while one is open or
         // minimized, so overlapping rolls are simply skipped (pacing preserved), never double-stacked.
-        //  - FOREGROUND → present EVERY encounter as an engageable fight. Below-rare can be
-        //    Auto-Resolved (same reward, skips the tedium); elites must be fought. This is the fix for
-        //    "active play had too few real fights" — commons no longer silently idle-resolve.
-        //  - BACKGROUND → hold elites as worthy foes (card + notify), auto-resolve commons.
+        //  - FOREGROUND → present EVERY encounter as an engageable fight, UNLESS the player has
+        //    idle-mode on (the "auto-resolve below-rare" toggle): then below-rare encounters
+        //    auto-resolve at active-tier reward into the summary. Elites always require a fight.
+        //  - BACKGROUND → hold elites as worthy foes (card + notify), idle-resolve below-rare.
         const route = resolveEncounterRoute({
           isBackground: isInBackground,
           isElite: isEliteCreature(encounter.creature),
+          autoResolveBelowRare: autoResolveBelowRareRef.current,
         });
         if (route === 'present') {
           presentEncounter(encounter);
+        } else if (route === 'autoResolve') {
+          // Idle-mode toggle: auto-resolve a below-rare foreground encounter at ACTIVE reward (same
+          // as fighting it) into the walk summary — no modal interrupts the walk.
+          await resolvePassiveEncounter(encounter, isInBackground, 'active');
         } else if (route === 'hold') {
           // If it can't be held (a foe is already held, or the save failed), resolve it passively so
           // the encounter isn't lost.

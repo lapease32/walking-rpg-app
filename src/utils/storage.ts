@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
   TRACKING_STATE: '@walking_rpg:tracking_state',
   CONFLICT_PENDING: '@walking_rpg:conflict_pending',
   BATTERY_PROMPT_SHOWN: '@walking_rpg:battery_prompt_shown',
+  AUTO_RESOLVE_BELOW_RARE: '@walking_rpg:auto_resolve_below_rare',
 } as const;
 
 // Cap the persisted walk-summary log so an unusually long walk (many auto-resolved encounters)
@@ -372,6 +373,35 @@ export async function loadTrackingState(): Promise<boolean> {
 }
 
 /**
+ * Save the player's "auto-resolve below-rare encounters" (idle-mode) preference. Device-level,
+ * like the battery-prompt flag: it's a play-style setting, not account data, so it survives account
+ * switches and is wiped only by a full reset (clearAllData), not account deletion.
+ */
+export async function saveAutoResolveBelowRare(enabled: boolean): Promise<boolean> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.AUTO_RESOLVE_BELOW_RARE, JSON.stringify(enabled));
+    return true;
+  } catch (error) {
+    console.error('Error saving auto-resolve setting:', error);
+    return false;
+  }
+}
+
+/**
+ * Load the "auto-resolve below-rare encounters" preference. Defaults to false — active-by-default:
+ * every foreground encounter is a real fight until the player opts into skipping trivial ones.
+ */
+export async function loadAutoResolveBelowRare(): Promise<boolean> {
+  try {
+    const value = await AsyncStorage.getItem(STORAGE_KEYS.AUTO_RESOLVE_BELOW_RARE);
+    return value !== null ? (JSON.parse(value) as boolean) : false;
+  } catch (error) {
+    console.error('Error loading auto-resolve setting:', error);
+    return false;
+  }
+}
+
+/**
  * Mark that the Android battery-optimization exemption prompt has been shown, so it's only ever
  * asked once (we never re-nag a user who declined — they can still enable it in system settings).
  */
@@ -524,6 +554,7 @@ export async function clearAllData(): Promise<boolean> {
       STORAGE_KEYS.PENDING_ENCOUNTER,
       STORAGE_KEYS.TRACKING_STATE,
       STORAGE_KEYS.CONFLICT_PENDING,
+      STORAGE_KEYS.AUTO_RESOLVE_BELOW_RARE,
     ]);
     return true;
   } catch (error) {

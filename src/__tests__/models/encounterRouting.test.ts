@@ -1,16 +1,46 @@
 import { resolveEncounterRoute } from '../../models/encounterRouting';
 
 describe('resolveEncounterRoute', () => {
-  it('presents a foreground encounter of any rarity', () => {
-    expect(resolveEncounterRoute({ isBackground: false, isElite: false })).toBe('present');
-    expect(resolveEncounterRoute({ isBackground: false, isElite: true })).toBe('present');
+  describe('foreground', () => {
+    it('presents any encounter when idle-mode is OFF', () => {
+      expect(
+        resolveEncounterRoute({ isBackground: false, isElite: false, autoResolveBelowRare: false }),
+      ).toBe('present');
+      expect(
+        resolveEncounterRoute({ isBackground: false, isElite: true, autoResolveBelowRare: false }),
+      ).toBe('present');
+    });
+
+    it('auto-resolves a below-rare encounter when idle-mode is ON', () => {
+      expect(
+        resolveEncounterRoute({ isBackground: false, isElite: false, autoResolveBelowRare: true }),
+      ).toBe('autoResolve');
+    });
+
+    it('always presents an elite, even with idle-mode ON (never auto-resolvable)', () => {
+      expect(
+        resolveEncounterRoute({ isBackground: false, isElite: true, autoResolveBelowRare: true }),
+      ).toBe('present');
+    });
   });
 
-  it('holds a backgrounded elite as a worthy foe', () => {
-    expect(resolveEncounterRoute({ isBackground: true, isElite: true })).toBe('hold');
-  });
+  describe('background', () => {
+    it('holds an elite as a worthy foe regardless of the toggle', () => {
+      expect(
+        resolveEncounterRoute({ isBackground: true, isElite: true, autoResolveBelowRare: false }),
+      ).toBe('hold');
+      expect(
+        resolveEncounterRoute({ isBackground: true, isElite: true, autoResolveBelowRare: true }),
+      ).toBe('hold');
+    });
 
-  it('auto-resolves a backgrounded common (never held)', () => {
-    expect(resolveEncounterRoute({ isBackground: true, isElite: false })).toBe('passive');
+    it('idle-resolves a below-rare encounter regardless of the toggle', () => {
+      expect(
+        resolveEncounterRoute({ isBackground: true, isElite: false, autoResolveBelowRare: false }),
+      ).toBe('passive');
+      expect(
+        resolveEncounterRoute({ isBackground: true, isElite: false, autoResolveBelowRare: true }),
+      ).toBe('passive');
+    });
   });
 });
