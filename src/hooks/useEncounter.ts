@@ -56,6 +56,10 @@ const REWARD_REVEAL_DELAY_MS = 380;
 // Kill-beat (Phase 2b): hold the combat modal open this long after the finishing blow so its FX
 // (floating number + creature recoil + shake) plays before the victory teardown closes it.
 const KILL_BEAT_MS = 500;
+// Turn-based beat: after the player acts, wait this long before the creature counter-attacks (and
+// its damage + red hit-flash land). An instant counter reads as simultaneous — and buries the
+// player's own FX, so a buff/heal cast flashes red as if it self-damaged. Tunable.
+const COUNTER_BEAT_MS = 550;
 
 // Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
 // uncommon drops are frequent, so notifying on them would be spam — they still appear in the
@@ -115,6 +119,10 @@ export function useEncounter({
   // fight during the beat so a stray tap can't double-resolve before handleVictory runs.
   const killBeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const killBeatPendingRef = useRef<boolean>(false);
+  // Counter-attack beat timer + guard (see scheduleCounterAttack / COUNTER_BEAT_MS). counterPendingRef
+  // freezes input during the beat so a rapid tap can't take a second turn before the creature strikes.
+  const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const counterPendingRef = useRef<boolean>(false);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
@@ -133,6 +141,9 @@ export function useEncounter({
       }
       if (killBeatTimerRef.current) {
         clearTimeout(killBeatTimerRef.current);
+      }
+      if (counterTimerRef.current) {
+        clearTimeout(counterTimerRef.current);
       }
     };
   }, []);
@@ -192,6 +203,13 @@ export function useEncounter({
       killBeatTimerRef.current = null;
     }
     killBeatPendingRef.current = false;
+    // Cancel any in-flight counter-attack beat so a torn-down fight can't apply the creature's
+    // strike (and its red flash) into the new session.
+    if (counterTimerRef.current) {
+      clearTimeout(counterTimerRef.current);
+      counterTimerRef.current = null;
+    }
+    counterPendingRef.current = false;
     // Clear any in-flight victory reveal — both an already-shown one AND a still-pending
     // deferred timer — so a previous account's reward can't fire/linger over the new session
     // after an account switch (clearEncounter runs then), even within REWARD_REVEAL_DELAY_MS.
@@ -668,6 +686,80 @@ export function useEncounter({
     setCombatHits(prev => [...prev, { ...event, id: hitIdRef.current++ }]);
   };
 
+  // The player was defeated (by a counter-attack): restore to full, tear the fight down, notify.
+  const handlePlayerDefeat = (defeatedPlayer: Player, creature: Creature): void => {
+    const healedPlayer = new Player(defeatedPlayer.toJSON());
+    healedPlayer.fullHeal();
+    healedPlayer.incrementEncounters();
+
+    setPlayerAndSave(healedPlayer);
+    encounterRef.current = null;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
+    setIsEncounterModalMinimized(false);
+    setShowCombatModal(false);
+    setShowEncounterModal(false);
+    setCurrentEncounter(null);
+    setPlayerCombatState(null);
+    AnalyticsService.combatDefeated(creature.name, defeatedPlayer.level);
+
+    Alert.alert(
+      'Defeated!',
+      'You have been defeated! Your HP has been restored to full.',
+      [{ text: 'OK' }],
+      { cancelable: false },
+    );
+  };
+
+  // Turn-based beat: the creature counter-attacks COUNTER_BEAT_MS AFTER the player acts, not in the
+  // same frame — so the exchange reads as "player acts → beat → creature strikes" and the player's
+  // own FX (a buff/heal cast) is never overlapped by the red hit-flash. Input is frozen during the
+  // beat (counterPendingRef) so a rapid tap can't take a second turn before the creature responds.
+  // Only called when the creature SURVIVED the player's action (a defeated one can't strike back).
+  const scheduleCounterAttack = (
+    playerAfterAction: Player,
+    creatureAttack: number,
+    playerDefense: number,
+    creature: Creature,
+  ): void => {
+    if (counterPendingRef.current) {
+      return;
+    }
+    counterPendingRef.current = true;
+    if (counterTimerRef.current) {
+      clearTimeout(counterTimerRef.current);
+    }
+    counterTimerRef.current = setTimeout(() => {
+      counterTimerRef.current = null;
+      counterPendingRef.current = false;
+      // The fight may have been torn down during the beat (clearEncounter on account switch).
+      if (!encounterRef.current) {
+        return;
+      }
+
+      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
+      if (creatureDamage > 0) {
+        playerAfterAction.takeDamage(creatureDamage);
+        // Basic counter is physical; the player has no resistances yet, so it's always neutral.
+        pushHit({
+          target: 'player',
+          amount: creatureDamage,
+          damageType: 'physical',
+          resist: 'neutral',
+          kind: 'hit',
+          targetMaxHp: playerAfterAction.maxHp,
+        });
+        setPlayerAndSave(playerAfterAction);
+      }
+
+      if (playerAfterAction.isDefeated()) {
+        handlePlayerDefeat(playerAfterAction, creature);
+      }
+    }, COUNTER_BEAT_MS);
+  };
+
   const handleAbility = (ability: Ability): boolean => {
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
@@ -675,7 +767,8 @@ export function useEncounter({
     const currentPlayerState = playerCombatStateRef.current;
 
     if (!currentEncounterState || !currentPlayer || !currentPlayerState) return false;
-    if (victoryProcessedRef.current || killBeatPendingRef.current) return false;
+    if (victoryProcessedRef.current || killBeatPendingRef.current || counterPendingRef.current)
+      return false;
 
     const creature = currentEncounterState.creature;
 
@@ -842,23 +935,9 @@ export function useEncounter({
         : creatureBase;
     creatureCombatStateRef.current = newCreatureStateFinal;
 
-    // Creature counter-attacks using effective stats (debuffs on creature attack apply here).
-    if (!creature.isDefeated()) {
-      const creatureDamage = mitigateDamage(creatureEffectiveAttack, playerEffective.defense);
-      updatedPlayer.takeDamage(creatureDamage);
-      if (creatureDamage > 0) {
-        // The basic counter is physical; the player has no resistances yet, so it's always neutral.
-        pushHit({
-          target: 'player',
-          amount: creatureDamage,
-          damageType: 'physical',
-          resist: 'neutral',
-          kind: 'hit',
-          targetMaxHp: updatedPlayer.maxHp,
-        });
-      }
-    }
-
+    // Apply the player's action NOW (creature damage above, heal/buff, resource spend) and show the
+    // creature's new HP — but the creature does NOT counter yet. An instant counter reads as
+    // simultaneous and overlaps the player's own FX; instead it strikes back after a beat.
     setPlayerAndSave(updatedPlayer);
 
     const updatedEncounter = new Encounter({
@@ -875,30 +954,16 @@ export function useEncounter({
     if (creature.isDefeated()) {
       // Kill-beat: the encounter above already shows the creature at 0 HP; keep the modal open so
       // the finishing blow's FX plays, then resolve the victory (which closes it + reveals reward).
+      // A defeated creature can't counter, so this stays immediate.
       scheduleVictory(updatedPlayer);
-    } else if (updatedPlayer.isDefeated()) {
-      const healedPlayer = new Player(updatedPlayer.toJSON());
-      healedPlayer.fullHeal();
-      healedPlayer.incrementEncounters();
-
-      setPlayerAndSave(healedPlayer);
-      encounterRef.current = null;
-      isMinimizedRef.current = false;
-      showCombatModalRef.current = false;
-      playerCombatStateRef.current = null;
-      creatureCombatStateRef.current = null;
-      setIsEncounterModalMinimized(false);
-      setShowCombatModal(false);
-      setShowEncounterModal(false);
-      setCurrentEncounter(null);
-      setPlayerCombatState(null);
-      AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
-
-      Alert.alert(
-        'Defeated!',
-        'You have been defeated! Your HP has been restored to full.',
-        [{ text: 'OK' }],
-        { cancelable: false },
+    } else {
+      // Creature survives → it counter-attacks after a beat (its damage + red flash land then). The
+      // player-defeat check moves there too, since the player's HP isn't reduced until the strike.
+      scheduleCounterAttack(
+        updatedPlayer,
+        creatureEffectiveAttack,
+        playerEffective.defense,
+        creature,
       );
     }
 
