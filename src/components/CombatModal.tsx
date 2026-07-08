@@ -38,6 +38,8 @@ interface CombatModalProps {
   playerCombatStateRef: MutableRefObject<CombatantState | null>;
   /** Transient hit-event feed (Phase 2b) → typed floating numbers + resistance tells. */
   combatHits: CombatHitEvent[];
+  /** True while the creature's counter-attack beat is resolving (the "enemy turn"). */
+  isEnemyTurn: boolean;
 }
 
 const DAMAGE_TYPE_COLORS: Record<string, string> = {
@@ -64,6 +66,7 @@ export default function CombatModal({
   playerCombatState,
   playerCombatStateRef,
   combatHits,
+  isEnemyTurn,
 }: CombatModalProps) {
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
   const cooldownsRef = useRef<Record<string, number>>({});
@@ -272,8 +275,22 @@ export default function CombatModal({
             </TouchableOpacity>
           </View>
 
+          {/* Turn banner — whose turn it is. During the enemy turn the counter beat is resolving and
+              the player's inputs are locked; this makes that unmistakable. */}
+          <View
+            style={[
+              styles.turnBanner,
+              isEnemyTurn ? styles.turnBannerEnemy : styles.turnBannerPlayer,
+            ]}
+            testID="combat-turn-banner">
+            <Text style={styles.turnBannerText}>
+              {isEnemyTurn ? `${creature.name}'s turn — bracing…` : 'Your turn'}
+            </Text>
+          </View>
+
           {/* Creature info */}
-          <Animated.View style={[styles.combatantInfo, creatureRecoilStyle]}>
+          <Animated.View
+            style={[styles.combatantInfo, isEnemyTurn && styles.activePanel, creatureRecoilStyle]}>
             <Text style={styles.combatantName}>{creature.name}</Text>
             <View style={styles.hpBar}>
               <Animated.View
@@ -331,7 +348,13 @@ export default function CombatModal({
           </Animated.View>
 
           {/* Player info + resource bar */}
-          <Animated.View style={[styles.combatantInfo, styles.playerInfoBg, playerRecoilStyle]}>
+          <Animated.View
+            style={[
+              styles.combatantInfo,
+              styles.playerInfoBg,
+              !isEnemyTurn && styles.activePanel,
+              playerRecoilStyle,
+            ]}>
             <Text style={styles.combatantName}>You ({archetypeCfg.name})</Text>
             <View style={styles.hpBar}>
               <Animated.View
@@ -393,14 +416,16 @@ export default function CombatModal({
           </Animated.View>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.sectionTitle}>Choose an Ability</Text>
+            <Text style={styles.sectionTitle}>
+              {isEnemyTurn ? 'Enemy turn — hold on…' : 'Choose an Ability'}
+            </Text>
 
             {abilities.map(ability => {
               const cooldown = cooldowns[ability.id] ?? 0;
               const isOnCooldown = cooldown > 0;
               const insufficientResource = ability.resourceCost > resource;
               const isDisabled =
-                isOnCooldown || isDefeated || playerDefeated || insufficientResource;
+                isOnCooldown || isDefeated || playerDefeated || insufficientResource || isEnemyTurn;
               const cooldownPct = ability.cooldownMs > 0 ? cooldown / ability.cooldownMs : 0;
               const btnColor = getButtonColor(ability);
               const preview = getDamagePreview(ability);
@@ -496,8 +521,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    // Transparent by default so toggling the active-turn accent never shifts panel layout.
+    borderLeftWidth: 4,
+    borderLeftColor: 'transparent',
   },
   playerInfoBg: { backgroundColor: '#f0f7ff' },
+  // The combatant whose turn it is gets an accent edge (paired with the turn banner + ability dim).
+  activePanel: { borderLeftColor: '#FFC107' },
+  turnBanner: { paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
+  turnBannerPlayer: { backgroundColor: '#2E7D32' },
+  turnBannerEnemy: { backgroundColor: '#C62828' },
+  turnBannerText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.5 },
   // Phase 2a impact FX: both overlays fill their combatant panel; opacity/children are animated.
   hitFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   hitFlashCreature: { backgroundColor: '#ffffff' }, // a white flash reads as a landed hit

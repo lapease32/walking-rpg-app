@@ -11,6 +11,7 @@ import { dropActiveCombatItem, generateItem } from '../services/LootService';
 import { Item } from '../models/Item';
 import { resolveAutoCombat } from '../models/AutoCombat';
 import { activeCombatXp } from '../models/combatRewards';
+import { counterBeatMs } from '../models/combatPacing';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
@@ -56,6 +57,13 @@ const REWARD_REVEAL_DELAY_MS = 380;
 // Kill-beat (Phase 2b): hold the combat modal open this long after the finishing blow so its FX
 // (floating number + creature recoil + shake) plays before the victory teardown closes it.
 const KILL_BEAT_MS = 500;
+// The creature's counter-attack is deferred into a turn-based "beat" (see scheduleCounterAttack).
+// Its duration auto-shortens as the player gains combat experience — long enough to read the "enemy
+// turn" cue while learning, snappy once they've got it — see combatPacing.counterBeatMs.
+// Within that beat, the strike lands ~this long before the end, then the enemy turn holds so the red
+// hit-flash renders WHILE it's still the enemy's turn — never in the same frame as the "your turn"
+// flip. Kept < the min beat so the brace phase is always positive.
+const COUNTER_STRIKE_HOLD_MS = 450;
 
 // Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
 // uncommon drops are frequent, so notifying on them would be spam — they still appear in the
@@ -88,6 +96,9 @@ export function useEncounter({
   // by ascending id; this only PUBLISHES values the combat math already computed (no logic change).
   const [combatHits, setCombatHits] = useState<CombatHitEvent[]>([]);
   const hitIdRef = useRef(0);
+  // True while the creature's counter-attack beat is in flight (the "enemy turn"). Drives the
+  // CombatModal's turn banner + ability dimming so a counter never reads as the player's own action.
+  const [isEnemyTurn, setIsEnemyTurn] = useState<boolean>(false);
   const [rewardReveal, setRewardReveal] = useState<RewardReveal | null>(null);
   // Non-null → the "while you walked" summary modal is shown for these passively-resolved
   // encounters. Populated by checkWalkSummary on app-foreground; cleared on dismiss.
@@ -115,6 +126,10 @@ export function useEncounter({
   // fight during the beat so a stray tap can't double-resolve before handleVictory runs.
   const killBeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const killBeatPendingRef = useRef<boolean>(false);
+  // Counter-attack beat timer + guard (see scheduleCounterAttack / counterBeatMs). counterPendingRef
+  // freezes input during the beat so a rapid tap can't take a second turn before the creature strikes.
+  const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const counterPendingRef = useRef<boolean>(false);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
@@ -133,6 +148,9 @@ export function useEncounter({
       }
       if (killBeatTimerRef.current) {
         clearTimeout(killBeatTimerRef.current);
+      }
+      if (counterTimerRef.current) {
+        clearTimeout(counterTimerRef.current);
       }
     };
   }, []);
@@ -173,6 +191,18 @@ export function useEncounter({
     return () => clearInterval(interval);
   }, [isTimeBlocking]);
 
+  // Cancel any in-flight counter-attack beat: clear its timer and unfreeze input. Called on every
+  // fight transition (flee, victory, teardown, and a fresh presentation) so a pending strike from the
+  // previous fight can never land on — or lock input in — a new one.
+  const cancelCounterBeat = (): void => {
+    if (counterTimerRef.current) {
+      clearTimeout(counterTimerRef.current);
+      counterTimerRef.current = null;
+    }
+    counterPendingRef.current = false;
+    setIsEnemyTurn(false);
+  };
+
   const clearEncounter = (): void => {
     encounterRef.current = null;
     isMinimizedRef.current = false;
@@ -192,6 +222,8 @@ export function useEncounter({
       killBeatTimerRef.current = null;
     }
     killBeatPendingRef.current = false;
+    // Cancel any in-flight counter-attack beat so a torn-down fight can't strike into the new session.
+    cancelCounterBeat();
     // Clear any in-flight victory reveal — both an already-shown one AND a still-pending
     // deferred timer — so a previous account's reward can't fire/linger over the new session
     // after an account switch (clearEncounter runs then), even within REWARD_REVEAL_DELAY_MS.
@@ -286,6 +318,8 @@ export function useEncounter({
       killBeatTimerRef.current = null;
     }
     killBeatPendingRef.current = false;
+    // Same for the counter beat — a resolved victory must not leave a strike pending for a later fight.
+    cancelCounterBeat();
 
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
@@ -593,7 +627,10 @@ export function useEncounter({
   }, [currentEncounter, rewardReveal, walkSummary]);
 
   const handleFlee = (): void => {
-    if (fleeProcessedRef.current) {
+    // Block fleeing while the creature's counter-attack beat is resolving — the turn isn't over, so
+    // the strike must land first (fleeing mid-beat would otherwise cancel it and dodge the damage
+    // that used to be applied synchronously on the same turn).
+    if (fleeProcessedRef.current || counterPendingRef.current) {
       return;
     }
 
@@ -668,6 +705,111 @@ export function useEncounter({
     setCombatHits(prev => [...prev, { ...event, id: hitIdRef.current++ }]);
   };
 
+  // The player was defeated (by a counter-attack): restore to full, tear the fight down, notify.
+  const handlePlayerDefeat = (defeatedPlayer: Player, creature: Creature): void => {
+    const healedPlayer = new Player(defeatedPlayer.toJSON());
+    healedPlayer.fullHeal();
+    healedPlayer.incrementEncounters();
+
+    setPlayerAndSave(healedPlayer);
+    encounterRef.current = null;
+    isMinimizedRef.current = false;
+    showCombatModalRef.current = false;
+    playerCombatStateRef.current = null;
+    creatureCombatStateRef.current = null;
+    setIsEncounterModalMinimized(false);
+    setShowCombatModal(false);
+    setShowEncounterModal(false);
+    setCurrentEncounter(null);
+    setPlayerCombatState(null);
+    AnalyticsService.combatDefeated(creature.name, defeatedPlayer.level);
+
+    Alert.alert(
+      'Defeated!',
+      'You have been defeated! Your HP has been restored to full.',
+      [{ text: 'OK' }],
+      { cancelable: false },
+    );
+  };
+
+  // Turn-based beat: the creature counter-attacks after a beat rather than in the same frame — so
+  // the exchange reads as "player acts → beat → creature strikes" and the player's own FX (a
+  // buff/heal cast) is never overlapped by the red hit-flash. Input is frozen during the beat
+  // (counterPendingRef) so a rapid tap can't take a second turn before the creature responds. Only
+  // called when the creature SURVIVED the player's action (a defeated one can't strike back).
+  const scheduleCounterAttack = (
+    creatureAttack: number,
+    playerDefense: number,
+    creature: Creature,
+  ): void => {
+    if (counterPendingRef.current) {
+      return;
+    }
+    counterPendingRef.current = true;
+    setIsEnemyTurn(true); // the creature's turn, for the duration of the beat
+    if (counterTimerRef.current) {
+      clearTimeout(counterTimerRef.current);
+    }
+    // Beat length auto-shortens as the player gains combat experience — long enough to read the
+    // "enemy turn" cue while learning, snappy once they've got it (see combatPacing.counterBeatMs).
+    const beatMs = counterBeatMs(playerRef.current?.combatTurnsTaken ?? 0);
+    // Pin the exact fight this counter belongs to. If it's cleared or replaced during the beat
+    // (teardown or a new encounter presented), the strike must NOT land on a different fight — a
+    // non-null encounterRef isn't enough, since it could be a *new* one.
+    const scheduledEncounter = encounterRef.current;
+    // Strike lands after the brace, then the enemy turn holds for COUNTER_STRIKE_HOLD_MS so the red
+    // flash renders while it's still the enemy's turn. Total enemy-turn ≈ beatMs (the tuned value).
+    const braceMs = Math.max(0, beatMs - COUNTER_STRIKE_HOLD_MS);
+    // End the enemy turn: unfreeze input + flip the banner back to the player. Deferred PAST the
+    // strike so the flip never batches into the same render as the counter's pushHit (which would
+    // make the flash read as the player's own action again).
+    const endEnemyTurn = (): void => {
+      counterPendingRef.current = false;
+      setIsEnemyTurn(false);
+    };
+    counterTimerRef.current = setTimeout(() => {
+      counterTimerRef.current = null;
+      // Fight cleared/replaced during the brace, or no player loaded → end the turn, apply nothing.
+      if (encounterRef.current !== scheduledEncounter || !playerRef.current) {
+        endEnemyTurn();
+        return;
+      }
+      // Apply the strike to the FRESHEST player (playerRef.current), NOT the instance captured when
+      // the ability ran — a distance tick (or other save) during the beat may have advanced the
+      // player, and mutating/saving the stale clone would clobber that progress.
+      const counteredPlayer = new Player(playerRef.current.toJSON());
+      // Count this beat as an active-combat turn (drives the auto-shortening pace) even if the
+      // counter is fully mitigated to 0 — the player still saw the beat.
+      counteredPlayer.incrementCombatTurns();
+      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
+      if (creatureDamage > 0) {
+        counteredPlayer.takeDamage(creatureDamage);
+        // Basic counter is physical; the player has no resistances yet, so it's always neutral.
+        pushHit({
+          target: 'player',
+          amount: creatureDamage,
+          damageType: 'physical',
+          resist: 'neutral',
+          kind: 'hit',
+          targetMaxHp: counteredPlayer.maxHp,
+        });
+      }
+      setPlayerAndSave(counteredPlayer);
+
+      if (counteredPlayer.isDefeated()) {
+        endEnemyTurn();
+        handlePlayerDefeat(counteredPlayer, creature);
+        return;
+      }
+      // Strike + flash have landed while it's still visibly the enemy's turn — hold briefly, THEN
+      // hand control back (a later render) so the flash never coincides with the "your turn" flip.
+      counterTimerRef.current = setTimeout(() => {
+        counterTimerRef.current = null;
+        endEnemyTurn();
+      }, COUNTER_STRIKE_HOLD_MS);
+    }, braceMs);
+  };
+
   const handleAbility = (ability: Ability): boolean => {
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
@@ -675,7 +817,8 @@ export function useEncounter({
     const currentPlayerState = playerCombatStateRef.current;
 
     if (!currentEncounterState || !currentPlayer || !currentPlayerState) return false;
-    if (victoryProcessedRef.current || killBeatPendingRef.current) return false;
+    if (victoryProcessedRef.current || killBeatPendingRef.current || counterPendingRef.current)
+      return false;
 
     const creature = currentEncounterState.creature;
 
@@ -842,23 +985,9 @@ export function useEncounter({
         : creatureBase;
     creatureCombatStateRef.current = newCreatureStateFinal;
 
-    // Creature counter-attacks using effective stats (debuffs on creature attack apply here).
-    if (!creature.isDefeated()) {
-      const creatureDamage = mitigateDamage(creatureEffectiveAttack, playerEffective.defense);
-      updatedPlayer.takeDamage(creatureDamage);
-      if (creatureDamage > 0) {
-        // The basic counter is physical; the player has no resistances yet, so it's always neutral.
-        pushHit({
-          target: 'player',
-          amount: creatureDamage,
-          damageType: 'physical',
-          resist: 'neutral',
-          kind: 'hit',
-          targetMaxHp: updatedPlayer.maxHp,
-        });
-      }
-    }
-
+    // Apply the player's action NOW (creature damage above, heal/buff, resource spend) and show the
+    // creature's new HP — but the creature does NOT counter yet. An instant counter reads as
+    // simultaneous and overlaps the player's own FX; instead it strikes back after a beat.
     setPlayerAndSave(updatedPlayer);
 
     const updatedEncounter = new Encounter({
@@ -875,31 +1004,12 @@ export function useEncounter({
     if (creature.isDefeated()) {
       // Kill-beat: the encounter above already shows the creature at 0 HP; keep the modal open so
       // the finishing blow's FX plays, then resolve the victory (which closes it + reveals reward).
+      // A defeated creature can't counter, so this stays immediate.
       scheduleVictory(updatedPlayer);
-    } else if (updatedPlayer.isDefeated()) {
-      const healedPlayer = new Player(updatedPlayer.toJSON());
-      healedPlayer.fullHeal();
-      healedPlayer.incrementEncounters();
-
-      setPlayerAndSave(healedPlayer);
-      encounterRef.current = null;
-      isMinimizedRef.current = false;
-      showCombatModalRef.current = false;
-      playerCombatStateRef.current = null;
-      creatureCombatStateRef.current = null;
-      setIsEncounterModalMinimized(false);
-      setShowCombatModal(false);
-      setShowEncounterModal(false);
-      setCurrentEncounter(null);
-      setPlayerCombatState(null);
-      AnalyticsService.combatDefeated(creature.name, updatedPlayer.level);
-
-      Alert.alert(
-        'Defeated!',
-        'You have been defeated! Your HP has been restored to full.',
-        [{ text: 'OK' }],
-        { cancelable: false },
-      );
+    } else {
+      // Creature survives → it counter-attacks after a beat (its damage + red flash land then). The
+      // player-defeat check moves there too, since the player's HP isn't reduced until the strike.
+      scheduleCounterAttack(creatureEffectiveAttack, playerEffective.defense, creature);
     }
 
     return true;
@@ -949,6 +1059,13 @@ export function useEncounter({
   };
 
   const handleCloseCombatModal = (): void => {
+    // The enemy's turn is resolving (counter beat in flight) — block closing/minimizing until the
+    // strike lands, mirroring the flee/ability input-freeze on counterPendingRef. Otherwise the
+    // close button (or an overlay tap) would dismiss the modal and the counter would apply off-screen
+    // with no feedback.
+    if (counterPendingRef.current) {
+      return;
+    }
     showCombatModalRef.current = false;
     setShowCombatModal(false);
   };
@@ -967,6 +1084,8 @@ export function useEncounter({
     showCombatModalRef.current = false;
     victoryProcessedRef.current = false;
     fleeProcessedRef.current = false;
+    // A fresh fight starts clean — cancel any counter beat still pending from a previous encounter.
+    cancelCounterBeat();
     playerCombatStateRef.current = null;
     creatureCombatStateRef.current = null;
     setPlayerCombatState(null);
@@ -1230,6 +1349,7 @@ export function useEncounter({
     playerCombatState,
     playerCombatStateRef,
     combatHits,
+    isEnemyTurn,
     rewardReveal,
     dismissReward,
     walkSummary,
