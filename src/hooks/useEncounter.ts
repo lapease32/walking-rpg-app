@@ -468,11 +468,12 @@ export function useEncounter({
     let xpGained: number;
     let item: Item | null;
     if (rewardTier === 'active') {
-      // Same as a manual win (handleVictory), minus the turn-based fight. No debug drop-forcing here
-      // (that's a combat-only affordance) — a normal active-tier roll.
+      // Same as a manual win (handleVictory), minus the turn-based fight. The active-tier drop is
+      // rolled AFTER addExperience (below, off updatedPlayer.level) so a toggle auto-resolve that
+      // levels you up scales its loot exactly like fighting the creature would.
       won = true;
       xpGained = activeCombatXp(creature.getExperienceReward());
-      item = dropActiveCombatItem(false, basePlayer.level, null);
+      item = null;
     } else {
       const outcome = resolveAutoCombat(basePlayer.level, creature);
       won = outcome.won;
@@ -486,6 +487,12 @@ export function useEncounter({
       updatedPlayer.defeatCreature();
     }
     const levelsGained = updatedPlayer.addExperience(xpGained);
+
+    // Active-tier loot rolls at the post-XP level (mirrors handleVictory); idle-tier loot already
+    // came from resolveAutoCombat above. No debug drop-forcing — that's a combat-only affordance.
+    if (rewardTier === 'active') {
+      item = dropActiveCombatItem(false, updatedPlayer.level, null);
+    }
 
     if (item) {
       const inventoryIndex = updatedPlayer.addItemToInventory(item);
