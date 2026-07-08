@@ -619,13 +619,14 @@ export function useEncounter({
   }, [currentEncounter, rewardReveal, walkSummary]);
 
   const handleFlee = (): void => {
-    if (fleeProcessedRef.current) {
+    // Block fleeing while the creature's counter-attack beat is resolving — the turn isn't over, so
+    // the strike must land first (fleeing mid-beat would otherwise cancel it and dodge the damage
+    // that used to be applied synchronously on the same turn).
+    if (fleeProcessedRef.current || counterPendingRef.current) {
       return;
     }
 
     fleeProcessedRef.current = true;
-    // Fleeing ends the fight — cancel any pending counter so it can't strike into the next encounter.
-    cancelCounterBeat();
 
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
@@ -729,7 +730,6 @@ export function useEncounter({
   // beat (counterPendingRef) so a rapid tap can't take a second turn before the creature responds.
   // Only called when the creature SURVIVED the player's action (a defeated one can't strike back).
   const scheduleCounterAttack = (
-    playerAfterAction: Player,
     creatureAttack: number,
     playerDefense: number,
     creature: Creature,
@@ -742,8 +742,8 @@ export function useEncounter({
       clearTimeout(counterTimerRef.current);
     }
     // Pin the exact fight this counter belongs to. If it's cleared or replaced during the beat
-    // (flee, teardown, or a new encounter presented), the strike must NOT land on a different fight
-    // — a non-null encounterRef isn't enough, since it could be a *new* one.
+    // (teardown or a new encounter presented), the strike must NOT land on a different fight — a
+    // non-null encounterRef isn't enough, since it could be a *new* one.
     const scheduledEncounter = encounterRef.current;
     counterTimerRef.current = setTimeout(() => {
       counterTimerRef.current = null;
@@ -751,24 +751,32 @@ export function useEncounter({
       if (encounterRef.current !== scheduledEncounter) {
         return;
       }
-
-      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
-      if (creatureDamage > 0) {
-        playerAfterAction.takeDamage(creatureDamage);
-        // Basic counter is physical; the player has no resistances yet, so it's always neutral.
-        pushHit({
-          target: 'player',
-          amount: creatureDamage,
-          damageType: 'physical',
-          resist: 'neutral',
-          kind: 'hit',
-          targetMaxHp: playerAfterAction.maxHp,
-        });
-        setPlayerAndSave(playerAfterAction);
+      // Apply the strike to the FRESHEST player (playerRef.current), NOT the instance captured when
+      // the ability ran — a distance tick (or other save) during the beat may have advanced the
+      // player, and mutating/saving the stale clone would clobber that progress.
+      const currentPlayer = playerRef.current;
+      if (!currentPlayer) {
+        return;
       }
+      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
+      if (creatureDamage <= 0) {
+        return;
+      }
+      const counteredPlayer = new Player(currentPlayer.toJSON());
+      counteredPlayer.takeDamage(creatureDamage);
+      // Basic counter is physical; the player has no resistances yet, so it's always neutral.
+      pushHit({
+        target: 'player',
+        amount: creatureDamage,
+        damageType: 'physical',
+        resist: 'neutral',
+        kind: 'hit',
+        targetMaxHp: counteredPlayer.maxHp,
+      });
+      setPlayerAndSave(counteredPlayer);
 
-      if (playerAfterAction.isDefeated()) {
-        handlePlayerDefeat(playerAfterAction, creature);
+      if (counteredPlayer.isDefeated()) {
+        handlePlayerDefeat(counteredPlayer, creature);
       }
     }, COUNTER_BEAT_MS);
   };
@@ -972,12 +980,7 @@ export function useEncounter({
     } else {
       // Creature survives → it counter-attacks after a beat (its damage + red flash land then). The
       // player-defeat check moves there too, since the player's HP isn't reduced until the strike.
-      scheduleCounterAttack(
-        updatedPlayer,
-        creatureEffectiveAttack,
-        playerEffective.defense,
-        creature,
-      );
+      scheduleCounterAttack(creatureEffectiveAttack, playerEffective.defense, creature);
     }
 
     return true;
