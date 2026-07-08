@@ -76,6 +76,9 @@ export interface PlayerData {
   totalDistance: number;
   totalEncounters: number;
   creaturesDefeated: number;
+  // Active-combat turns taken (each counter-attack beat seen). Drives the auto-shortening beat
+  // pace; optional so saves from before this feature default to 0. See combatPacing.counterBeatMs.
+  combatTurnsTaken?: number;
   equipment: Equipment;
   inventory?: (Item | null)[];
   // Archetype and primary attributes — absent in saves created before this
@@ -117,6 +120,7 @@ export interface PlayerConstructorParams {
   totalDistance?: number;
   totalEncounters?: number;
   creaturesDefeated?: number;
+  combatTurnsTaken?: number;
   equipment?: Equipment;
   inventory?: (Item | null)[];
   archetype?: Archetype;
@@ -137,6 +141,7 @@ export class Player {
   totalDistance: number;
   totalEncounters: number;
   creaturesDefeated: number;
+  combatTurnsTaken: number;
   equipment: Equipment;
   inventory: (Item | null)[];
   archetype: Archetype;
@@ -156,6 +161,7 @@ export class Player {
     totalDistance = 0,
     totalEncounters = 0,
     creaturesDefeated = 0,
+    combatTurnsTaken = 0,
     equipment,
     inventory,
     archetype = Archetype.Martial,
@@ -188,6 +194,7 @@ export class Player {
     this.totalDistance = totalDistance;
     this.totalEncounters = totalEncounters;
     this.creaturesDefeated = creaturesDefeated;
+    this.combatTurnsTaken = combatTurnsTaken;
 
     this.equipment = equipment ?? createEmptyEquipment();
 
@@ -270,6 +277,12 @@ export class Player {
 
   defeatCreature(): void {
     this.creaturesDefeated += 1;
+  }
+
+  // One active-combat turn (a counter-attack beat) elapsed. Persisted so the beat pace shortens as
+  // the player gains combat experience across sessions (see combatPacing.counterBeatMs).
+  incrementCombatTurns(): void {
+    this.combatTurnsTaken += 1;
   }
 
   /**
@@ -489,6 +502,7 @@ export class Player {
       totalDistance: this.totalDistance,
       totalEncounters: this.totalEncounters,
       creaturesDefeated: this.creaturesDefeated,
+      combatTurnsTaken: this.combatTurnsTaken,
       equipment: this.equipment,
       inventory: [...this.inventory],
       archetype: this.archetype,

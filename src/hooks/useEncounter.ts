@@ -11,6 +11,7 @@ import { dropActiveCombatItem, generateItem } from '../services/LootService';
 import { Item } from '../models/Item';
 import { resolveAutoCombat } from '../models/AutoCombat';
 import { activeCombatXp } from '../models/combatRewards';
+import { counterBeatMs } from '../models/combatPacing';
 import { RewardReveal } from '../components/RewardRevealModal';
 import {
   loadPendingEncounter,
@@ -56,11 +57,9 @@ const REWARD_REVEAL_DELAY_MS = 380;
 // Kill-beat (Phase 2b): hold the combat modal open this long after the finishing blow so its FX
 // (floating number + creature recoil + shake) plays before the victory teardown closes it.
 const KILL_BEAT_MS = 500;
-// Turn-based beat: after the player acts, wait this long before the creature counter-attacks (and
-// its damage + red hit-flash land). An instant counter reads as simultaneous — and buries the
-// player's own FX, so a buff/heal cast flashes red as if it self-damaged. Also the window the
-// "enemy turn" cue (banner + dimmed abilities) is shown, so it's long enough to read first-time.
-const COUNTER_BEAT_MS = 1000;
+// The creature's counter-attack is deferred into a turn-based "beat" (see scheduleCounterAttack).
+// Its duration auto-shortens as the player gains combat experience — long enough to read the "enemy
+// turn" cue while learning, snappy once they've got it — see combatPacing.counterBeatMs.
 
 // Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
 // uncommon drops are frequent, so notifying on them would be spam — they still appear in the
@@ -123,7 +122,7 @@ export function useEncounter({
   // fight during the beat so a stray tap can't double-resolve before handleVictory runs.
   const killBeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const killBeatPendingRef = useRef<boolean>(false);
-  // Counter-attack beat timer + guard (see scheduleCounterAttack / COUNTER_BEAT_MS). counterPendingRef
+  // Counter-attack beat timer + guard (see scheduleCounterAttack / counterBeatMs). counterPendingRef
   // freezes input during the beat so a rapid tap can't take a second turn before the creature strikes.
   const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const counterPendingRef = useRef<boolean>(false);
@@ -729,11 +728,11 @@ export function useEncounter({
     );
   };
 
-  // Turn-based beat: the creature counter-attacks COUNTER_BEAT_MS AFTER the player acts, not in the
-  // same frame — so the exchange reads as "player acts → beat → creature strikes" and the player's
-  // own FX (a buff/heal cast) is never overlapped by the red hit-flash. Input is frozen during the
-  // beat (counterPendingRef) so a rapid tap can't take a second turn before the creature responds.
-  // Only called when the creature SURVIVED the player's action (a defeated one can't strike back).
+  // Turn-based beat: the creature counter-attacks after a beat rather than in the same frame — so
+  // the exchange reads as "player acts → beat → creature strikes" and the player's own FX (a
+  // buff/heal cast) is never overlapped by the red hit-flash. Input is frozen during the beat
+  // (counterPendingRef) so a rapid tap can't take a second turn before the creature responds. Only
+  // called when the creature SURVIVED the player's action (a defeated one can't strike back).
   const scheduleCounterAttack = (
     creatureAttack: number,
     playerDefense: number,
@@ -747,6 +746,9 @@ export function useEncounter({
     if (counterTimerRef.current) {
       clearTimeout(counterTimerRef.current);
     }
+    // Beat length auto-shortens as the player gains combat experience — long enough to read the
+    // "enemy turn" cue while learning, snappy once they've got it (see combatPacing.counterBeatMs).
+    const beatMs = counterBeatMs(playerRef.current?.combatTurnsTaken ?? 0);
     // Pin the exact fight this counter belongs to. If it's cleared or replaced during the beat
     // (teardown or a new encounter presented), the strike must NOT land on a different fight — a
     // non-null encounterRef isn't enough, since it could be a *new* one.
@@ -765,27 +767,29 @@ export function useEncounter({
       if (!currentPlayer) {
         return;
       }
-      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
-      if (creatureDamage <= 0) {
-        return;
-      }
       const counteredPlayer = new Player(currentPlayer.toJSON());
-      counteredPlayer.takeDamage(creatureDamage);
-      // Basic counter is physical; the player has no resistances yet, so it's always neutral.
-      pushHit({
-        target: 'player',
-        amount: creatureDamage,
-        damageType: 'physical',
-        resist: 'neutral',
-        kind: 'hit',
-        targetMaxHp: counteredPlayer.maxHp,
-      });
+      // Count this beat as an active-combat turn (drives the auto-shortening pace) even if the
+      // counter is fully mitigated to 0 — the player still saw the beat.
+      counteredPlayer.incrementCombatTurns();
+      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
+      if (creatureDamage > 0) {
+        counteredPlayer.takeDamage(creatureDamage);
+        // Basic counter is physical; the player has no resistances yet, so it's always neutral.
+        pushHit({
+          target: 'player',
+          amount: creatureDamage,
+          damageType: 'physical',
+          resist: 'neutral',
+          kind: 'hit',
+          targetMaxHp: counteredPlayer.maxHp,
+        });
+      }
       setPlayerAndSave(counteredPlayer);
 
       if (counteredPlayer.isDefeated()) {
         handlePlayerDefeat(counteredPlayer, creature);
       }
-    }, COUNTER_BEAT_MS);
+    }, beatMs);
   };
 
   const handleAbility = (ability: Ability): boolean => {
