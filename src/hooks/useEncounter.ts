@@ -58,8 +58,9 @@ const REWARD_REVEAL_DELAY_MS = 380;
 const KILL_BEAT_MS = 500;
 // Turn-based beat: after the player acts, wait this long before the creature counter-attacks (and
 // its damage + red hit-flash land). An instant counter reads as simultaneous — and buries the
-// player's own FX, so a buff/heal cast flashes red as if it self-damaged. Tunable.
-const COUNTER_BEAT_MS = 550;
+// player's own FX, so a buff/heal cast flashes red as if it self-damaged. Also the window the
+// "enemy turn" cue (banner + dimmed abilities) is shown, so it's long enough to read first-time.
+const COUNTER_BEAT_MS = 1000;
 
 // Rarities notable enough to warrant a passive-victory notification while backgrounded. Common /
 // uncommon drops are frequent, so notifying on them would be spam — they still appear in the
