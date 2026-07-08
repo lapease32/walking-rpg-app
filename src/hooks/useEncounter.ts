@@ -184,6 +184,17 @@ export function useEncounter({
     return () => clearInterval(interval);
   }, [isTimeBlocking]);
 
+  // Cancel any in-flight counter-attack beat: clear its timer and unfreeze input. Called on every
+  // fight transition (flee, victory, teardown, and a fresh presentation) so a pending strike from the
+  // previous fight can never land on — or lock input in — a new one.
+  const cancelCounterBeat = (): void => {
+    if (counterTimerRef.current) {
+      clearTimeout(counterTimerRef.current);
+      counterTimerRef.current = null;
+    }
+    counterPendingRef.current = false;
+  };
+
   const clearEncounter = (): void => {
     encounterRef.current = null;
     isMinimizedRef.current = false;
@@ -203,13 +214,8 @@ export function useEncounter({
       killBeatTimerRef.current = null;
     }
     killBeatPendingRef.current = false;
-    // Cancel any in-flight counter-attack beat so a torn-down fight can't apply the creature's
-    // strike (and its red flash) into the new session.
-    if (counterTimerRef.current) {
-      clearTimeout(counterTimerRef.current);
-      counterTimerRef.current = null;
-    }
-    counterPendingRef.current = false;
+    // Cancel any in-flight counter-attack beat so a torn-down fight can't strike into the new session.
+    cancelCounterBeat();
     // Clear any in-flight victory reveal — both an already-shown one AND a still-pending
     // deferred timer — so a previous account's reward can't fire/linger over the new session
     // after an account switch (clearEncounter runs then), even within REWARD_REVEAL_DELAY_MS.
@@ -304,6 +310,8 @@ export function useEncounter({
       killBeatTimerRef.current = null;
     }
     killBeatPendingRef.current = false;
+    // Same for the counter beat — a resolved victory must not leave a strike pending for a later fight.
+    cancelCounterBeat();
 
     const updatedPlayer = new Player(basePlayer.toJSON());
     updatedPlayer.defeatCreature();
@@ -616,6 +624,8 @@ export function useEncounter({
     }
 
     fleeProcessedRef.current = true;
+    // Fleeing ends the fight — cancel any pending counter so it can't strike into the next encounter.
+    cancelCounterBeat();
 
     const currentPlayer = playerRef.current;
     const currentEncounterState = encounterRef.current;
@@ -731,11 +741,14 @@ export function useEncounter({
     if (counterTimerRef.current) {
       clearTimeout(counterTimerRef.current);
     }
+    // Pin the exact fight this counter belongs to. If it's cleared or replaced during the beat
+    // (flee, teardown, or a new encounter presented), the strike must NOT land on a different fight
+    // — a non-null encounterRef isn't enough, since it could be a *new* one.
+    const scheduledEncounter = encounterRef.current;
     counterTimerRef.current = setTimeout(() => {
       counterTimerRef.current = null;
       counterPendingRef.current = false;
-      // The fight may have been torn down during the beat (clearEncounter on account switch).
-      if (!encounterRef.current) {
+      if (encounterRef.current !== scheduledEncounter) {
         return;
       }
 
@@ -1032,6 +1045,8 @@ export function useEncounter({
     showCombatModalRef.current = false;
     victoryProcessedRef.current = false;
     fleeProcessedRef.current = false;
+    // A fresh fight starts clean — cancel any counter beat still pending from a previous encounter.
+    cancelCounterBeat();
     playerCombatStateRef.current = null;
     creatureCombatStateRef.current = null;
     setPlayerCombatState(null);
