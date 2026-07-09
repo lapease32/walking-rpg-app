@@ -92,7 +92,7 @@ export default function EncounterModal({
               </TouchableOpacity>
             )}
           </View>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent}>
             {/* Player Stats Card */}
             {(playerHp !== undefined ||
               playerAttack !== undefined ||
@@ -289,6 +289,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  // flexShrink lets the scroll body shrink WITHIN modalContent's maxHeight instead of expanding to
+  // its full content height. Without it the creature stats (below the description) overflowed the
+  // capped modal and were clipped — invisible and unscrollable on Android, where the container's
+  // borderRadius clips overflow. Now the body scrolls and the footer buttons stay pinned/visible.
+  scrollBody: {
+    flexShrink: 1,
   },
   scrollContent: {
     paddingBottom: 10,
