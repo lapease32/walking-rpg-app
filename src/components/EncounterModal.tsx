@@ -79,11 +79,12 @@ export default function EncounterModal({
       transparent={true}
       animationType="slide"
       onRequestClose={onMinimize || onFlee}>
-      <Pressable style={styles.modalOverlay} onPress={onMinimize ?? onFlee}>
-        <View
-          style={styles.modalContent}
-          onStartShouldSetResponder={() => true}
-          testID="encounter-modal">
+      <View style={styles.modalOverlay}>
+        {/* Background tap-to-close sits BEHIND the content (not wrapping it), so tapping outside
+            dismisses while the content's ScrollView keeps its touch gestures. An onStartShouldSet-
+            Responder wrapper here would claim the touch on start and block scrolling. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onMinimize ?? onFlee} />
+        <View style={styles.modalContent} testID="encounter-modal">
           <View style={styles.header}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
             {onMinimize && (
@@ -92,7 +93,7 @@ export default function EncounterModal({
               </TouchableOpacity>
             )}
           </View>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent}>
             {/* Player Stats Card */}
             {(playerHp !== undefined ||
               playerAttack !== undefined ||
@@ -142,8 +143,9 @@ export default function EncounterModal({
               </View>
 
               <Text style={styles.creatureName}>{creature.name}</Text>
-              <Text style={styles.creatureType}>{creature.type}</Text>
-              <Text style={styles.creatureLevel}>Level {creature.level}</Text>
+              <Text style={styles.creatureType}>
+                {creature.type} · Level {creature.level}
+              </Text>
 
               <Text style={styles.description}>{creature.description}</Text>
 
@@ -166,18 +168,6 @@ export default function EncounterModal({
                   <Text style={styles.statLabel}>Speed:</Text>
                   <Text style={styles.statValue}>{creature.speed}</Text>
                 </View>
-              </View>
-
-              <View style={styles.hpBar}>
-                <View
-                  style={[
-                    styles.hpFill,
-                    {
-                      width: `${creature.maxHp > 0 ? (creature.hp / creature.maxHp) * 100 : 0}%`,
-                      backgroundColor: rarityColor,
-                    },
-                  ]}
-                />
               </View>
 
               {/* Resistances — only show non-zero values */}
@@ -265,7 +255,7 @@ export default function EncounterModal({
             </PressableScale>
           </View>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -281,8 +271,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     width: '90%',
-    maxHeight: '80%',
-    padding: 20,
+    maxHeight: '88%',
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -290,11 +280,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  // flexShrink lets the scroll body shrink WITHIN modalContent's maxHeight instead of expanding to
+  // its full content height. Without it the creature stats (below the description) overflowed the
+  // capped modal and were clipped — invisible and unscrollable on Android, where the container's
+  // borderRadius clips overflow. Now the body scrolls and the footer buttons stay pinned/visible.
+  scrollBody: {
+    flexShrink: 1,
+  },
   scrollContent: {
     paddingBottom: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
     flex: 1,
@@ -318,8 +315,8 @@ const styles = StyleSheet.create({
   creatureCard: {
     borderWidth: 3,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    padding: 12,
+    marginBottom: 12,
     backgroundColor: '#f9f9f9',
   },
   rarityBadge: {
@@ -335,34 +332,33 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   creatureName: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   creatureType: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
-    marginBottom: 4,
-  },
-  creatureLevel: {
-    fontSize: 18,
-    color: '#888',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   description: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
     fontStyle: 'italic',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   statsContainer: {
-    marginBottom: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   statRow: {
+    width: '47%',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
   statLabel: {
     fontSize: 14,
@@ -373,16 +369,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: 'bold',
-  },
-  hpBar: {
-    height: 12,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  hpFill: {
-    height: '100%',
-    borderRadius: 6,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -430,15 +416,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#2196F3',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 12,
     backgroundColor: '#f0f7ff',
   },
   playerCardTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   playerHpBar: {
     height: 16,
@@ -455,15 +441,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   playerStatsContainer: {
     marginTop: 4,
-  },
-  playerStatRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+  },
+  playerStatRow: {
+    width: '47%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
   },
   playerStatLabel: {
     fontSize: 14,
@@ -495,7 +484,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   resistancesContainer: {
-    marginTop: 10,
+    marginTop: 6,
   },
   resistancesLabel: {
     fontSize: 12,
