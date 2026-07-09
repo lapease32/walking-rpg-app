@@ -29,7 +29,6 @@ describe('ARCHETYPE_ABILITIES — field integrity', () => {
       expect(typeof ability.name).toBe('string');
       expect(ability.name.length).toBeGreaterThan(0);
       expect(typeof ability.icon).toBe('string');
-      expect(ability.cooldownMs).toBeGreaterThan(0);
       expect(ability.resourceCost).toBeGreaterThanOrEqual(0);
       expect(['direct', 'dot', 'buff_debuff', 'defensive']).toContain(ability.primitive);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, MutableRefObject } from 'react';
+import React, { useEffect, useRef, MutableRefObject } from 'react';
 import {
   View,
   Text,
@@ -68,42 +68,6 @@ export default function CombatModal({
   combatHits,
   isEnemyTurn,
 }: CombatModalProps) {
-  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
-  const cooldownsRef = useRef<Record<string, number>>({});
-  const encounterRef = useRef<number | null>(null);
-
-  // Reset cooldowns when a new encounter starts.
-  useEffect(() => {
-    if (encounter && visible) {
-      const encounterId = encounter.timestamp;
-      if (encounterRef.current !== encounterId) {
-        setCooldowns({});
-        cooldownsRef.current = {};
-        encounterRef.current = encounterId;
-      }
-    }
-  }, [encounter, encounter?.timestamp, visible]);
-
-  // Tick cooldowns every 100ms.
-  useEffect(() => {
-    if (!visible) return;
-    const interval = setInterval(() => {
-      const current = { ...cooldownsRef.current };
-      let changed = false;
-      for (const id of Object.keys(current)) {
-        if (current[id] > 0) {
-          current[id] = Math.max(0, current[id] - 100);
-          changed = true;
-        }
-      }
-      if (changed) {
-        cooldownsRef.current = current;
-        setCooldowns(current);
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [visible]);
-
   // ─── Tier-1 combat motion: HP + resource bars ease between values instead of jumping. ───
   // Shared values hold each bar's current width % (0–100); useAnimatedStyle maps them to `width`.
   // Declared before the early return below so hook order stays stable when encounter/player are null.
@@ -178,29 +142,15 @@ export default function CombatModal({
   const resourceLabel =
     archetypeCfg.resource.charAt(0).toUpperCase() + archetypeCfg.resource.slice(1);
 
-  // Set cooldown only after the hook confirms the ability actually ran.
-  // Use ref for the resource check — always reflects post-last-ability state,
+  // Abilities are gated by resource cost alone (one action per turn) — no cooldowns.
+  // Use the ref for the resource check so it always reflects post-last-ability state,
   // avoiding stale closures when the player taps faster than re-renders.
   const handleAbilityPress = (ability: Ability) => {
     const currentResource = playerCombatStateRef.current?.resource ?? resourceCfg.startValue;
-    if (
-      (cooldownsRef.current[ability.id] ?? 0) > 0 ||
-      isDefeated ||
-      playerDefeated ||
-      ability.resourceCost > currentResource
-    ) {
+    if (isDefeated || playerDefeated || ability.resourceCost > currentResource) {
       return;
     }
-    const ran = onAbility(ability);
-    if (ran) {
-      cooldownsRef.current[ability.id] = ability.cooldownMs;
-      setCooldowns(prev => ({ ...prev, [ability.id]: ability.cooldownMs }));
-    }
-  };
-
-  const formatCooldown = (ms: number): string => {
-    if (ms <= 0) return '';
-    return `${Math.ceil(ms / 1000)}s`;
+    onAbility(ability);
   };
 
   const getDamagePreview = (ability: Ability): string => {
@@ -421,12 +371,9 @@ export default function CombatModal({
             </Text>
 
             {abilities.map(ability => {
-              const cooldown = cooldowns[ability.id] ?? 0;
-              const isOnCooldown = cooldown > 0;
               const insufficientResource = ability.resourceCost > resource;
               const isDisabled =
-                isOnCooldown || isDefeated || playerDefeated || insufficientResource || isEnemyTurn;
-              const cooldownPct = ability.cooldownMs > 0 ? cooldown / ability.cooldownMs : 0;
+                isDefeated || playerDefeated || insufficientResource || isEnemyTurn;
               const btnColor = getButtonColor(ability);
               const preview = getDamagePreview(ability);
 
@@ -455,16 +402,8 @@ export default function CombatModal({
                           {ability.resourceCost} {resourceLabel}
                         </Text>
                       )}
-                      {isOnCooldown && (
-                        <Text style={styles.cooldownText}>
-                          Cooldown: {formatCooldown(cooldown)}
-                        </Text>
-                      )}
                     </View>
                   </View>
-                  {isOnCooldown && (
-                    <View style={[styles.cooldownOverlay, { width: `${cooldownPct * 100}%` }]} />
-                  )}
                 </PressableScale>
               );
             })}
@@ -609,14 +548,6 @@ const styles = StyleSheet.create({
   abilityPreview: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
   abilityCost: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   abilityCostInsufficient: { color: '#FFCDD2' },
-  cooldownText: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  cooldownOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
   statusMessage: {
     marginTop: 16,
     padding: 14,
