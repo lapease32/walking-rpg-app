@@ -9,6 +9,7 @@ import {
   Platform,
   InteractionManager,
 } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 import LocationService, { DistanceData } from '../services/LocationService';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
@@ -342,9 +343,13 @@ export default function HomeScreen() {
 
   const environmentBanner = APP_CONFIG.ENVIRONMENT_BANNER;
   const bannerVisible = environmentBanner.visible;
+  // Real app version + build number from the native bundle (CFBundleShortVersionString /
+  // CFBundleVersion on iOS, versionName / versionCode on Android). The build number auto-increments
+  // per release, so this actually changes — unlike the old hardcoded string.
+  const appVersionLabel = `${DeviceInfo.getVersion()} (build ${DeviceInfo.getBuildNumber()})`;
   const betaIndicatorProps = {
     buildType: environmentBanner.buildType,
-    version: APP_CONFIG.VERSION,
+    version: appVersionLabel,
     variant: environmentBanner.variant,
   } as const;
 

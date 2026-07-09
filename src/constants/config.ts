@@ -196,10 +196,6 @@ interface EnvironmentBannerConfig {
  * App distribution and version configuration
  */
 export const APP_CONFIG = {
-  // Version string to display
-  // Update this when creating new beta builds
-  VERSION: '1.0.0-beta.1',
-
   // Environment banner display options (shows build type)
   ENVIRONMENT_BANNER: {
     visible: ENV_CONFIG.showEnvironmentBanner,
