@@ -348,17 +348,20 @@ export default function HomeScreen() {
     variant: environmentBanner.variant,
   } as const;
 
-  // Apply padding based on banner position so content doesn't overlap
-  // On iOS, banner is positioned below Dynamic Island (59px offset), so needs more padding
-  const scrollViewContentStyle = !bannerVisible
-    ? undefined
-    : environmentBanner.position === 'top'
-      ? Platform.OS === 'ios'
-        ? styles.scrollViewWithBetaTopIOS
-        : styles.scrollViewWithBetaTop
-      : environmentBanner.position === 'bottom'
-        ? styles.scrollViewWithBetaBottom
-        : undefined;
+  // The top banner is absolute + high zIndex. Offset the ScrollView FRAME (not just its content)
+  // below it, so a pinned sticky header (the worthy-foe card) starts under the banner rather than
+  // behind it. A bottom banner just pads the content.
+  const bannerIsTop = bannerVisible && environmentBanner.position === 'top';
+  const scrollViewFrameStyle = bannerIsTop
+    ? [
+        styles.scrollView,
+        Platform.OS === 'ios' ? styles.scrollViewBetaTopOffsetIOS : styles.scrollViewBetaTopOffset,
+      ]
+    : styles.scrollView;
+  const scrollViewContentStyle =
+    bannerVisible && environmentBanner.position !== 'top'
+      ? styles.scrollViewWithBetaBottom
+      : undefined;
 
   // The worthy-foe card is a sticky scroll header — inline until scrolled past, then pinned to the
   // top of the list. stickyHeaderIndices targets a DIRECT ScrollView child, so the card is its own
@@ -372,7 +375,7 @@ export default function HomeScreen() {
         <BetaIndicator {...betaIndicatorProps} position={environmentBanner.position} />
       )}
       <ScrollView
-        style={styles.scrollView}
+        style={scrollViewFrameStyle}
         contentContainerStyle={scrollViewContentStyle}
         stickyHeaderIndices={stickyFoeIndices}>
         <View style={styles.contentTop}>
@@ -574,13 +577,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  scrollViewWithBetaTop: {
-    paddingTop: 60, // Add padding when beta indicator is at top (Android)
+  // Offset the ScrollView FRAME below the absolute top banner so a pinned sticky header clears it.
+  scrollViewBetaTopOffset: {
+    marginTop: 60, // banner height (Android; banner sits at top: 0)
   },
-  scrollViewWithBetaTopIOS: {
-    // Banner is positioned 59px from top on iOS to avoid Dynamic Island
-    // Add padding for banner offset (59px) + banner height (~60-80px) ≈ 120px
-    paddingTop: 120,
+  scrollViewBetaTopOffsetIOS: {
+    marginTop: 120, // banner offset from Dynamic Island (59) + banner height (~60)
   },
   scrollViewWithBetaBottom: {
     paddingBottom: 60, // Add padding when beta indicator is at bottom
