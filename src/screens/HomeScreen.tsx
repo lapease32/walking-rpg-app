@@ -360,13 +360,22 @@ export default function HomeScreen() {
         ? styles.scrollViewWithBetaBottom
         : undefined;
 
+  // The worthy-foe card is a sticky scroll header — inline until scrolled past, then pinned to the
+  // top of the list. stickyHeaderIndices targets a DIRECT ScrollView child, so the card is its own
+  // top-level child at index 1 (after the title/stats block) ONLY when a foe is held; with no foe
+  // it isn't rendered and there's no sticky index.
+  const stickyFoeIndices = heldFoe ? [1] : undefined;
+
   return (
     <SafeAreaView style={styles.container} testID="home-screen">
       {bannerVisible && (
         <BetaIndicator {...betaIndicatorProps} position={environmentBanner.position} />
       )}
-      <ScrollView style={styles.scrollView} contentContainerStyle={scrollViewContentStyle}>
-        <View style={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={scrollViewContentStyle}
+        stickyHeaderIndices={stickyFoeIndices}>
+        <View style={styles.contentTop}>
           <View style={styles.titleContainer}>
             <TouchableOpacity
               style={styles.settingsButton}
@@ -380,9 +389,15 @@ export default function HomeScreen() {
           </View>
 
           <PlayerStats player={player} />
+        </View>
 
-          <WorthyFoeCard foe={heldFoe} onFight={engageHeldFoe} />
+        {heldFoe && (
+          <View style={styles.stickyFoeWrap}>
+            <WorthyFoeCard foe={heldFoe} onFight={engageHeldFoe} />
+          </View>
+        )}
 
+        <View style={styles.contentRest}>
           <EquipmentDisplay
             equipment={player.equipment}
             onSlotPress={slot => {
@@ -573,8 +588,18 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  content: {
-    padding: 16,
+  contentTop: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  // Opaque wrapper (matches the screen bg) so that when the worthy-foe card is pinned (sticky),
+  // scrolled content never shows through around the card's own margins.
+  stickyFoeWrap: {
+    backgroundColor: '#f5f5f5',
+  },
+  contentRest: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   titleContainer: {
     flexDirection: 'row',
