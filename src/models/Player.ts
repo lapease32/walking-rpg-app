@@ -404,7 +404,23 @@ export class Player {
     return statTotal(item) > statTotal(replaced);
   }
 
-  equipItem(inventoryIndex: number): boolean {
+  /**
+   * The slot an item will actually occupy on equip. Honors a caller-chosen slot when it's valid for
+   * the item — an accessory can go to accessory1 OR accessory2, so a player who taps a specific
+   * accessory slot gets THAT slot (fixes accessories always landing in accessory2). Everything else,
+   * or no explicit choice, falls back to getEquipTargetSlot's auto-routing.
+   */
+  private resolveEquipTargetSlot(item: Item, preferredSlot?: EquipmentSlot | null): EquipmentSlot {
+    if (
+      item.type === 'accessory' &&
+      (preferredSlot === 'accessory1' || preferredSlot === 'accessory2')
+    ) {
+      return preferredSlot;
+    }
+    return this.getEquipTargetSlot(item);
+  }
+
+  equipItem(inventoryIndex: number, preferredSlot?: EquipmentSlot | null): boolean {
     if (inventoryIndex < 0 || inventoryIndex >= this.inventory.length) {
       return false;
     }
@@ -416,7 +432,7 @@ export class Player {
       return false;
     }
 
-    const targetSlot = this.getEquipTargetSlot(item);
+    const targetSlot = this.resolveEquipTargetSlot(item, preferredSlot);
 
     this.inventory[inventoryIndex] = null;
 

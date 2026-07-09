@@ -412,6 +412,26 @@ describe('Player', () => {
       expect(player.equipment.accessory1?.id).toBe('acc1');
       expect(player.equipment.accessory2?.id).toBe('acc2');
     });
+
+    it('honors a chosen accessory slot (accessory2) even when accessory1 is empty', () => {
+      const player = new Player({ level: 1 });
+      player.inventory[0] = makeAccessory({ id: 'acc' });
+      expect(player.equipItem(0, 'accessory2')).toBe(true);
+      expect(player.equipment.accessory2?.id).toBe('acc');
+      expect(player.equipment.accessory1).toBeNull();
+    });
+
+    it('equips into a chosen, already-occupied accessory1 and swaps the old one out (the bug)', () => {
+      // Reported bug: selecting Accessory 1 while it was full used to land the item in accessory2.
+      const player = new Player({ level: 1 });
+      player.inventory[0] = makeAccessory({ id: 'old' });
+      player.equipItem(0); // fills accessory1
+      player.inventory[1] = makeAccessory({ id: 'new' });
+      expect(player.equipItem(1, 'accessory1')).toBe(true);
+      expect(player.equipment.accessory1?.id).toBe('new');
+      expect(player.equipment.accessory2).toBeNull();
+      expect(player.inventory.some(i => i?.id === 'old')).toBe(true);
+    });
   });
 
   describe('getEquipTargetSlot', () => {

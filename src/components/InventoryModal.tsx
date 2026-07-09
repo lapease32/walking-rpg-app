@@ -129,7 +129,10 @@ export default function InventoryModal({
         return;
       }
 
-      const success = player.equipItem(selectedItemIndex);
+      // Pass the slot the player actually tapped (equipmentSlot) so an accessory lands where they
+      // chose — accessory1 OR accessory2 — instead of always auto-routing to accessory2 when
+      // accessory1 is full. null (inventory opened normally) keeps the auto-routing behavior.
+      const success = player.equipItem(selectedItemIndex, equipmentSlot);
       if (success) {
         setShowItemDetails(false);
         setSelectedItem(null);
