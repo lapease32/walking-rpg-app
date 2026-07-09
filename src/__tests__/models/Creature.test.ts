@@ -268,6 +268,33 @@ describe('elite creature roster', () => {
   });
 });
 
+describe('CREATURE_TEMPLATES data integrity', () => {
+  it('has no duplicate ids', () => {
+    const ids = CREATURE_TEMPLATES.map(t => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('every template has positive combat stats and a valid rarity', () => {
+    const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+    for (const t of CREATURE_TEMPLATES) {
+      expect(t.maxHp).toBeGreaterThan(0);
+      expect(t.attack).toBeGreaterThan(0);
+      expect(t.defense).toBeGreaterThanOrEqual(0);
+      expect(t.speed).toBeGreaterThan(0);
+      expect(rarities).toContain(t.rarity);
+    }
+  });
+
+  it('every resistance value is a sane fraction in [-1, 1]', () => {
+    for (const t of CREATURE_TEMPLATES) {
+      for (const value of Object.values(t.resistances ?? {})) {
+        expect(value).toBeGreaterThanOrEqual(-1);
+        expect(value).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
+
 describe('isEliteCreature', () => {
   it('classifies rare and above as elite (held for turn-based)', () => {
     expect(isEliteCreature({ rarity: 'rare' })).toBe(true);
