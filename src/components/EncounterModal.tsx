@@ -79,11 +79,12 @@ export default function EncounterModal({
       transparent={true}
       animationType="slide"
       onRequestClose={onMinimize || onFlee}>
-      <Pressable style={styles.modalOverlay} onPress={onMinimize ?? onFlee}>
-        <View
-          style={styles.modalContent}
-          onStartShouldSetResponder={() => true}
-          testID="encounter-modal">
+      <View style={styles.modalOverlay}>
+        {/* Background tap-to-close sits BEHIND the content (not wrapping it), so tapping outside
+            dismisses while the content's ScrollView keeps its touch gestures. An onStartShouldSet-
+            Responder wrapper here would claim the touch on start and block scrolling. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onMinimize ?? onFlee} />
+        <View style={styles.modalContent} testID="encounter-modal">
           <View style={styles.header}>
             <Text style={styles.title}>Wild Creature Encountered!</Text>
             {onMinimize && (
@@ -265,7 +266,7 @@ export default function EncounterModal({
             </PressableScale>
           </View>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
