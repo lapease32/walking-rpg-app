@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path, Circle, G } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
 import { IconProps } from './AbilityIcon';
 
 /**
@@ -59,9 +59,16 @@ const BootsIcon = (p: IconProps) => (
   </FillFrame>
 );
 
+// A gauntlet: four fingers + a side thumb over the palm, with a flared cuff at the wrist.
 const GlovesIcon = (p: IconProps) => (
   <FillFrame {...p}>
-    <Path d="M7 9 V6 Q7 4 9 4 Q11 4 11 6 V9 H16 Q18 9 18 12 V17 Q18 20 15 20 H10 Q7 20 7 17 Z" />
+    <Rect x={8.2} y={4.5} width={1.7} height={6.5} rx={0.85} />
+    <Rect x={10.5} y={3.5} width={1.7} height={7.5} rx={0.85} />
+    <Rect x={12.8} y={3.7} width={1.7} height={7.3} rx={0.85} />
+    <Rect x={15.1} y={4.7} width={1.7} height={6.3} rx={0.85} />
+    <Path d="M7.8 9.5 H17.2 V15.5 H7.8 Z" />
+    <Path d="M7.8 10.5 Q5 10.3 4.9 12.5 Q4.8 14.6 7.8 14.3 Z" />
+    <Rect x={6} y={15} width={12} height={4.6} rx={1.3} />
   </FillFrame>
 );
 
