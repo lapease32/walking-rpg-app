@@ -11,6 +11,7 @@ import {
 import { Item, AffixStat } from '../models/Item';
 import ItemSlotIcon from './icons/ItemSlotIcon';
 import StatIcon from './icons/StatIcon';
+import { CloseIcon, WarningIcon } from './icons/UiIcon';
 import { getRarityColor } from '../constants/rarity';
 import { Player } from '../models/Player';
 
@@ -67,7 +68,7 @@ export default function ItemDetailsModal({
           <View style={styles.header}>
             <Text style={styles.title}>Item Details</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <CloseIcon size={18} color="#666" />
             </TouchableOpacity>
           </View>
 
@@ -172,9 +173,11 @@ export default function ItemDetailsModal({
 
             {/* Level Requirement Warning */}
             {!canEquip && player && (
-              <View style={styles.warningContainer}>
+              <View style={[styles.warningContainer, styles.warningRow]}>
+                <WarningIcon size={14} color="#856404" />
                 <Text style={styles.warningText}>
-                  ⚠️ Requires level {item.level} (You are level {player.level})
+                  {' '}
+                  Requires level {item.level} (You are level {player.level})
                 </Text>
               </View>
             )}
@@ -348,6 +351,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff3cd',
     borderRadius: 8,
     marginBottom: 20,
+  },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   warningText: {
     fontSize: 14,
