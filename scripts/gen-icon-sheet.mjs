@@ -157,14 +157,14 @@ const html = `<!doctype html>
   .sec-head h2 { font-family:"Iowan Old Style",Palatino,Georgia,serif; font-weight:600; font-size:21px; margin:0; }
   .sec-head .count { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--ink-faint); }
   .sec-head .note { margin-left:auto; font-size:12.5px; color:var(--ink-faint); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(124px,1fr)); gap:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
   .tile { background:var(--tile); border:1px solid var(--line); border-radius:12px; padding:16px 8px 12px; display:flex; flex-direction:column; gap:12px; min-height:110px; }
   .glyph { display:flex; align-items:center; justify-content:center; height:72px; color:var(--tint); }
   .glyph svg { width:var(--icon-size); height:var(--icon-size); display:block; }
   .tile figcaption { width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--ink-soft); text-align:center; overflow-wrap:anywhere; line-height:1.3; }
   footer { padding:30px 0 60px; }
   footer p { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--ink-faint); margin:0; }
-  @media (max-width:560px) { .grid { grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); } input[type="range"]{ width:130px; } }
+  @media (max-width:560px) { .grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); } input[type="range"]{ width:130px; } }
 </style>
 </head>
 <body>
