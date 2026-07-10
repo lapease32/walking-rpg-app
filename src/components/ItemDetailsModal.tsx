@@ -9,6 +9,8 @@ import {
   Pressable,
 } from 'react-native';
 import { Item, AffixStat } from '../models/Item';
+import ItemSlotIcon from './icons/ItemSlotIcon';
+import StatIcon from './icons/StatIcon';
 import { getRarityColor } from '../constants/rarity';
 import { Player } from '../models/Player';
 
@@ -35,20 +37,6 @@ export default function ItemDetailsModal({
   if (!item) {
     return null;
   }
-
-  const getItemIcon = (targetItem: Item): string => {
-    const iconMap: Record<Item['type'], string> = {
-      weapon: '⚔️',
-      offhand: '🛡️',
-      head: '👑',
-      chest: '👕',
-      legs: '👖',
-      boots: '👢',
-      gloves: '🧤',
-      accessory: '💍',
-    };
-    return iconMap[targetItem.type] || '📦';
-  };
 
   const getSlotName = (targetItem: Item): string => {
     const slotMap: Record<Item['type'], string> = {
@@ -86,7 +74,7 @@ export default function ItemDetailsModal({
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {/* Item Icon */}
             <View style={styles.iconContainer}>
-              <Text style={styles.itemIcon}>{getItemIcon(item)}</Text>
+              <ItemSlotIcon slot={item.type} size={60} color={getRarityColor(item.rarity)} />
             </View>
 
             {/* Item Name */}
@@ -117,28 +105,48 @@ export default function ItemDetailsModal({
                 <View style={styles.statsGrid}>
                   {item.attack !== undefined && (
                     <View style={styles.statItem}>
-                      <Text style={styles.statIcon}>⚔️</Text>
+                      <StatIcon
+                        stat="attack"
+                        size={22}
+                        color={getRarityColor(item.rarity)}
+                        style={styles.statIcon}
+                      />
                       <Text style={styles.statLabel}>Attack</Text>
                       <Text style={styles.statValue}>+{item.attack}</Text>
                     </View>
                   )}
                   {item.defense !== undefined && (
                     <View style={styles.statItem}>
-                      <Text style={styles.statIcon}>🛡️</Text>
+                      <StatIcon
+                        stat="defense"
+                        size={22}
+                        color={getRarityColor(item.rarity)}
+                        style={styles.statIcon}
+                      />
                       <Text style={styles.statLabel}>Defense</Text>
                       <Text style={styles.statValue}>+{item.defense}</Text>
                     </View>
                   )}
                   {item.hp !== undefined && (
                     <View style={styles.statItem}>
-                      <Text style={styles.statIcon}>❤️</Text>
+                      <StatIcon
+                        stat="hp"
+                        size={22}
+                        color={getRarityColor(item.rarity)}
+                        style={styles.statIcon}
+                      />
                       <Text style={styles.statLabel}>HP</Text>
                       <Text style={styles.statValue}>+{item.hp}</Text>
                     </View>
                   )}
                   {item.maxHp !== undefined && (
                     <View style={styles.statItem}>
-                      <Text style={styles.statIcon}>💚</Text>
+                      <StatIcon
+                        stat="maxHp"
+                        size={22}
+                        color={getRarityColor(item.rarity)}
+                        style={styles.statIcon}
+                      />
                       <Text style={styles.statLabel}>Max HP</Text>
                       <Text style={styles.statValue}>+{item.maxHp}</Text>
                     </View>
@@ -241,9 +249,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  itemIcon: {
-    fontSize: 64,
-  },
   itemName: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -298,7 +303,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statIcon: {
-    fontSize: 24,
     marginBottom: 4,
   },
   statLabel: {

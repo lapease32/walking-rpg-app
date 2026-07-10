@@ -12,6 +12,8 @@ import {
 import { Item } from '../models/Item';
 import { Rarity } from '../models/Creature';
 import { getRarityColor } from '../constants/rarity';
+import ItemSlotIcon from './icons/ItemSlotIcon';
+import StatIcon from './icons/StatIcon';
 import RewardGlowCanvas from './RewardGlowCanvas';
 
 /**
@@ -86,17 +88,6 @@ const RARITY_FX: Record<
 };
 const BURST_MS = 900; // per-particle flight duration (gives the gravity arc room to land)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const ITEM_ICON: Record<Item['type'], string> = {
-  weapon: '⚔️',
-  offhand: '🛡️',
-  head: '👑',
-  chest: '👕',
-  legs: '👖',
-  boots: '👢',
-  gloves: '🧤',
-  accessory: '💍',
-};
 
 type Particle = {
   tx: Animated.Value;
@@ -314,15 +305,30 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
             ]}>
             {item ? (
               <>
-                <Text style={styles.icon}>{ITEM_ICON[item.type] ?? '📦'}</Text>
+                <ItemSlotIcon slot={item.type} size={50} color={color} style={styles.icon} />
                 <Text style={[styles.itemName, { color }]}>{item.name}</Text>
                 <Text style={[styles.rarityLabel, { color }]}>
                   {item.rarity.toUpperCase()} • {item.type}
                 </Text>
                 <View style={styles.statsRow}>
-                  {item.attack !== undefined && <Text style={styles.stat}>⚔ +{item.attack}</Text>}
-                  {item.defense !== undefined && <Text style={styles.stat}>🛡 +{item.defense}</Text>}
-                  {item.maxHp !== undefined && <Text style={styles.stat}>❤ +{item.maxHp}</Text>}
+                  {item.attack !== undefined && (
+                    <View style={styles.stat}>
+                      <StatIcon stat="attack" size={14} color={color} />
+                      <Text style={styles.statText}> +{item.attack}</Text>
+                    </View>
+                  )}
+                  {item.defense !== undefined && (
+                    <View style={styles.stat}>
+                      <StatIcon stat="defense" size={14} color={color} />
+                      <Text style={styles.statText}> +{item.defense}</Text>
+                    </View>
+                  )}
+                  {item.maxHp !== undefined && (
+                    <View style={styles.stat}>
+                      <StatIcon stat="maxHp" size={14} color={color} />
+                      <Text style={styles.statText}> +{item.maxHp}</Text>
+                    </View>
+                  )}
                 </View>
                 {reveal.isUpgrade ? (
                   <Text style={styles.upgradeBadge}>▲ UPGRADE</Text>
@@ -394,7 +400,8 @@ const styles = StyleSheet.create({
   victoryTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFD54F' },
   subtle: { fontSize: 14, color: '#9FB3C8', marginTop: 2 },
   statsRow: { flexDirection: 'row', gap: 14, marginTop: 12 },
-  stat: { fontSize: 15, color: '#E0E0E0', fontWeight: '600' },
+  stat: { flexDirection: 'row', alignItems: 'center' },
+  statText: { fontSize: 15, color: '#E0E0E0', fontWeight: '600' },
   upgradeBadge: {
     marginTop: 12,
     color: '#2e7d32',

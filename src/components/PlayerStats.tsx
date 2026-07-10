@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Player } from '../models/Player';
+import StatIcon from './icons/StatIcon';
 import { ARCHETYPE_CONFIGS } from '../models/Archetype';
 import { MOTION_BAR_TIMING, MOTION_SPRING } from '../constants/motion';
 
@@ -99,11 +100,17 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
       <View style={styles.combatStats}>
         <View style={styles.combatStatItem}>
           <Text style={styles.combatStatValue}>{stats.attack}</Text>
-          <Text style={styles.combatStatLabel}>⚔️ Attack</Text>
+          <View style={styles.combatStatLabelRow}>
+            <StatIcon stat="attack" size={13} color="#666" />
+            <Text style={styles.combatStatLabel}> Attack</Text>
+          </View>
         </View>
         <View style={styles.combatStatItem}>
           <Text style={styles.combatStatValue}>{stats.defense}</Text>
-          <Text style={styles.combatStatLabel}>🛡️ Defense</Text>
+          <View style={styles.combatStatLabelRow}>
+            <StatIcon stat="defense" size={13} color="#666" />
+            <Text style={styles.combatStatLabel}> Defense</Text>
+          </View>
         </View>
       </View>
 
@@ -203,6 +210,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
+  },
+  combatStatLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   combatStatLabel: {
     fontSize: 14,
