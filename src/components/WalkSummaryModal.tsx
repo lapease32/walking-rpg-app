@@ -144,7 +144,9 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1, paddingHorizontal: 8 },
   rowCreature: { fontSize: 14, color: '#CFD8DC', fontWeight: '600' },
   rowItemLine: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  rowItem: { fontSize: 13, fontWeight: '700' },
+  // flexShrink lets the name shrink within the row so numberOfLines={1} can ellipsize
+  // (in RN, truncation in a horizontal row needs a bounded width).
+  rowItem: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
   rowXp: { fontSize: 14, color: '#FFD54F', fontWeight: 'bold' },
   prompt: { marginTop: 16, color: '#7E8C9A', fontSize: 12, textAlign: 'center' },
 });
