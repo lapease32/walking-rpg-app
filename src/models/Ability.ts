@@ -8,7 +8,6 @@ interface AbilityBase {
   id: string;
   name: string;
   primitive: AbilityPrimitive;
-  cooldownMs: number;
   resourceCost: number;
   icon: string;
 }
