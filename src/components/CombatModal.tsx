@@ -23,6 +23,8 @@ import { DamageType } from '../models/DamageType';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 import PressableScale from './PressableScale';
 import AbilityIcon from './icons/AbilityIcon';
+import DamageTypeIcon from './icons/DamageTypeIcon';
+import { CloseIcon, BuffIcon, DebuffIcon, DotIcon } from './icons/UiIcon';
 import FloatingCombatText from './FloatingCombatText';
 import CombatFxCanvas from './CombatFxCanvas';
 import { useCombatImpact } from '../hooks/useCombatImpact';
@@ -222,7 +224,7 @@ export default function CombatModal({
               onPress={onClose}
               style={styles.closeButton}
               testID="combat-close-button">
-              <Text style={styles.closeButtonText}>✕</Text>
+              <CloseIcon size={16} color="#666" />
             </TouchableOpacity>
           </View>
 
@@ -261,23 +263,22 @@ export default function CombatModal({
               {(Object.entries(creature.resistances) as [DamageType, number][])
                 .filter(([, v]) => v !== 0)
                 .map(([type, value]) => {
-                  const icon: Record<DamageType, string> = {
-                    physical: '⚔️',
-                    fire: '🔥',
-                    frost: '🧊',
-                    arcane: '✨',
-                  };
                   const pct = Math.round(value * 100);
+                  const c = value > 0 ? '#2e7d32' : '#c62828';
                   return (
-                    <Text
+                    <View
                       key={type}
                       style={[
-                        styles.statChip,
+                        styles.resistChip,
                         value > 0 ? styles.resistChipPos : styles.resistChipNeg,
                       ]}>
-                      {icon[type]} {pct > 0 ? '+' : ''}
-                      {pct}%
-                    </Text>
+                      <DamageTypeIcon type={type} size={11} color={c} />
+                      <Text style={[styles.resistChipText, { color: c }]}>
+                        {' '}
+                        {pct > 0 ? '+' : ''}
+                        {pct}%
+                      </Text>
+                    </View>
                   );
                 })}
             </View>
@@ -336,8 +337,15 @@ export default function CombatModal({
               <View style={styles.statusEffects}>
                 {playerCombatState.statusEffects.map((effect, i) => (
                   <View key={`${effect.id}-${i}`} style={styles.statusBadge}>
+                    {effect.type === 'buff' ? (
+                      <BuffIcon size={11} color="#444" />
+                    ) : effect.type === 'debuff' ? (
+                      <DebuffIcon size={11} color="#444" />
+                    ) : (
+                      <DotIcon size={11} color="#444" />
+                    )}
                     <Text style={styles.statusBadgeText}>
-                      {effect.type === 'buff' ? '⬆' : effect.type === 'debuff' ? '⬇' : '🩸'}{' '}
+                      {' '}
                       {effect.id.replace('_', ' ')} ({effect.remainingTicks}t)
                     </Text>
                   </View>
@@ -514,12 +522,22 @@ const styles = StyleSheet.create({
   resourceText: { fontSize: 10, color: '#555', width: 36, textAlign: 'right' },
   statusEffects: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
   statusBadgeText: { fontSize: 10, color: '#444' },
+  resistChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  resistChipText: { fontSize: 11 },
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
   statChip: {
     fontSize: 11,

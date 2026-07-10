@@ -11,6 +11,7 @@ import {
 import { Item, canEquipInSlot, getItemSlot } from '../models/Item';
 import ItemSlotIcon from './icons/ItemSlotIcon';
 import StatIcon from './icons/StatIcon';
+import { CloseIcon } from './icons/UiIcon';
 import { getRarityColor } from '../constants/rarity';
 import { Player, EquipmentSlot } from '../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
@@ -252,7 +253,7 @@ export default function InventoryModal({
               {equipmentSlot ? `${getSlotLabel(equipmentSlot)} Items` : 'Inventory'}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <CloseIcon size={18} color="#333" />
             </TouchableOpacity>
           </View>
 

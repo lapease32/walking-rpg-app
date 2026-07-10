@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import LocationService, { DistanceData } from '../services/LocationService';
+import { SettingsIcon, InventoryIcon, WarningIcon } from '../components/icons/UiIcon';
 import NotificationService from '../services/NotificationService';
 import AnalyticsService from '../services/AnalyticsService';
 import { useAuth } from '../hooks/useAuth';
@@ -391,7 +392,7 @@ export default function HomeScreen() {
                 setShowSettingsModal(true);
               }}
               activeOpacity={0.7}>
-              <Text style={styles.settingsButtonText}>⚙️</Text>
+              <SettingsIcon size={22} color="#444" />
             </TouchableOpacity>
             <Text style={styles.title}>StrideQuest</Text>
           </View>
@@ -420,7 +421,10 @@ export default function HomeScreen() {
               setSelectedEquipmentSlot(null); // Clear filter when opening normally
               setShowInventoryModal(true);
             }}>
-            <Text style={styles.inventoryButtonText}>📦 View Inventory</Text>
+            <View style={styles.inventoryButtonRow}>
+              <InventoryIcon size={18} color="#fff" />
+              <Text style={styles.inventoryButtonText}> View Inventory</Text>
+            </View>
           </TouchableOpacity>
 
           <DistanceDisplay distance={currentDistance} />
@@ -478,9 +482,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.minimizedEncounterButton}
               onPress={handleExpandMinimized}>
-              <Text style={styles.minimizedEncounterText}>
-                ⚠️ Active Encounter: {currentEncounter.creature.name} (Tap to view)
-              </Text>
+              <View style={styles.minimizedEncounterRow}>
+                <WarningIcon size={15} color="#fff" />
+                <Text style={styles.minimizedEncounterText}>
+                  {' '}
+                  Active Encounter: {currentEncounter.creature.name} (Tap to view)
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
 
@@ -709,6 +717,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     alignItems: 'center',
   },
+  inventoryButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   inventoryButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -719,6 +731,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9800',
     borderRadius: 8,
     marginVertical: 8,
+    alignItems: 'center',
+  },
+  minimizedEncounterRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   minimizedEncounterText: {

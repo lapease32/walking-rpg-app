@@ -2,6 +2,8 @@ import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getRarityColor } from '../constants/rarity';
 import ItemSlotIcon from './icons/ItemSlotIcon';
+import StatIcon from './icons/StatIcon';
+import { FleeIcon } from './icons/UiIcon';
 import { WalkSummaryEntry } from '../utils/storage';
 
 /**
@@ -48,7 +50,13 @@ export default function WalkSummaryModal({ entries, onDismiss }: Props) {
                 const color = e.item ? getRarityColor(e.item.rarity) : '#9FB3C8';
                 return (
                   <View key={`${e.timestamp}-${i}`} style={styles.row}>
-                    <Text style={styles.rowResult}>{e.won ? '⚔️' : '💨'}</Text>
+                    <View style={styles.rowResult}>
+                      {e.won ? (
+                        <StatIcon stat="attack" size={16} color="#4CAF50" />
+                      ) : (
+                        <FleeIcon size={16} color="#9FB3C8" />
+                      )}
+                    </View>
                     <View style={styles.rowMain}>
                       <Text style={styles.rowCreature} numberOfLines={1}>
                         {e.won ? 'Defeated' : 'Fled from'} {e.creatureName}
@@ -140,7 +148,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#1B2A38',
   },
-  rowResult: { fontSize: 18, width: 28, textAlign: 'center' },
+  rowResult: { width: 28, alignItems: 'center', justifyContent: 'center' },
   rowMain: { flex: 1, paddingHorizontal: 8 },
   rowCreature: { fontSize: 14, color: '#CFD8DC', fontWeight: '600' },
   rowItemLine: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },

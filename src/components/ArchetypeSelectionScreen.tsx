@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import ResourceIcon from './icons/ResourceIcon';
+import StatIcon from './icons/StatIcon';
 import {
   Archetype,
   ARCHETYPE_CONFIGS,
@@ -14,12 +16,6 @@ interface Props {
 }
 
 const ARCHETYPES: Archetype[] = [Archetype.Martial, Archetype.Agile, Archetype.Mage];
-
-const RESOURCE_ICONS: Record<string, string> = {
-  rage: '🔥',
-  energy: '⚡',
-  mana: '💙',
-};
 
 export default function ArchetypeSelectionScreen({ onSelect }: Props) {
   return (
@@ -47,14 +43,24 @@ export default function ArchetypeSelectionScreen({ onSelect }: Props) {
             onPress={() => onSelect(archetype)}
             activeOpacity={0.8}>
             <Text style={styles.archetypeName}>{cfg.name}</Text>
-            <Text style={styles.resource}>
-              {RESOURCE_ICONS[cfg.resource]} {resourceLabel}
-            </Text>
+            <View style={styles.resourceRow}>
+              <ResourceIcon resource={cfg.resource} size={14} color="#888" />
+              <Text style={styles.resource}> {resourceLabel}</Text>
+            </View>
             <Text style={styles.description}>{cfg.description}</Text>
             <View style={styles.statsRow}>
-              <Text style={styles.stat}>❤️ {hp} HP</Text>
-              <Text style={styles.stat}>⚔️ {atk} ATK</Text>
-              <Text style={styles.stat}>🛡️ {def} DEF</Text>
+              <View style={styles.statItem}>
+                <StatIcon stat="hp" size={13} color="#555" />
+                <Text style={styles.stat}> {hp} HP</Text>
+              </View>
+              <View style={styles.statItem}>
+                <StatIcon stat="attack" size={13} color="#555" />
+                <Text style={styles.stat}> {atk} ATK</Text>
+              </View>
+              <View style={styles.statItem}>
+                <StatIcon stat="defense" size={13} color="#555" />
+                <Text style={styles.stat}> {def} DEF</Text>
+              </View>
             </View>
             <View style={styles.selectButton}>
               <Text style={styles.selectButtonText}>Choose {cfg.name}</Text>
@@ -120,10 +126,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 14,
   },
+  resourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   statsRow: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   stat: {
     fontSize: 13,

@@ -14,6 +14,7 @@ import { Rarity } from '../models/Creature';
 import { getRarityColor } from '../constants/rarity';
 import ItemSlotIcon from './icons/ItemSlotIcon';
 import StatIcon from './icons/StatIcon';
+import { TrophyIcon, WarningIcon } from './icons/UiIcon';
 import RewardGlowCanvas from './RewardGlowCanvas';
 
 /**
@@ -336,14 +337,18 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
                   <Text style={styles.newBadge}>NEW</Text>
                 )}
                 {reveal.inventoryFull && (
-                  <Text style={styles.warning}>
-                    ⚠️ Inventory full — this drop was lost. Clear space to keep future finds.
-                  </Text>
+                  <View style={styles.warningRow}>
+                    <WarningIcon size={13} color="#FFB74D" />
+                    <Text style={styles.warning}>
+                      {' '}
+                      Inventory full — this drop was lost. Clear space to keep future finds.
+                    </Text>
+                  </View>
                 )}
               </>
             ) : (
               <>
-                <Text style={styles.icon}>🏆</Text>
+                <TrophyIcon size={50} color="#FFD54F" style={styles.icon} />
                 <Text style={styles.victoryTitle}>Victory!</Text>
                 <Text style={styles.subtle}>Defeated {reveal.creatureName}</Text>
               </>
@@ -420,7 +425,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 2,
   },
-  warning: { marginTop: 10, color: '#FFB74D', fontSize: 12, textAlign: 'center' },
+  warningRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  warning: { color: '#FFB74D', fontSize: 12, flexShrink: 1 },
   xp: { marginTop: 14, color: '#FFD54F', fontSize: 16, fontWeight: 'bold' },
   levelUp: { marginTop: 6, color: '#4FC3F7', fontSize: 15, fontWeight: 'bold', letterSpacing: 1 },
   prompt: { marginTop: 26, color: '#7E8C9A', fontSize: 13 },
