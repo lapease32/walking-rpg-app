@@ -9,6 +9,7 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "test": "jest",
+    "icons:sheet": "node scripts/gen-icon-sheet.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "postinstall": "patch-package",
