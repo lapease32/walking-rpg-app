@@ -13,6 +13,7 @@ import { Rarity, isEliteCreature } from '../models/Creature';
 import { DamageType } from '../models/DamageType';
 import PressableScale from './PressableScale';
 import StatIcon from './icons/StatIcon';
+import DamageTypeIcon from './icons/DamageTypeIcon';
 
 interface EncounterModalProps {
   encounter: Encounter | null;
@@ -187,18 +188,14 @@ export default function EncounterModal({
                     {(Object.entries(creature.resistances) as [DamageType, number][])
                       .filter(([, v]) => v !== 0)
                       .map(([type, value]) => {
-                        const icon: Record<DamageType, string> = {
-                          physical: '⚔️',
-                          fire: '🔥',
-                          frost: '🧊',
-                          arcane: '✨',
-                        };
                         const pct = Math.round(value * 100);
                         const color = value > 0 ? '#4CAF50' : '#F44336';
                         return (
                           <View key={type} style={[styles.resistChip, { borderColor: color }]}>
+                            <DamageTypeIcon type={type} size={12} color={color} />
                             <Text style={styles.resistChipText}>
-                              {icon[type]} {pct > 0 ? '+' : ''}
+                              {' '}
+                              {pct > 0 ? '+' : ''}
                               {pct}%
                             </Text>
                           </View>
@@ -509,6 +506,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   resistChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
