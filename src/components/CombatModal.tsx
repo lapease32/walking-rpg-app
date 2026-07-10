@@ -22,6 +22,7 @@ import { ARCHETYPE_CONFIGS } from '../models/Archetype';
 import { DamageType } from '../models/DamageType';
 import { ARCHETYPE_ABILITIES } from '../constants/abilities';
 import PressableScale from './PressableScale';
+import AbilityIcon from './icons/AbilityIcon';
 import FloatingCombatText from './FloatingCombatText';
 import CombatFxCanvas from './CombatFxCanvas';
 import { useCombatImpact } from '../hooks/useCombatImpact';
@@ -389,7 +390,12 @@ export default function CombatModal({
                   onPress={() => handleAbilityPress(ability)}
                   disabled={isDisabled}>
                   <View style={styles.abilityContent}>
-                    <Text style={styles.abilityIcon}>{ability.icon}</Text>
+                    <AbilityIcon
+                      id={ability.id}
+                      size={26}
+                      color="#fff"
+                      style={styles.abilityIcon}
+                    />
                     <View style={styles.abilityInfo}>
                       <Text style={styles.abilityName}>{ability.name}</Text>
                       <Text style={styles.abilityPreview}>{preview}</Text>
@@ -542,7 +548,7 @@ const styles = StyleSheet.create({
   },
   abilityButtonDisabled: { opacity: 0.45 },
   abilityContent: { flexDirection: 'row', alignItems: 'center' },
-  abilityIcon: { fontSize: 26, marginRight: 10 },
+  abilityIcon: { marginRight: 10 },
   abilityInfo: { flex: 1 },
   abilityName: { fontSize: 15, fontWeight: 'bold', color: '#fff', marginBottom: 2 },
   abilityPreview: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
