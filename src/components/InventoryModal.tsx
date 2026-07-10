@@ -9,6 +9,8 @@ import {
   Pressable,
 } from 'react-native';
 import { Item, canEquipInSlot, getItemSlot } from '../models/Item';
+import ItemSlotIcon from './icons/ItemSlotIcon';
+import StatIcon from './icons/StatIcon';
 import { getRarityColor } from '../constants/rarity';
 import { Player, EquipmentSlot } from '../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
@@ -25,11 +27,11 @@ interface InventoryModalProps {
 
 // Stats shown per item, in display order. Values are item totals (affixes baked in).
 type StatKey = 'attack' | 'defense' | 'maxHp' | 'hp';
-const STAT_DISPLAY: { key: StatKey; icon: string; prefix: string }[] = [
-  { key: 'attack', icon: '⚔️', prefix: '' },
-  { key: 'defense', icon: '🛡️', prefix: '' },
-  { key: 'maxHp', icon: '💚', prefix: '+' },
-  { key: 'hp', icon: '❤️', prefix: '+' },
+const STAT_DISPLAY: { key: StatKey; prefix: string }[] = [
+  { key: 'attack', prefix: '' },
+  { key: 'defense', prefix: '' },
+  { key: 'maxHp', prefix: '+' },
+  { key: 'hp', prefix: '+' },
 ];
 const STAT_UP = '#2e7d32'; // green: beats the equipped item's stat
 const STAT_DOWN = '#c62828'; // red: worse than equipped
@@ -86,20 +88,6 @@ export default function InventoryModal({
       }
     }
   }, [inventory, selectedItemIndex, selectedItem]);
-
-  const getItemIcon = (item: Item): string => {
-    const iconMap: Record<Item['type'], string> = {
-      weapon: '⚔️',
-      offhand: '🛡️',
-      head: '👑',
-      chest: '👕',
-      legs: '👖',
-      boots: '👢',
-      gloves: '🧤',
-      accessory: '💍',
-    };
-    return iconMap[item.type] || '📦';
-  };
 
   // The item currently equipped in this item's slot, for stat comparison.
   // Accessories compare against accessory1 (their default slot) — a reasonable hint;
@@ -183,7 +171,7 @@ export default function InventoryModal({
         style={[styles.row, { borderLeftColor: rarityColor }]}
         onPress={() => handleItemPress(item, originalIndex)}
         activeOpacity={0.7}>
-        <Text style={styles.rowIcon}>{getItemIcon(item)}</Text>
+        <ItemSlotIcon slot={item.type} size={26} color={rarityColor} style={styles.rowIcon} />
         <View style={styles.rowBody}>
           <Text style={[styles.rowName, { color: rarityColor }]} numberOfLines={1}>
             {item.name}
@@ -193,7 +181,7 @@ export default function InventoryModal({
             {affixCount > 0 ? ` · ◆ ${affixCount}` : ''}
           </Text>
           <View style={styles.statRow}>
-            {STAT_DISPLAY.map(({ key, icon, prefix }) => {
+            {STAT_DISPLAY.map(({ key, prefix }) => {
               const value = item[key];
               if (value === undefined) {
                 return null;
@@ -213,11 +201,15 @@ export default function InventoryModal({
                 }
               }
               return (
-                <Text key={key} style={[styles.statChip, { color }]}>
-                  {icon} {prefix}
-                  {value}
-                  {arrow}
-                </Text>
+                <View key={key} style={styles.statChip}>
+                  <StatIcon stat={key} size={13} color={color} />
+                  <Text style={[styles.statChipText, { color }]}>
+                    {' '}
+                    {prefix}
+                    {value}
+                    {arrow}
+                  </Text>
+                </View>
               );
             })}
           </View>
@@ -386,7 +378,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rowIcon: {
-    fontSize: 28,
     marginRight: 12,
   },
   rowBody: {
@@ -408,9 +399,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statChip: {
-    fontSize: 13,
-    fontWeight: '700',
+    flexDirection: 'row',
+    alignItems: 'center',
     marginRight: 14,
     marginBottom: 2,
+  },
+  statChipText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

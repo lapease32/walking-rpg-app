@@ -12,6 +12,7 @@ import { Encounter } from '../models/Encounter';
 import { Rarity, isEliteCreature } from '../models/Creature';
 import { DamageType } from '../models/DamageType';
 import PressableScale from './PressableScale';
+import StatIcon from './icons/StatIcon';
 
 interface EncounterModalProps {
   encounter: Encounter | null;
@@ -123,13 +124,19 @@ export default function EncounterModal({
                 <View style={styles.playerStatsContainer}>
                   {playerAttack !== undefined && (
                     <View style={styles.playerStatRow}>
-                      <Text style={styles.playerStatLabel}>⚔️ Attack:</Text>
+                      <View style={styles.playerStatLabelRow}>
+                        <StatIcon stat="attack" size={13} color="#666" />
+                        <Text style={styles.playerStatLabel}> Attack:</Text>
+                      </View>
                       <Text style={styles.playerStatValue}>{playerAttack}</Text>
                     </View>
                   )}
                   {playerDefense !== undefined && (
                     <View style={styles.playerStatRow}>
-                      <Text style={styles.playerStatLabel}>🛡️ Defense:</Text>
+                      <View style={styles.playerStatLabelRow}>
+                        <StatIcon stat="defense" size={13} color="#666" />
+                        <Text style={styles.playerStatLabel}> Defense:</Text>
+                      </View>
                       <Text style={styles.playerStatValue}>{playerDefense}</Text>
                     </View>
                   )}
@@ -453,6 +460,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 2,
+  },
+  playerStatLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   playerStatLabel: {
     fontSize: 14,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Item } from '../models/Item';
 import { getRarityColor } from '../constants/rarity';
+import ItemSlotIcon from './icons/ItemSlotIcon';
 import { WalkSummaryEntry } from '../utils/storage';
 
 /**
@@ -14,17 +14,6 @@ interface Props {
   entries: WalkSummaryEntry[] | null;
   onDismiss: () => void;
 }
-
-const ITEM_ICON: Record<Item['type'], string> = {
-  weapon: '⚔️',
-  offhand: '🛡️',
-  head: '👑',
-  chest: '👕',
-  legs: '👖',
-  boots: '👢',
-  gloves: '🧤',
-  accessory: '💍',
-};
 
 export default function WalkSummaryModal({ entries, onDismiss }: Props) {
   if (!entries || entries.length === 0) {
@@ -65,9 +54,13 @@ export default function WalkSummaryModal({ entries, onDismiss }: Props) {
                         {e.won ? 'Defeated' : 'Fled from'} {e.creatureName}
                       </Text>
                       {e.item && (
-                        <Text style={[styles.rowItem, { color }]} numberOfLines={1}>
-                          {ITEM_ICON[e.item.type] ?? '📦'} {e.item.name}
-                        </Text>
+                        <View style={styles.rowItemLine}>
+                          <ItemSlotIcon slot={e.item.type} size={13} color={color} />
+                          <Text style={[styles.rowItem, { color }]} numberOfLines={1}>
+                            {' '}
+                            {e.item.name}
+                          </Text>
+                        </View>
                       )}
                     </View>
                     <Text style={styles.rowXp}>+{e.xpGained}</Text>
@@ -150,7 +143,10 @@ const styles = StyleSheet.create({
   rowResult: { fontSize: 18, width: 28, textAlign: 'center' },
   rowMain: { flex: 1, paddingHorizontal: 8 },
   rowCreature: { fontSize: 14, color: '#CFD8DC', fontWeight: '600' },
-  rowItem: { fontSize: 13, fontWeight: '700', marginTop: 2 },
+  rowItemLine: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  // flexShrink lets the name shrink within the row so numberOfLines={1} can ellipsize
+  // (in RN, truncation in a horizontal row needs a bounded width).
+  rowItem: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
   rowXp: { fontSize: 14, color: '#FFD54F', fontWeight: 'bold' },
   prompt: { marginTop: 16, color: '#7E8C9A', fontSize: 12, textAlign: 'center' },
 });

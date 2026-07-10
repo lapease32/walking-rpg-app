@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Equipment, EquipmentSlot } from '../models/Player';
+import ItemSlotIcon from './icons/ItemSlotIcon';
+import { getRarityColor } from '../constants/rarity';
 
 interface EquipmentProps {
   equipment: Equipment;
@@ -23,25 +25,18 @@ export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentPr
     accessory2: 'Accessory 2',
   };
 
-  const slotIcons: Record<keyof Equipment, string> = {
-    weapon: '⚔️',
-    offhand: '🛡️',
-    head: '👑',
-    chest: '👕',
-    legs: '👖',
-    boots: '👢',
-    gloves: '🧤',
-    accessory1: '💍',
-    accessory2: '💍',
-  };
-
   const renderSlot = (slotKey: keyof Equipment) => {
     const item = equipment[slotKey];
     const isEmpty = item === null;
 
     const slotContent = (
       <View style={[styles.slot, isEmpty && styles.emptySlot]}>
-        <Text style={styles.slotIcon}>{slotIcons[slotKey]}</Text>
+        <ItemSlotIcon
+          slot={slotKey}
+          size={30}
+          color={isEmpty || !item ? '#78909c' : getRarityColor(item.rarity)}
+          style={styles.slotIcon}
+        />
         <Text style={[styles.slotLabel, isEmpty && styles.emptySlotText]}>
           {slotLabels[slotKey]}
         </Text>
@@ -166,7 +161,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   slotIcon: {
-    fontSize: 32,
     marginBottom: 8,
   },
   slotLabel: {
