@@ -23,8 +23,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    // Report to Crashlytics ONCE here, with the ReactRenderError label. The logger call below is
+    // dev-console-only (debug does not forward) — using logger.error would double-report + drop the label.
     CrashlyticsService.recordError(error, 'ReactRenderError');
-    logger.error('ErrorBoundary caught a render error:', error, info.componentStack);
+    logger.debug('ErrorBoundary caught a render error:', error, info.componentStack);
   }
 
   private reset = (): void => {
