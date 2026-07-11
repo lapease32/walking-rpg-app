@@ -83,6 +83,8 @@ export interface AbilityResult {
 export interface DotEffect {
   damage: number;
   damageType?: DamageType;
+  /** The id of the status effect that dealt this tick (its source ability id), for narration. */
+  sourceId?: string;
 }
 
 export interface TickResult {
@@ -114,7 +116,11 @@ export function tickStatusEffects(state: CombatantState): TickResult {
   for (const effect of state.statusEffects) {
     if (effect.type === 'dot' && effect.damagePerTick !== undefined) {
       dotDamage += effect.damagePerTick;
-      dotEffects.push({ damage: effect.damagePerTick, damageType: effect.damageType });
+      dotEffects.push({
+        damage: effect.damagePerTick,
+        damageType: effect.damageType,
+        sourceId: effect.id,
+      });
     }
     if (effect.remainingTicks > 1) {
       remaining.push({ ...effect, remainingTicks: effect.remainingTicks - 1 });

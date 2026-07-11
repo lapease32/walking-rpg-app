@@ -96,6 +96,7 @@ export default function HomeScreen() {
     playerCombatState,
     playerCombatStateRef,
     combatHits,
+    combatLog,
     isEnemyTurn,
     rewardReveal,
     dismissReward,
@@ -524,6 +525,7 @@ export default function HomeScreen() {
         playerCombatState={playerCombatState}
         playerCombatStateRef={playerCombatStateRef}
         combatHits={combatHits}
+        combatLog={combatLog}
         isEnemyTurn={isEnemyTurn}
       />
       <RewardRevealModal reveal={rewardReveal} onDismiss={dismissReward} />

@@ -36,7 +36,13 @@ import {
 } from '../models/Ability';
 import { applyResistance } from '../models/DamageType';
 import { mitigateDamage } from '../models/combat';
-import { classifyResist, formatStatModLabel, type CombatHitEvent } from '../models/CombatHitEvent';
+import {
+  classifyResist,
+  formatStatModLabel,
+  type CombatHitEvent,
+  type ResistTier,
+} from '../models/CombatHitEvent';
+import type { CombatLogEntry, CombatLogTag } from '../models/CombatLog';
 import { resolveEncounterRoute } from '../models/encounterRouting';
 
 interface UseEncounterParams {
@@ -96,6 +102,9 @@ export function useEncounter({
   // by ascending id; this only PUBLISHES values the combat math already computed (no logic change).
   const [combatHits, setCombatHits] = useState<CombatHitEvent[]>([]);
   const hitIdRef = useRef(0);
+  // Parallel narration feed for the combat log (accumulates the whole fight; reset per encounter).
+  const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
+  const logIdRef = useRef(0);
   // True while the creature's counter-attack beat is in flight (the "enemy turn"). Drives the
   // CombatModal's turn banner + ability dimming so a counter never reads as the player's own action.
   const [isEnemyTurn, setIsEnemyTurn] = useState<boolean>(false);
@@ -215,6 +224,7 @@ export function useEncounter({
     setIsEncounterModalMinimized(false);
     setPlayerCombatState(null);
     setCombatHits([]);
+    setCombatLog([]);
     // Cancel any in-flight kill-beat so a torn-down fight (e.g. account switch) can't resolve its
     // victory into the new session (mirrors the reward-reveal cancel below).
     if (killBeatTimerRef.current) {
@@ -310,6 +320,7 @@ export function useEncounter({
     }
 
     victoryProcessedRef.current = true;
+    pushLog({ kind: 'defeat', actor: 'player', target: 'creature' });
     // Victory is now resolving — end the kill-beat here, whatever path reached handleVictory (the
     // beat timer, or a direct resolution). Clearing the guard/timer at the single resolution point
     // guarantees the pending flag can't outlive the fight and freeze the next encounter's inputs.
@@ -660,6 +671,7 @@ export function useEncounter({
     // Reset the hit feed on flee too (like clearEncounter / the next handleFight) so no events
     // linger past this fight — keeps every combat-teardown path consistent.
     setCombatHits([]);
+    setCombatLog([]);
   };
 
   const handleFight = (): void => {
@@ -692,6 +704,7 @@ export function useEncounter({
       setPlayerCombatState(initialState);
       // Fresh hit feed for this fight (only on the first open — reopening mid-encounter keeps state).
       setCombatHits([]);
+      setCombatLog([]);
     }
     if (creatureCombatStateRef.current === null) {
       creatureCombatStateRef.current = { statusEffects: [], resource: 0 };
@@ -705,8 +718,23 @@ export function useEncounter({
     setCombatHits(prev => [...prev, { ...event, id: hitIdRef.current++ }]);
   };
 
+  // Narration feed, emitted alongside each pushHit (and at defeat). Extensible: future mechanics
+  // pass extra `tags` (glancing/dodged/crit) and the log formatter renders them.
+  const pushLog = (entry: Omit<CombatLogEntry, 'id'>): void => {
+    setCombatLog(prev => [...prev, { ...entry, id: logIdRef.current++ }]);
+  };
+  const resistTags = (resist: ResistTier): CombatLogTag[] | undefined =>
+    resist === 'resisted' ? ['resisted'] : resist === 'vulnerable' ? ['weak'] : undefined;
+  // 'immolate' → 'Immolate', 'battle_cry' → 'Battle Cry' — a readable source name from an effect id.
+  const prettifyId = (id: string): string =>
+    id
+      .split('_')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+
   // The player was defeated (by a counter-attack): restore to full, tear the fight down, notify.
   const handlePlayerDefeat = (defeatedPlayer: Player, creature: Creature): void => {
+    pushLog({ kind: 'defeat', actor: 'creature', target: 'player' });
     const healedPlayer = new Player(defeatedPlayer.toJSON());
     healedPlayer.fullHeal();
     healedPlayer.incrementEncounters();
@@ -793,6 +821,13 @@ export function useEncounter({
           kind: 'hit',
           targetMaxHp: counteredPlayer.maxHp,
         });
+        pushLog({
+          kind: 'attack',
+          actor: 'creature',
+          target: 'player',
+          amount: creatureDamage,
+          damageType: 'physical',
+        });
       }
       setPlayerAndSave(counteredPlayer);
 
@@ -850,18 +885,28 @@ export function useEncounter({
     if (newCreatureState && newCreatureState.statusEffects.length > 0) {
       const { dotEffects, updatedState } = tickStatusEffects(newCreatureState);
       let resistedDot = 0;
-      for (const { damage, damageType } of dotEffects) {
+      for (const { damage, damageType, sourceId } of dotEffects) {
         const resistVal = damageType ? (creature.resistances[damageType] ?? 0) : 0;
         const dealt = applyResistance(damage, resistVal);
         resistedDot += dealt;
         if (dealt > 0) {
+          const resist = classifyResist(resistVal);
           pushHit({
             target: 'creature',
             amount: dealt,
             damageType: damageType ?? null,
-            resist: classifyResist(resistVal),
+            resist,
             kind: 'dot',
             targetMaxHp: creature.maxHp,
+          });
+          pushLog({
+            kind: 'dot',
+            actor: 'player',
+            target: 'creature',
+            amount: dealt,
+            damageType: damageType ?? null,
+            source: sourceId ? prettifyId(sourceId) : undefined,
+            tags: resistTags(resist),
           });
         }
       }
@@ -908,13 +953,23 @@ export function useEncounter({
       // Only 'direct' abilities deal immediate typed damage (dot/buff/defensive have 0 here).
       const dmgType = ability.primitive === 'direct' ? ability.damageType : null;
       const resistVal = dmgType ? (creature.resistances[dmgType] ?? 0) : 0;
+      const resist = classifyResist(resistVal);
       pushHit({
         target: 'creature',
         amount: abilityResult.damage,
         damageType: dmgType,
-        resist: classifyResist(resistVal),
+        resist,
         kind: 'hit',
         targetMaxHp: creature.maxHp,
+      });
+      pushLog({
+        kind: 'attack',
+        actor: 'player',
+        target: 'creature',
+        amount: abilityResult.damage,
+        damageType: dmgType,
+        source: ability.name,
+        tags: resistTags(resist),
       });
     }
     if (abilityResult.heal > 0) {
@@ -926,6 +981,13 @@ export function useEncounter({
         resist: 'neutral',
         kind: 'heal',
         targetMaxHp: updatedPlayer.maxHp,
+      });
+      pushLog({
+        kind: 'heal',
+        actor: 'player',
+        target: 'player',
+        amount: abilityResult.heal,
+        source: ability.name,
       });
     }
 
@@ -946,6 +1008,7 @@ export function useEncounter({
     if (ability.primitive === 'buff_debuff') {
       const buffAbility = ability as BuffDebuffAbility;
       const toSelf = buffAbility.targetSelf;
+      const statLabel = formatStatModLabel(buffAbility.statModifiers);
       pushHit({
         target: toSelf ? 'player' : 'creature',
         amount: 0,
@@ -953,7 +1016,14 @@ export function useEncounter({
         resist: 'neutral',
         kind: toSelf ? 'buff' : 'debuff',
         targetMaxHp: toSelf ? updatedPlayer.maxHp : creature.maxHp,
-        label: formatStatModLabel(buffAbility.statModifiers),
+        label: statLabel,
+      });
+      pushLog({
+        kind: toSelf ? 'buff' : 'debuff',
+        actor: 'player',
+        target: toSelf ? 'player' : 'creature',
+        label: statLabel,
+        source: ability.name,
       });
     }
 
@@ -1349,6 +1419,7 @@ export function useEncounter({
     playerCombatState,
     playerCombatStateRef,
     combatHits,
+    combatLog,
     isEnemyTurn,
     rewardReveal,
     dismissReward,
