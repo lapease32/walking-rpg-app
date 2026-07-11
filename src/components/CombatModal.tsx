@@ -29,6 +29,8 @@ import FloatingCombatText from './FloatingCombatText';
 import CombatFxCanvas from './CombatFxCanvas';
 import { useCombatImpact } from '../hooks/useCombatImpact';
 import type { CombatHitEvent } from '../models/CombatHitEvent';
+import type { CombatLogEntry } from '../models/CombatLog';
+import CombatLog from './CombatLog';
 import { MOTION_BAR_TIMING } from '../constants/motion';
 
 interface CombatModalProps {
@@ -41,6 +43,8 @@ interface CombatModalProps {
   playerCombatStateRef: MutableRefObject<CombatantState | null>;
   /** Transient hit-event feed (Phase 2b) → typed floating numbers + resistance tells. */
   combatHits: CombatHitEvent[];
+  /** Turn-by-turn narration feed for the combat log. */
+  combatLog: CombatLogEntry[];
   /** True while the creature's counter-attack beat is resolving (the "enemy turn"). */
   isEnemyTurn: boolean;
 }
@@ -69,6 +73,7 @@ export default function CombatModal({
   playerCombatState,
   playerCombatStateRef,
   combatHits,
+  combatLog,
   isEnemyTurn,
 }: CombatModalProps) {
   // ─── Tier-1 combat motion: HP + resource bars ease between values instead of jumping. ───
@@ -374,7 +379,7 @@ export default function CombatModal({
             </View>
           </Animated.View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView style={styles.abilityScroll} contentContainerStyle={styles.scrollContent}>
             <Text style={styles.sectionTitle}>
               {isEnemyTurn ? 'Enemy turn — hold on…' : 'Choose an Ability'}
             </Text>
@@ -430,6 +435,9 @@ export default function CombatModal({
               </View>
             )}
           </ScrollView>
+          <View style={styles.logPane}>
+            <CombatLog entries={combatLog} playerName="You" creatureName={creature.name} />
+          </View>
         </Animated.View>
       </Pressable>
     </Modal>
@@ -556,6 +564,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(244,67,54,0.12)',
   },
   scrollContent: { padding: 14 },
+  abilityScroll: { flexShrink: 1 },
+  logPane: { paddingHorizontal: 14, paddingBottom: 14 },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 10 },
   abilityButton: {
     borderRadius: 10,
