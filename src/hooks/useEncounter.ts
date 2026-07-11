@@ -12,7 +12,7 @@ import { Item } from '../models/Item';
 import { resolveAutoCombat } from '../models/AutoCombat';
 import { activeCombatXp } from '../models/combatRewards';
 import { counterBeatMs } from '../models/combatPacing';
-import { RewardReveal } from '../components/RewardRevealModal';
+import { RewardReveal } from '../components/rewards/RewardRevealModal';
 import {
   loadPendingEncounter,
   clearPendingEncounter,

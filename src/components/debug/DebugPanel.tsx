@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Player } from '../models/Player';
-import { Rarity } from '../models/Creature';
-import { Archetype, ARCHETYPE_CONFIGS } from '../models/Archetype';
-import { getRarityColor } from '../constants/rarity';
-import { DebugController } from '../hooks/useDebugActions';
-import { ENV_CONFIG } from '../constants/environment';
+import { Player } from '../../models/Player';
+import { Rarity } from '../../models/Creature';
+import { Archetype, ARCHETYPE_CONFIGS } from '../../models/Archetype';
+import { getRarityColor } from '../../constants/rarity';
+import { DebugController } from '../../hooks/useDebugActions';
+import { ENV_CONFIG } from '../../constants/environment';
 
 interface Props {
   debugMode: boolean;

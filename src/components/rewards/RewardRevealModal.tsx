@@ -9,12 +9,12 @@ import {
   View,
   Vibration,
 } from 'react-native';
-import { Item } from '../models/Item';
-import { Rarity } from '../models/Creature';
-import { getRarityColor } from '../constants/rarity';
-import ItemSlotIcon from './icons/ItemSlotIcon';
-import StatIcon from './icons/StatIcon';
-import { TrophyIcon, WarningIcon } from './icons/UiIcon';
+import { Item } from '../../models/Item';
+import { Rarity } from '../../models/Creature';
+import { getRarityColor } from '../../constants/rarity';
+import ItemSlotIcon from '../icons/ItemSlotIcon';
+import StatIcon from '../icons/StatIcon';
+import { TrophyIcon, WarningIcon } from '../icons/UiIcon';
 import RewardGlowCanvas from './RewardGlowCanvas';
 
 /**

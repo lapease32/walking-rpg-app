@@ -9,29 +9,29 @@ import {
   Pressable,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Encounter } from '../models/Encounter';
-import { Player } from '../models/Player';
+import { Encounter } from '../../models/Encounter';
+import { Player } from '../../models/Player';
 import {
   Ability,
   CombatantState,
   RESOURCE_CONFIGS,
   resolveAbility,
   computeEffectiveStats,
-} from '../models/Ability';
-import { ARCHETYPE_CONFIGS } from '../models/Archetype';
-import { DamageType } from '../models/DamageType';
-import { ARCHETYPE_ABILITIES } from '../constants/abilities';
-import PressableScale from './PressableScale';
-import AbilityIcon from './icons/AbilityIcon';
-import DamageTypeIcon from './icons/DamageTypeIcon';
-import { CloseIcon, BuffIcon, DebuffIcon, DotIcon } from './icons/UiIcon';
+} from '../../models/Ability';
+import { ARCHETYPE_CONFIGS } from '../../models/Archetype';
+import { DamageType } from '../../models/DamageType';
+import { ARCHETYPE_ABILITIES } from '../../constants/abilities';
+import PressableScale from '../common/PressableScale';
+import AbilityIcon from '../icons/AbilityIcon';
+import DamageTypeIcon from '../icons/DamageTypeIcon';
+import { CloseIcon, BuffIcon, DebuffIcon, DotIcon } from '../icons/UiIcon';
 import FloatingCombatText from './FloatingCombatText';
 import CombatFxCanvas from './CombatFxCanvas';
-import { useCombatImpact } from '../hooks/useCombatImpact';
-import type { CombatHitEvent } from '../models/CombatHitEvent';
-import type { CombatLogEntry } from '../models/CombatLog';
+import { useCombatImpact } from '../../hooks/useCombatImpact';
+import type { CombatHitEvent } from '../../models/CombatHitEvent';
+import type { CombatLogEntry } from '../../models/CombatLog';
 import CombatLog from './CombatLog';
-import { MOTION_BAR_TIMING } from '../constants/motion';
+import { MOTION_BAR_TIMING } from '../../constants/motion';
 
 interface CombatModalProps {
   encounter: Encounter | null;

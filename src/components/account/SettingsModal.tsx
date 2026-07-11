@@ -13,7 +13,7 @@ import {
   Alert,
   Switch,
 } from 'react-native';
-import { AuthUser } from '../services/AuthService';
+import { AuthUser } from '../../services/AuthService';
 
 const PRIVACY_POLICY_URL = 'https://lapease32.github.io/walking-rpg-app/privacy-policy.html';
 

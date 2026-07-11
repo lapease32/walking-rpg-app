@@ -8,8 +8,8 @@ import {
 } from 'react-native-reanimated';
 import { MOTION_EASING, MOTION_SHAKE } from '../constants/motion';
 import { hitFloaterStyle } from '../utils/combatText';
-import type { CombatFloater } from '../components/FloatingCombatText';
-import type { CombatBurst } from '../components/CombatFxCanvas';
+import type { CombatFloater } from '../components/combat/FloatingCombatText';
+import type { CombatBurst } from '../components/combat/CombatFxCanvas';
 import type { CombatHitEvent } from '../models/CombatHitEvent';
 
 /**

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { AppEnvironment } from '../constants/environment';
-import { BannerPosition, BannerVariant } from '../constants/config';
+import { AppEnvironment } from '../../constants/environment';
+import { BannerPosition, BannerVariant } from '../../constants/config';
 
 interface BetaIndicatorProps {
   /**

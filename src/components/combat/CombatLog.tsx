@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { CombatLogEntry, formatCombatLogEntry, CombatLogNames } from '../models/CombatLog';
+import { CombatLogEntry, formatCombatLogEntry, CombatLogNames } from '../../models/CombatLog';
 
 interface Props {
   entries: CombatLogEntry[];

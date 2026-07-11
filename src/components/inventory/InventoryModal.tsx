@@ -8,12 +8,12 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { Item, canEquipInSlot, getItemSlot } from '../models/Item';
-import ItemSlotIcon from './icons/ItemSlotIcon';
-import StatIcon from './icons/StatIcon';
-import { CloseIcon } from './icons/UiIcon';
-import { getRarityColor } from '../constants/rarity';
-import { Player, EquipmentSlot } from '../models/Player';
+import { Item, canEquipInSlot, getItemSlot } from '../../models/Item';
+import ItemSlotIcon from '../icons/ItemSlotIcon';
+import StatIcon from '../icons/StatIcon';
+import { CloseIcon } from '../icons/UiIcon';
+import { getRarityColor } from '../../constants/rarity';
+import { Player, EquipmentSlot } from '../../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
 
 interface InventoryModalProps {

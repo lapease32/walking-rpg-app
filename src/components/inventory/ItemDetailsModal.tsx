@@ -8,12 +8,12 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { Item, AffixStat } from '../models/Item';
-import ItemSlotIcon from './icons/ItemSlotIcon';
-import StatIcon from './icons/StatIcon';
-import { CloseIcon, WarningIcon } from './icons/UiIcon';
-import { getRarityColor } from '../constants/rarity';
-import { Player } from '../models/Player';
+import { Item, AffixStat } from '../../models/Item';
+import ItemSlotIcon from '../icons/ItemSlotIcon';
+import StatIcon from '../icons/StatIcon';
+import { CloseIcon, WarningIcon } from '../icons/UiIcon';
+import { getRarityColor } from '../../constants/rarity';
+import { Player } from '../../models/Player';
 
 interface ItemDetailsModalProps {
   item: Item | null;
