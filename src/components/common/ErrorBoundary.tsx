@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import CrashlyticsService from '../../services/CrashlyticsService';
@@ -22,8 +23,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    // Report to Crashlytics ONCE here, with the ReactRenderError label. The logger call below is
+    // dev-console-only (debug does not forward) — using logger.error would double-report + drop the label.
     CrashlyticsService.recordError(error, 'ReactRenderError');
-    console.error('ErrorBoundary caught a render error:', error, info.componentStack);
+    logger.debug('ErrorBoundary caught a render error:', error, info.componentStack);
   }
 
   private reset = (): void => {

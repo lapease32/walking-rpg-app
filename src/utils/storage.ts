@@ -1,3 +1,4 @@
+import logger from './logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayerData } from '../models/Player';
 import { CreatureConstructorParams, Rarity } from '../models/Creature';
@@ -60,7 +61,7 @@ export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<
     CloudSyncService.savePlayerData(playerData, savedAt);
     return true;
   } catch (error) {
-    console.error('Error saving player data:', error);
+    logger.error('Error saving player data:', error);
     return false;
   }
 }
@@ -126,7 +127,7 @@ export async function reconcileCloudPlayerData(): Promise<ReconcileResult> {
   if (!isValidPlayerData(cloud.record.playerData)) {
     // Read succeeded but the doc is malformed. Treat as UNAVAILABLE, not empty — a validator
     // false-negative must never let a fresh character overwrite a (possibly real) cloud save.
-    console.warn('reconcileCloudPlayerData: cloud doc failed validation — treating as unavailable');
+    logger.warn('reconcileCloudPlayerData: cloud doc failed validation — treating as unavailable');
     return { status: 'unavailable' };
   }
   const { savedAt: currentLocalSavedAt } = await readLocalPlayerSnapshot();
@@ -134,7 +135,7 @@ export async function reconcileCloudPlayerData(): Promise<ReconcileResult> {
     try {
       await writeLocalPlayerSnapshot(cloud.record.playerData, cloud.record.lastSavedAt);
     } catch (error) {
-      console.error('reconcileCloudPlayerData: failed to persist cloud data locally:', error);
+      logger.error('reconcileCloudPlayerData: failed to persist cloud data locally:', error);
     }
     return { status: 'adopted', data: cloud.record.playerData };
   }
@@ -150,7 +151,7 @@ export async function saveSettings(settings: AppSettings): Promise<boolean> {
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, jsonData);
     return true;
   } catch (error) {
-    console.error('Error saving settings:', error);
+    logger.error('Error saving settings:', error);
     return false;
   }
 }
@@ -166,7 +167,7 @@ export async function loadSettings(): Promise<AppSettings | null> {
     }
     return null;
   } catch (error) {
-    console.error('Error loading settings:', error);
+    logger.error('Error loading settings:', error);
     return null;
   }
 }
@@ -182,7 +183,7 @@ export async function savePendingEncounter(encounter: EncounterData): Promise<bo
     await AsyncStorage.setItem(STORAGE_KEYS.PENDING_ENCOUNTER, jsonData);
     return true;
   } catch (error) {
-    console.error('Error saving pending encounter:', error);
+    logger.error('Error saving pending encounter:', error);
     return false;
   }
 }
@@ -212,7 +213,7 @@ export async function loadPendingEncounter(): Promise<EncounterData | null> {
     if (jsonData) {
       const parsed: unknown = JSON.parse(jsonData);
       if (!isValidEncounterData(parsed)) {
-        console.error('Corrupted encounter data in storage, clearing');
+        logger.error('Corrupted encounter data in storage, clearing');
         await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_ENCOUNTER);
         return null;
       }
@@ -220,7 +221,7 @@ export async function loadPendingEncounter(): Promise<EncounterData | null> {
     }
     return null;
   } catch (error) {
-    console.error('Error loading pending encounter:', error);
+    logger.error('Error loading pending encounter:', error);
     return null;
   }
 }
@@ -233,7 +234,7 @@ export async function clearPendingEncounter(): Promise<boolean> {
     await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_ENCOUNTER);
     return true;
   } catch (error) {
-    console.error('Error clearing pending encounter:', error);
+    logger.error('Error clearing pending encounter:', error);
     return false;
   }
 }
@@ -279,13 +280,13 @@ export async function loadWalkSummary(): Promise<WalkSummaryEntry[]> {
     }
     const parsed: unknown = JSON.parse(jsonData);
     if (!Array.isArray(parsed) || !parsed.every(isValidWalkSummaryEntry)) {
-      console.error('Corrupted walk-summary data in storage, clearing');
+      logger.error('Corrupted walk-summary data in storage, clearing');
       await AsyncStorage.removeItem(STORAGE_KEYS.WALK_SUMMARY);
       return [];
     }
     return parsed;
   } catch (error) {
-    console.error('Error loading walk summary:', error);
+    logger.error('Error loading walk summary:', error);
     return [];
   }
 }
@@ -312,7 +313,7 @@ export async function appendWalkSummaryEntry(entry: WalkSummaryEntry): Promise<b
     await run;
     return true;
   } catch (error) {
-    console.error('Error appending walk summary entry:', error);
+    logger.error('Error appending walk summary entry:', error);
     return false;
   }
 }
@@ -339,7 +340,7 @@ export async function drainWalkSummary(): Promise<WalkSummaryEntry[]> {
   try {
     return await run;
   } catch (error) {
-    console.error('Error draining walk summary:', error);
+    logger.error('Error draining walk summary:', error);
     return [];
   }
 }
@@ -353,7 +354,7 @@ export async function saveTrackingState(isTracking: boolean): Promise<boolean> {
     await AsyncStorage.setItem(STORAGE_KEYS.TRACKING_STATE, JSON.stringify(isTracking));
     return true;
   } catch (error) {
-    console.error('Error saving tracking state:', error);
+    logger.error('Error saving tracking state:', error);
     return false;
   }
 }
@@ -367,7 +368,7 @@ export async function loadTrackingState(): Promise<boolean> {
     const value = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_STATE);
     return value !== null ? (JSON.parse(value) as boolean) : false;
   } catch (error) {
-    console.error('Error loading tracking state:', error);
+    logger.error('Error loading tracking state:', error);
     return false;
   }
 }
@@ -382,7 +383,7 @@ export async function saveAutoResolveBelowRare(enabled: boolean): Promise<boolea
     await AsyncStorage.setItem(STORAGE_KEYS.AUTO_RESOLVE_BELOW_RARE, JSON.stringify(enabled));
     return true;
   } catch (error) {
-    console.error('Error saving auto-resolve setting:', error);
+    logger.error('Error saving auto-resolve setting:', error);
     return false;
   }
 }
@@ -396,7 +397,7 @@ export async function loadAutoResolveBelowRare(): Promise<boolean> {
     const value = await AsyncStorage.getItem(STORAGE_KEYS.AUTO_RESOLVE_BELOW_RARE);
     return value !== null ? (JSON.parse(value) as boolean) : false;
   } catch (error) {
-    console.error('Error loading auto-resolve setting:', error);
+    logger.error('Error loading auto-resolve setting:', error);
     return false;
   }
 }
@@ -410,7 +411,7 @@ export async function setBatteryPromptShown(): Promise<boolean> {
     await AsyncStorage.setItem(STORAGE_KEYS.BATTERY_PROMPT_SHOWN, JSON.stringify(true));
     return true;
   } catch (error) {
-    console.error('Error saving battery-prompt-shown flag:', error);
+    logger.error('Error saving battery-prompt-shown flag:', error);
     return false;
   }
 }
@@ -424,7 +425,7 @@ export async function hasBatteryPromptBeenShown(): Promise<boolean> {
     const value = await AsyncStorage.getItem(STORAGE_KEYS.BATTERY_PROMPT_SHOWN);
     return value !== null ? (JSON.parse(value) as boolean) : false;
   } catch (error) {
-    console.error('Error loading battery-prompt-shown flag:', error);
+    logger.error('Error loading battery-prompt-shown flag:', error);
     return false;
   }
 }
@@ -483,7 +484,7 @@ export async function clearLocalPlayerData(): Promise<void> {
       STORAGE_KEYS.PENDING_ENCOUNTER,
     ]);
   } catch (error) {
-    console.error('clearLocalPlayerData: storage error, proceeding with reload:', error);
+    logger.error('clearLocalPlayerData: storage error, proceeding with reload:', error);
   }
 }
 
@@ -512,7 +513,7 @@ export async function writePendingConflict(record: PendingConflictRecord): Promi
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.CONFLICT_PENDING, JSON.stringify(record));
   } catch (error) {
-    console.error('writePendingConflict: storage error:', error);
+    logger.error('writePendingConflict: storage error:', error);
   }
 }
 
@@ -538,7 +539,7 @@ export async function clearPendingConflict(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEYS.CONFLICT_PENDING);
   } catch (error) {
-    console.error('clearPendingConflict: storage error:', error);
+    logger.error('clearPendingConflict: storage error:', error);
   }
 }
 
@@ -558,7 +559,7 @@ export async function clearAllData(): Promise<boolean> {
     ]);
     return true;
   } catch (error) {
-    console.error('Error clearing data:', error);
+    logger.error('Error clearing data:', error);
     return false;
   }
 }

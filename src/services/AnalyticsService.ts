@@ -1,10 +1,11 @@
+import logger from '../utils/logger';
 import { getAnalytics, logEvent, logLogin } from '@react-native-firebase/analytics';
 
 // All analytics calls are fire-and-forget and non-fatal.
 // Errors are swallowed so analytics never affects game logic.
 
 const log = (name: string, params?: Record<string, string | number | boolean>) =>
-  logEvent(getAnalytics(), name, params).catch(e => console.warn('Analytics:', name, e));
+  logEvent(getAnalytics(), name, params).catch(e => logger.warn('Analytics:', name, e));
 
 const AnalyticsService = {
   encounterTriggered(creatureName: string, creatureLevel: number, playerLevel: number) {
@@ -82,7 +83,7 @@ const AnalyticsService = {
   },
 
   signIn(method: 'google' | 'apple') {
-    logLogin(getAnalytics(), { method }).catch(e => console.warn('Analytics: sign_in', e));
+    logLogin(getAnalytics(), { method }).catch(e => logger.warn('Analytics: sign_in', e));
   },
 
   signOut() {

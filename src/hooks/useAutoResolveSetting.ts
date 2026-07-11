@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadAutoResolveBelowRare, saveAutoResolveBelowRare } from '../utils/storage';
 
@@ -26,7 +27,7 @@ export function useAutoResolveSetting() {
         autoResolveBelowRareRef.current = value;
         setAutoResolveBelowRareState(value);
       })
-      .catch(error => console.error('Failed to load auto-resolve setting:', error));
+      .catch(error => logger.error('Failed to load auto-resolve setting:', error));
     return () => {
       cancelled = true;
     };
@@ -37,7 +38,7 @@ export function useAutoResolveSetting() {
     autoResolveBelowRareRef.current = enabled;
     setAutoResolveBelowRareState(enabled);
     saveAutoResolveBelowRare(enabled).catch(error =>
-      console.error('Failed to persist auto-resolve setting:', error),
+      logger.error('Failed to persist auto-resolve setting:', error),
     );
   }, []);
 

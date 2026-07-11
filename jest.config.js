@@ -8,5 +8,10 @@ module.exports = {
   moduleNameMapper: {
     '../services/CloudSyncService': '<rootDir>/src/__mocks__/services/CloudSyncService.ts',
     '../../services/CloudSyncService': '<rootDir>/src/__mocks__/services/CloudSyncService.ts',
+    // CrashlyticsService pulls in @react-native-firebase/crashlytics (native) on import; the logger
+    // forwards to it, so stub it everywhere (no test exercises the real service).
+    '(\\.\\./)+services/CrashlyticsService$':
+      '<rootDir>/src/__mocks__/services/CrashlyticsService.ts',
+    '\\./CrashlyticsService$': '<rootDir>/src/__mocks__/services/CrashlyticsService.ts',
   },
 };

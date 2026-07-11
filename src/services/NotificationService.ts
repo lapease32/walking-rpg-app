@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import notifee, { AndroidImportance, NotificationSettings } from '@notifee/react-native';
 import { Platform } from 'react-native';
 import { Encounter } from '../models/Encounter';
@@ -32,7 +33,7 @@ class NotificationService {
       const settings = await notifee.requestPermission();
       return settings.authorizationStatus >= 1;
     } catch (error) {
-      console.error('Error requesting notification permissions:', error);
+      logger.error('Error requesting notification permissions:', error);
       return false;
     }
   }
@@ -57,7 +58,7 @@ class NotificationService {
         },
       });
     } catch (error) {
-      console.error('Error starting foreground service:', error);
+      logger.error('Error starting foreground service:', error);
     }
   }
 
@@ -68,7 +69,7 @@ class NotificationService {
     try {
       await notifee.stopForegroundService();
     } catch (error) {
-      console.error('Error stopping foreground service:', error);
+      logger.error('Error stopping foreground service:', error);
     }
   }
 
@@ -110,7 +111,7 @@ class NotificationService {
 
       return notificationId;
     } catch (error) {
-      console.error('Error showing encounter notification:', error);
+      logger.error('Error showing encounter notification:', error);
       throw error;
     }
   }
@@ -153,7 +154,7 @@ class NotificationService {
 
       return notificationId;
     } catch (error) {
-      console.error('Error showing passive victory notification:', error);
+      logger.error('Error showing passive victory notification:', error);
       throw error;
     }
   }
@@ -162,7 +163,7 @@ class NotificationService {
     try {
       await notifee.cancelNotification(notificationId);
     } catch (error) {
-      console.error('Error canceling notification:', error);
+      logger.error('Error canceling notification:', error);
     }
   }
 
@@ -170,7 +171,7 @@ class NotificationService {
     try {
       await notifee.cancelAllNotifications();
     } catch (error) {
-      console.error('Error canceling all notifications:', error);
+      logger.error('Error canceling all notifications:', error);
     }
   }
 
@@ -178,7 +179,7 @@ class NotificationService {
     try {
       return await notifee.getNotificationSettings();
     } catch (error) {
-      console.error('Error getting notification settings:', error);
+      logger.error('Error getting notification settings:', error);
       return null;
     }
   }

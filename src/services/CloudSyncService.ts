@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { getAuth } from '@react-native-firebase/auth';
 import {
   getFirestore,
@@ -145,7 +146,7 @@ class CloudSyncService {
         this.lastSuccessfulSyncAt = Date.now();
       })
       .catch(error => {
-        console.error('CloudSyncService: failed to save player data:', error);
+        logger.error('CloudSyncService: failed to save player data:', error);
         // Non-fatal — local save already succeeded; offline persistence will retry
       })
       .finally(() => {
@@ -179,7 +180,7 @@ class CloudSyncService {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<CloudLoad>(resolve => {
       timeoutHandle = setTimeout(() => {
-        console.warn('CloudSyncService: loadPlayerData timed out — cloud state unknown');
+        logger.warn('CloudSyncService: loadPlayerData timed out — cloud state unknown');
         resolve({ status: 'unavailable' });
       }, 10000);
     });
@@ -196,7 +197,7 @@ class CloudSyncService {
         };
       })
       .catch((error): CloudLoad => {
-        console.error('CloudSyncService: failed to load player data:', error);
+        logger.error('CloudSyncService: failed to load player data:', error);
         return { status: 'unavailable' };
       });
     try {

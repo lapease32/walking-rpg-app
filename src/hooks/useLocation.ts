@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useRef, useEffect } from 'react';
 import LocationService, { LocationData, DistanceData } from '../services/LocationService';
 import NotificationService from '../services/NotificationService';
@@ -25,7 +26,7 @@ export function useLocation() {
   ): Promise<void> => {
     const granted = await LocationService.requestPermission();
     if (!granted) {
-      console.warn('Location permission denied — tracking not started');
+      logger.warn('Location permission denied — tracking not started');
       return;
     }
     // Android only, once: ask the OS to exempt us from battery optimization so Doze / OEM killers

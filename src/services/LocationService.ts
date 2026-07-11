@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import Geolocation from 'react-native-geolocation-service';
 import { Platform, PermissionsAndroid } from 'react-native';
 import { Location } from '../models/Encounter';
@@ -150,7 +151,7 @@ class LocationService {
     onDistanceUpdate: DistanceUpdateCallback,
   ): void {
     if (this.isTracking) {
-      console.warn('Location tracking is already active');
+      logger.warn('Location tracking is already active');
       return;
     }
 
@@ -168,7 +169,7 @@ class LocationService {
         }
       })
       .catch(error => {
-        console.error('Error getting initial location:', error);
+        logger.error('Error getting initial location:', error);
       });
 
     this.startWatch();
@@ -217,7 +218,7 @@ class LocationService {
               // Handle async callbacks that return promises
               if (result instanceof Promise) {
                 result.catch(error => {
-                  console.error('Error in distance update callback:', error);
+                  logger.error('Error in distance update callback:', error);
                 });
               }
             }
@@ -243,13 +244,13 @@ class LocationService {
         }
       },
       (error: GeolocationError) => {
-        console.error('Location tracking error:', error);
+        logger.error('Location tracking error:', error);
         if (error.code === 1) {
-          console.error('Location permission denied');
+          logger.error('Location permission denied');
         } else if (error.code === 2) {
-          console.error('Location position unavailable');
+          logger.error('Location position unavailable');
         } else if (error.code === 3) {
-          console.error('Location request timeout');
+          logger.error('Location request timeout');
         }
       },
       this.isHighAccuracy ? this.highAccuracyWatchConfig : this.lowAccuracyWatchConfig,
