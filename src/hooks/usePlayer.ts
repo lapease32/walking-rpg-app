@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 import { Player } from '../models/Player';
@@ -195,7 +196,7 @@ export function usePlayer() {
         }
         // 'unavailable', or 'noNewerCloud' for a normal returning player → keep local as-is.
       })
-      .catch(error => console.error('usePlayer: cloud reconcile failed:', error));
+      .catch(error => logger.error('usePlayer: cloud reconcile failed:', error));
   }, [player, needsArchetypeSelection]);
 
   const setPlayerAndSave = useCallback((updated: Player) => {
@@ -206,7 +207,7 @@ export function usePlayer() {
       // sentinel so its progress can't be written to the cloud and overwrite a save we haven't
       // reconciled yet. It's promoted to the cloud once the reconcile confirms the slot is empty.
       writeLocalPlayerSnapshot(updated.toJSON(), 0).catch(e =>
-        console.error('setPlayerAndSave: provisional local write failed:', e),
+        logger.error('setPlayerAndSave: provisional local write failed:', e),
       );
     } else {
       savePlayerData(updated);
@@ -291,7 +292,7 @@ export function usePlayer() {
 
       AnalyticsService.playerSessionStart(playerToSet.level, playerToSet.totalDistance);
     } catch (error) {
-      console.error('Error initializing player:', error);
+      logger.error('Error initializing player:', error);
       if (myGeneration !== initGenerationRef.current) {
         return;
       }
@@ -367,7 +368,7 @@ export function usePlayer() {
       try {
         await writeLocalPlayerSnapshot(newPlayer.toJSON(), 0);
       } catch (error) {
-        console.error('Error saving provisional player after archetype selection:', error);
+        logger.error('Error saving provisional player after archetype selection:', error);
       }
     } else {
       // result.status === 'noNewerCloud' → cloud CONFIRMED empty → create + sync to cloud normally.
@@ -375,7 +376,7 @@ export function usePlayer() {
       try {
         await savePlayerData(newPlayer);
       } catch (error) {
-        console.error('Error saving new player after archetype selection:', error);
+        logger.error('Error saving new player after archetype selection:', error);
       }
     }
 

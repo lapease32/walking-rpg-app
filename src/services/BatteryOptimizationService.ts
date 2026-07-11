@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { NativeModules, Platform } from 'react-native';
 import { hasBatteryPromptBeenShown, setBatteryPromptShown } from '../utils/storage';
 
@@ -40,7 +41,7 @@ class BatteryOptimizationService {
       return await native.isIgnoringBatteryOptimizations();
     } catch (error) {
       // Fail safe: treat as exempt so a flaky check never spams the prompt.
-      console.warn('BatteryOptimizationService: isIgnoring check failed', error);
+      logger.warn('BatteryOptimizationService: isIgnoring check failed', error);
       return true;
     }
   }
@@ -71,7 +72,7 @@ class BatteryOptimizationService {
         await setBatteryPromptShown();
       }
     } catch (error) {
-      console.warn('BatteryOptimizationService: exemption prompt failed', error);
+      logger.warn('BatteryOptimizationService: exemption prompt failed', error);
     } finally {
       this.promptInFlight = false;
     }

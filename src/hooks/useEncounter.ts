@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useRef, useEffect, MutableRefObject } from 'react';
 import { Alert, AppStateStatus } from 'react-native';
 import { Player } from '../models/Player';
@@ -276,7 +277,7 @@ export function useEncounter({
         setHeldFoe(null);
       }
     } catch (error) {
-      console.error('Error refreshing held foe:', error);
+      logger.error('Error refreshing held foe:', error);
     } finally {
       isCheckingPendingEncounterRef.current = false;
     }
@@ -293,7 +294,7 @@ export function useEncounter({
     }
     const cleared = await clearPendingEncounter();
     if (!cleared) {
-      console.error('Failed to clear held foe; not engaging to avoid a duplicate');
+      logger.error('Failed to clear held foe; not engaging to avoid a duplicate');
       return;
     }
     encounterRef.current = encounter;
@@ -464,7 +465,7 @@ export function useEncounter({
       };
       const saveSuccess = await savePendingEncounter(encounterData);
       if (!saveSuccess) {
-        console.error('Failed to hold elite encounter');
+        logger.error('Failed to hold elite encounter');
         return false;
       }
       // Surface the inline "worthy foe" card immediately (in memory) — non-modal, so no
@@ -476,12 +477,12 @@ export function useEncounter({
         try {
           await NotificationService.showEncounterNotification(encounter);
         } catch (error) {
-          console.error('Elite held but notification failed:', error);
+          logger.error('Elite held but notification failed:', error);
         }
       }
       return true;
     } catch (error) {
-      console.error('Error holding elite encounter:', error);
+      logger.error('Error holding elite encounter:', error);
       return false;
     }
   };
@@ -615,7 +616,7 @@ export function useEncounter({
       }
       setWalkSummary(entries);
     } catch (error) {
-      console.error('Error checking walk summary:', error);
+      logger.error('Error checking walk summary:', error);
     } finally {
       isCheckingWalkSummaryRef.current = false;
     }
@@ -1220,7 +1221,7 @@ export function useEncounter({
     const encounter = EncounterService.forceEncounter(location, level, rarity);
     // Real passive path (foreground): applies idle-tier rewards + appends to the walk summary.
     resolvePassiveEncounter(encounter, false).catch(e =>
-      console.error('debug passive encounter failed:', e),
+      logger.error('debug passive encounter failed:', e),
     );
   };
 
@@ -1232,7 +1233,7 @@ export function useEncounter({
     // resolution so the forced encounter is never silently dropped.
     holdEliteEncounter(encounter, false)
       .then(held => (held ? undefined : resolvePassiveEncounter(encounter, false)))
-      .catch(e => console.error('debug elite encounter failed:', e));
+      .catch(e => logger.error('debug elite encounter failed:', e));
   };
 
   const debugSimulateWalk = async (count: number = 5): Promise<void> => {
@@ -1250,13 +1251,13 @@ export function useEncounter({
       try {
         await resolvePassiveEncounter(encounter, false);
       } catch (e) {
-        console.error('debug passive encounter failed:', e);
+        logger.error('debug passive encounter failed:', e);
       }
     }
   };
 
   const debugShowWalkSummary = (): void => {
-    checkWalkSummary().catch(e => console.error('debug show walk summary failed:', e));
+    checkWalkSummary().catch(e => logger.error('debug show walk summary failed:', e));
   };
 
   const onDistanceEncounterUpdate = async (

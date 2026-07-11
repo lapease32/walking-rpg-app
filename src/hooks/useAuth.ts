@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
 import AuthService, { AccountConflictError, AuthUser } from '../services/AuthService';
@@ -85,9 +86,7 @@ export function useAuth({
         const reload = isReSignIn
           ? onAccountChangeRef.current()
           : clearLocalPlayerData().then(() => onAccountChangeRef.current());
-        reload.catch(error =>
-          console.error('Failed to reload player after account switch:', error),
-        );
+        reload.catch(error => logger.error('Failed to reload player after account switch:', error));
       } else if (
         pendingBelatedSignInRef.current &&
         prevUid === null &&
@@ -105,7 +104,7 @@ export function useAuth({
         onAccountChangeRef
           .current()
           .catch(error =>
-            console.error('Failed to reload player after late initial sign-in:', error),
+            logger.error('Failed to reload player after late initial sign-in:', error),
           );
       }
       // Update after the isReSignIn check so the check sees the previous value
@@ -242,7 +241,7 @@ export function useAuth({
         if (cloudData) {
           // Non-fatal: loadPlayerData re-fetches from Firestore regardless.
           await writeLocalPlayerSnapshot(cloudData, cloudSavedAt).catch(e =>
-            console.error('resolveConflict: writeLocalPlayerSnapshot failed for cloud choice:', e),
+            logger.error('resolveConflict: writeLocalPlayerSnapshot failed for cloud choice:', e),
           );
         } else {
           await clearLocalPlayerData();
@@ -340,7 +339,7 @@ export function useAuth({
         setAuthUser(AuthService.getCurrentUser());
         await onAccountChangeRef.current();
       } catch (reloadError) {
-        console.error('Failed to reload player after aborted account deletion:', reloadError);
+        logger.error('Failed to reload player after aborted account deletion:', reloadError);
       } finally {
         setAuthLoading(false);
       }
@@ -378,11 +377,11 @@ export function useAuth({
     try {
       await clearAllUserData();
     } catch (wipeError) {
-      console.error('Local data wipe failed after account deletion; retrying once:', wipeError);
+      logger.error('Local data wipe failed after account deletion; retrying once:', wipeError);
       try {
         await clearAllUserData();
       } catch (retryError) {
-        console.error('Local data wipe failed again after account deletion:', retryError);
+        logger.error('Local data wipe failed again after account deletion:', retryError);
       }
     }
 
@@ -400,10 +399,7 @@ export function useAuth({
       await onAccountChangeRef.current();
     } catch (error) {
       CloudSyncService.resumeWrites();
-      console.error(
-        'Post-deletion reset failed (account is deleted; recovers on relaunch):',
-        error,
-      );
+      logger.error('Post-deletion reset failed (account is deleted; recovers on relaunch):', error);
       Alert.alert(
         'Account deleted',
         'Your account and data were deleted. Please restart the app to continue.',

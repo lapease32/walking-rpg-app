@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import CrashlyticsService from '../../services/CrashlyticsService';
@@ -23,7 +24,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     CrashlyticsService.recordError(error, 'ReactRenderError');
-    console.error('ErrorBoundary caught a render error:', error, info.componentStack);
+    logger.error('ErrorBoundary caught a render error:', error, info.componentStack);
   }
 
   private reset = (): void => {

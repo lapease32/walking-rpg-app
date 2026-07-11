@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -155,7 +156,7 @@ export default function HomeScreen() {
         await startTracking(handleDistanceUpdate);
       }
     } catch (error) {
-      console.error('Error resuming tracking state:', error);
+      logger.error('Error resuming tracking state:', error);
     }
   };
 
@@ -186,12 +187,12 @@ export default function HomeScreen() {
       if (type === EventType.PRESS && detail.notification?.data?.type === 'encounter') {
         // Tapped a "worthy foe" notification — surface the inline card (non-modal; idempotent).
         refreshHeldFoe().catch(error => {
-          console.error('Error handling worthy-foe notification:', error);
+          logger.error('Error handling worthy-foe notification:', error);
         });
       } else if (type === EventType.PRESS && detail.notification?.data?.type === 'walk_summary') {
         // Tapped the passive-victory notification — show the "while you walked" recap.
         checkWalkSummary().catch(error => {
-          console.error('Error handling walk summary notification:', error);
+          logger.error('Error handling walk summary notification:', error);
         });
       }
     });
@@ -233,7 +234,7 @@ export default function HomeScreen() {
     try {
       await NotificationService.initialize();
     } catch (error) {
-      console.error('Error initializing notifications:', error);
+      logger.error('Error initializing notifications:', error);
     }
   };
 
@@ -262,10 +263,10 @@ export default function HomeScreen() {
       NotificationService.requestPermissions()
         .then(granted => {
           if (!granted) {
-            console.warn('Notification permissions not granted');
+            logger.warn('Notification permissions not granted');
           }
         })
-        .catch(error => console.error('Error requesting notification permissions:', error));
+        .catch(error => logger.error('Error requesting notification permissions:', error));
     });
     return () => task.cancel();
   }, [hasPlayer]);

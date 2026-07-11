@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { getApps, getApp } from '@react-native-firebase/app';
 import { Platform } from 'react-native';
 import CrashlyticsService from './CrashlyticsService';
@@ -49,7 +50,7 @@ class FirebaseService {
             'are properly configured and added to the native projects.' +
             diagnosticInfo,
         );
-        console.error('Firebase initialization failed:', error.message);
+        logger.error('Firebase initialization failed:', error.message);
         throw error;
       }
 
@@ -63,12 +64,12 @@ class FirebaseService {
       try {
         await CrashlyticsService.initialize();
       } catch (error) {
-        console.warn('Crashlytics initialization failed (non-critical):', error);
+        logger.warn('Crashlytics initialization failed (non-critical):', error);
       }
 
       this.initialized = true;
     } catch (error) {
-      console.error('Error initializing Firebase:', error);
+      logger.error('Error initializing Firebase:', error);
       this.initializationPromise = null;
       throw error;
     }

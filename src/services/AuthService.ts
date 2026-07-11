@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import {
   getAuth,
   signInAnonymously,
@@ -63,7 +64,7 @@ class AuthService {
       try {
         await Promise.race([signInPromise, timeoutPromise]);
       } catch (error) {
-        console.error('AuthService: anonymous sign-in failed:', error);
+        logger.error('AuthService: anonymous sign-in failed:', error);
       } finally {
         if (timeoutHandle !== undefined) {
           clearTimeout(timeoutHandle);
@@ -130,7 +131,7 @@ class AuthService {
       // Non-fatal if this fails — sign-out succeeded; cloud sync resumes on next app launch.
       await signInAnonymously(getAuth());
     } catch (error) {
-      console.error('AuthService: anonymous re-auth failed after sign-out:', error);
+      logger.error('AuthService: anonymous re-auth failed after sign-out:', error);
     }
   }
 
