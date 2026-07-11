@@ -1,10 +1,10 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { getRarityColor } from '../constants/rarity';
-import ItemSlotIcon from './icons/ItemSlotIcon';
-import StatIcon from './icons/StatIcon';
-import { FleeIcon } from './icons/UiIcon';
-import { WalkSummaryEntry } from '../utils/storage';
+import { getRarityColor } from '../../constants/rarity';
+import ItemSlotIcon from '../icons/ItemSlotIcon';
+import StatIcon from '../icons/StatIcon';
+import { FleeIcon } from '../icons/UiIcon';
+import { WalkSummaryEntry } from '../../utils/storage';
 
 /**
  * The "while you walked" recap: a batched list of the encounters that auto-resolved passively

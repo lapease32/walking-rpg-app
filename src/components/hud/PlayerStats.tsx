@@ -7,10 +7,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Player } from '../models/Player';
-import StatIcon from './icons/StatIcon';
-import { ARCHETYPE_CONFIGS } from '../models/Archetype';
-import { MOTION_BAR_TIMING, MOTION_SPRING } from '../constants/motion';
+import { Player } from '../../models/Player';
+import StatIcon from '../icons/StatIcon';
+import { ARCHETYPE_CONFIGS } from '../../models/Archetype';
+import { MOTION_BAR_TIMING, MOTION_SPRING } from '../../constants/motion';
 
 interface PlayerStatsProps {
   player: Player | null;

@@ -1,10 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Encounter } from '../models/Encounter';
-import { getRarityColor } from '../constants/rarity';
-import PressableScale from './PressableScale';
-import StatIcon from './icons/StatIcon';
+import { Encounter } from '../../models/Encounter';
+import { getRarityColor } from '../../constants/rarity';
+import PressableScale from '../common/PressableScale';
+import StatIcon from '../icons/StatIcon';
 
 /**
  * Inline "worthy foe" card for a held ELITE encounter. Deliberately NOT a Modal — it sits in the

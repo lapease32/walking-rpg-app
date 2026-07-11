@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ConflictState } from '../hooks/useAuth';
-import { PlayerData } from '../models/Player';
+import { ConflictState } from '../../hooks/useAuth';
+import { PlayerData } from '../../models/Player';
 
 interface AccountConflictModalProps {
   conflictState: ConflictState;

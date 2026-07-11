@@ -3,7 +3,7 @@ import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import HomeScreen from './src/screens/HomeScreen';
 import FirebaseService from './src/services/FirebaseService';
-import ErrorBoundary from './src/components/ErrorBoundary';
+import ErrorBoundary from './src/components/common/ErrorBoundary';
 
 export default function App() {
   useEffect(() => {

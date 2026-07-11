@@ -9,8 +9,8 @@ import {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import type { Rarity } from '../models/Creature';
-import { getRarityColor } from '../constants/rarity';
+import type { Rarity } from '../../models/Creature';
+import { getRarityColor } from '../../constants/rarity';
 
 /**
  * Skia radial glow behind the reward-reveal card (graphics roadmap Phase 3). A soft rarity-colored

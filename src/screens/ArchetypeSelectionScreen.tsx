@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import ResourceIcon from './icons/ResourceIcon';
-import StatIcon from './icons/StatIcon';
+import ResourceIcon from '../components/icons/ResourceIcon';
+import StatIcon from '../components/icons/StatIcon';
 import {
   Archetype,
   ARCHETYPE_CONFIGS,

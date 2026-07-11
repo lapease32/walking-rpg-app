@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Equipment, EquipmentSlot } from '../models/Player';
-import ItemSlotIcon from './icons/ItemSlotIcon';
-import { getRarityColor } from '../constants/rarity';
+import { Equipment, EquipmentSlot } from '../../models/Player';
+import ItemSlotIcon from '../icons/ItemSlotIcon';
+import { getRarityColor } from '../../constants/rarity';
 
 interface EquipmentProps {
   equipment: Equipment;

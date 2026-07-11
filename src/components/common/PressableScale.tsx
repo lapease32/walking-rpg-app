@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, PressableProps, StyleProp, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { MOTION_SPRING } from '../constants/motion';
+import { MOTION_SPRING } from '../../constants/motion';
 
 /**
  * A Pressable that springs DOWN on press and back on release — tactile feedback for primary buttons

@@ -8,12 +8,12 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import { Encounter } from '../models/Encounter';
-import { Rarity, isEliteCreature } from '../models/Creature';
-import { DamageType } from '../models/DamageType';
-import PressableScale from './PressableScale';
-import StatIcon from './icons/StatIcon';
-import DamageTypeIcon from './icons/DamageTypeIcon';
+import { Encounter } from '../../models/Encounter';
+import { Rarity, isEliteCreature } from '../../models/Creature';
+import { DamageType } from '../../models/DamageType';
+import PressableScale from '../common/PressableScale';
+import StatIcon from '../icons/StatIcon';
+import DamageTypeIcon from '../icons/DamageTypeIcon';
 
 interface EncounterModalProps {
   encounter: Encounter | null;

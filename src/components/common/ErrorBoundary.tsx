@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import CrashlyticsService from '../services/CrashlyticsService';
+import CrashlyticsService from '../../services/CrashlyticsService';
 
 interface Props {
   children: React.ReactNode;

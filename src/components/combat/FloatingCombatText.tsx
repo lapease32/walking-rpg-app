@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { MOTION_EASING } from '../constants/motion';
+import { MOTION_EASING } from '../../constants/motion';
 
 export interface CombatFloater {
   id: number;

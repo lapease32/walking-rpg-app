@@ -8,8 +8,8 @@ import {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import type { DamageType } from '../models/DamageType';
-import type { ResistTier } from '../models/CombatHitEvent';
+import type { DamageType } from '../../models/DamageType';
+import type { ResistTier } from '../../models/CombatHitEvent';
 
 /**
  * Skia particle bursts for combat hits (graphics roadmap Phase 2b.2). One burst fires per damage
