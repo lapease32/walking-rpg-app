@@ -27,12 +27,11 @@ interface InventoryModalProps {
 }
 
 // Stats shown per item, in display order. Values are item totals (affixes baked in).
-type StatKey = 'attack' | 'defense' | 'maxHp' | 'hp';
+type StatKey = 'attack' | 'defense' | 'maxHp';
 const STAT_DISPLAY: { key: StatKey; prefix: string }[] = [
   { key: 'attack', prefix: '' },
   { key: 'defense', prefix: '' },
   { key: 'maxHp', prefix: '+' },
-  { key: 'hp', prefix: '+' },
 ];
 const STAT_UP = '#2e7d32'; // green: beats the equipped item's stat
 const STAT_DOWN = '#c62828'; // red: worse than equipped
