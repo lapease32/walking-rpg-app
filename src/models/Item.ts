@@ -23,7 +23,8 @@ export interface BaseItem {
   level: number;
   attack?: number;
   defense?: number;
-  hp?: number;
+  // No separate `hp` stat: gear grants maxHp, and equipping raises current HP with it
+  // (Player.recalculateStats). Current-vs-max HP is a player-only concept (damage / healing).
   maxHp?: number;
   dropChance: number;
   affixes?: Affix[]; // Rolled modifiers — values already included in attack/defense/maxHp

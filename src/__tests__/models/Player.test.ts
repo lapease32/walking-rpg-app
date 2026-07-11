@@ -434,6 +434,30 @@ describe('Player', () => {
     });
   });
 
+  // Guards the intuitive RPG behavior (and a bug the user recalled): equipping +maxHp gear must
+  // raise CURRENT hp with it — there is no separate item `hp` stat, so this is the only mechanism.
+  describe('equip → current HP follows maxHp', () => {
+    it('raises current HP by the maxHp gain when at full health', () => {
+      const player = new Player();
+      const maxHp0 = player.maxHp;
+      expect(player.hp).toBe(maxHp0); // fresh player starts full
+      player.inventory[0] = makeWeapon({ attack: 0, maxHp: 50 });
+      player.equipItem(0);
+      expect(player.maxHp).toBe(maxHp0 + 50);
+      expect(player.hp).toBe(maxHp0 + 50);
+    });
+
+    it('adds the maxHp gain as a buffer when damaged (not a full heal)', () => {
+      const player = new Player();
+      const maxHp0 = player.maxHp;
+      player.hp = maxHp0 - 70; // take damage before equipping
+      player.inventory[0] = makeWeapon({ attack: 0, maxHp: 50 });
+      player.equipItem(0);
+      expect(player.maxHp).toBe(maxHp0 + 50);
+      expect(player.hp).toBe(maxHp0 - 20); // +50 buffer, still below the new max
+    });
+  });
+
   describe('getEquipTargetSlot', () => {
     it('returns the fixed slot for a non-accessory item', () => {
       const player = new Player({ level: 1 });
@@ -497,9 +521,9 @@ describe('Player', () => {
       const player = new Player({ level: 10 });
       player.inventory[0] = makeWeapon({ attack: 25 });
       player.equipItem(0);
-      // Drop gives +20 maxHp (items mirror hp === maxHp); stat-total = 20 (maxHp once),
-      // not > 25. Double-counting hp + maxHp (40) would wrongly read as an upgrade.
-      expect(player.wouldUpgrade(makeWeapon({ attack: 0, hp: 20, maxHp: 20 }))).toBe(false);
+      // Drop gives +20 maxHp; its stat-total (20) is not greater than the equipped +25 attack,
+      // so it should not read as an upgrade.
+      expect(player.wouldUpgrade(makeWeapon({ attack: 0, maxHp: 20 }))).toBe(false);
     });
   });
 

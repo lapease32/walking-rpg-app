@@ -44,6 +44,14 @@ describe('LootService', () => {
       expect(Array.isArray(item.affixes)).toBe(true);
     });
 
+    it('never carries a separate `hp` stat — gear grants maxHp only', () => {
+      // hp-vs-maxHp is a player-only concept (current vs max). Items must not mirror an `hp` field.
+      for (let i = 0; i < 200; i++) {
+        const item = generateItem(5);
+        expect(item).not.toHaveProperty('hp');
+      }
+    });
+
     it('returns an item whose type matches its slot', () => {
       // Run many times to hit all 8 slot types
       for (let i = 0; i < 200; i++) {

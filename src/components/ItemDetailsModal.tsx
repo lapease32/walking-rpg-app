@@ -99,7 +99,6 @@ export default function ItemDetailsModal({
             {/* Stats */}
             {(item.attack !== undefined ||
               item.defense !== undefined ||
-              item.hp !== undefined ||
               item.maxHp !== undefined) && (
               <View style={styles.statsContainer}>
                 <Text style={styles.statsTitle}>Stats</Text>
@@ -126,18 +125,6 @@ export default function ItemDetailsModal({
                       />
                       <Text style={styles.statLabel}>Defense</Text>
                       <Text style={styles.statValue}>+{item.defense}</Text>
-                    </View>
-                  )}
-                  {item.hp !== undefined && (
-                    <View style={styles.statItem}>
-                      <StatIcon
-                        stat="hp"
-                        size={22}
-                        color={getRarityColor(item.rarity)}
-                        style={styles.statIcon}
-                      />
-                      <Text style={styles.statLabel}>HP</Text>
-                      <Text style={styles.statValue}>+{item.hp}</Text>
                     </View>
                   )}
                   {item.maxHp !== undefined && (

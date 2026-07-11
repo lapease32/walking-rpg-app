@@ -165,7 +165,7 @@ export function generateItem(playerLevel = 1, rarityOverride?: Rarity, statMulti
     affixes,
     ...(attack !== undefined ? { attack } : {}),
     ...(defense !== undefined ? { defense } : {}),
-    ...(maxHp !== undefined ? { maxHp, hp: maxHp } : {}),
+    ...(maxHp !== undefined ? { maxHp } : {}),
   };
 
   if (slot === 'weapon') return { ...base, type: 'weapon', slot: 'weapon' };
