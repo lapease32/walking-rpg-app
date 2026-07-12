@@ -3,6 +3,8 @@ import { View, StyleSheet } from 'react-native';
 import ElementEmblem, { emblemColor } from '../icons/ElementEmblem';
 import { getRarityColor } from '../../constants/rarity';
 import type { Rarity } from '../../models/Creature';
+import { resolveCreatureBody } from './creatures/registry';
+import type { CreatureAnimState } from './creatures/types';
 
 interface Props {
   /** Creature `type` — drives the emblem + its element tint. */
@@ -11,16 +13,29 @@ interface Props {
   rarity: Rarity;
   /** Outer medallion diameter. */
   size?: number;
+  /** Creature template `id`. If a hand-authored vector body is registered for it, that body renders
+   *  instead of the element emblem (see {@link resolveCreatureBody}). */
+  creatureId?: string;
+  /** Animation state for a figurative body (ignored by the emblem fallback). */
+  state?: CreatureAnimState;
 }
 
 /**
- * A creature's visual identity: its element emblem inside a rarity-colored, softly-glowing medallion.
- * The "code-driven first" stand-in for figurative sprite art — gives a creature presence beyond text
- * (element by emblem + tint, rarity by the ring/glow). Swappable for a real sprite later.
+ * A creature's visual identity inside a rarity-colored, softly-glowing medallion. Creatures with a
+ * registered hand-authored vector body ({@link resolveCreatureBody}) render it — animated by combat
+ * `state`; all others fall back to their element emblem (type + tint). This component is the single
+ * swap point for figurative creature art: a body drops in behind it without touching any call site.
  */
-export default function CreaturePlate({ type, rarity, size = 76 }: Props) {
+export default function CreaturePlate({
+  type,
+  rarity,
+  size = 76,
+  creatureId,
+  state = 'idle',
+}: Props) {
   const ring = getRarityColor(rarity);
   const element = emblemColor(type);
+  const Body = resolveCreatureBody(creatureId);
   return (
     <View
       style={[
@@ -35,7 +50,13 @@ export default function CreaturePlate({ type, rarity, size = 76 }: Props) {
         },
       ]}
       testID="creature-plate">
-      <ElementEmblem type={type} size={Math.round(size * 0.56)} color={element} />
+      {Body ? (
+        // Sized to the medallion's inscribed circle (~0.71×) plus a touch, so the body reads big
+        // without its bounding box poking past the round frame.
+        <Body size={Math.round(size * 0.76)} color={element} state={state} />
+      ) : (
+        <ElementEmblem type={type} size={Math.round(size * 0.56)} color={element} />
+      )}
     </View>
   );
 }

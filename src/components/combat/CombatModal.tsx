@@ -32,6 +32,7 @@ import type { CombatHitEvent } from '../../models/CombatHitEvent';
 import type { CombatLogEntry } from '../../models/CombatLog';
 import CombatLog from './CombatLog';
 import CreaturePlate from './CreaturePlate';
+import { deriveCreatureAnimState } from './creatures/registry';
 import { MOTION_BAR_TIMING } from '../../constants/motion';
 
 interface CombatModalProps {
@@ -251,7 +252,13 @@ export default function CombatModal({
           <Animated.View
             style={[styles.combatantInfo, isEnemyTurn && styles.activePanel, creatureRecoilStyle]}>
             <View style={styles.combatantHeader}>
-              <CreaturePlate type={creature.type} rarity={creature.rarity} size={38} />
+              <CreaturePlate
+                type={creature.type}
+                rarity={creature.rarity}
+                size={38}
+                creatureId={creature.id}
+                state={deriveCreatureAnimState({ isDefeated, isEnemyTurn })}
+              />
               <Text style={styles.combatantName}>{creature.name}</Text>
             </View>
             <View style={styles.hpBar}>

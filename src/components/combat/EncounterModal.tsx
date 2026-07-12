@@ -152,7 +152,13 @@ export default function EncounterModal({
               </View>
 
               <View style={styles.creaturePlateWrap}>
-                <CreaturePlate type={creature.type} rarity={creature.rarity} size={84} />
+                <CreaturePlate
+                  type={creature.type}
+                  rarity={creature.rarity}
+                  size={84}
+                  creatureId={creature.id}
+                  state={isDefeated ? 'death' : 'idle'}
+                />
               </View>
               <Text style={styles.creatureName}>{creature.name}</Text>
               <Text style={styles.creatureType}>
