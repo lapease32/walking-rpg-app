@@ -35,7 +35,12 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
         <Text style={styles.label}> A WORTHY FOE STALKS YOU</Text>
       </View>
       <View style={styles.plateWrap}>
-        <CreaturePlate type={creature.type} rarity={creature.rarity} size={58} />
+        <CreaturePlate
+          type={creature.type}
+          rarity={creature.rarity}
+          size={58}
+          creatureId={creature.id}
+        />
       </View>
       <Text style={[styles.name, { color }]} numberOfLines={1}>
         {creature.name}
