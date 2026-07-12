@@ -31,6 +31,7 @@ import { useCombatImpact } from '../../hooks/useCombatImpact';
 import type { CombatHitEvent } from '../../models/CombatHitEvent';
 import type { CombatLogEntry } from '../../models/CombatLog';
 import CombatLog from './CombatLog';
+import CreaturePlate from './CreaturePlate';
 import { MOTION_BAR_TIMING } from '../../constants/motion';
 
 interface CombatModalProps {
@@ -249,7 +250,10 @@ export default function CombatModal({
           {/* Creature info */}
           <Animated.View
             style={[styles.combatantInfo, isEnemyTurn && styles.activePanel, creatureRecoilStyle]}>
-            <Text style={styles.combatantName}>{creature.name}</Text>
+            <View style={styles.combatantHeader}>
+              <CreaturePlate type={creature.type} rarity={creature.rarity} size={38} />
+              <Text style={styles.combatantName}>{creature.name}</Text>
+            </View>
             <View style={styles.hpBar}>
               <Animated.View
                 style={[
@@ -498,7 +502,8 @@ const styles = StyleSheet.create({
   hitFlashCreature: { backgroundColor: '#ffffff' }, // a white flash reads as a landed hit
   hitFlashPlayer: { backgroundColor: '#ff3b30' }, // red when the player is the one struck
   floaterLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  combatantName: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 4 },
+  combatantHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  combatantName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   hpBar: {
     height: 12,
     backgroundColor: '#e0e0e0',

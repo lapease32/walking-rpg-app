@@ -41,9 +41,10 @@ const HeadIcon = (p: IconProps) => (
   </FillFrame>
 );
 
+// A sleeved tunic/cuirass: V-neck + short sleeves on both sides so it doesn't read as a shield.
 const ChestIcon = (p: IconProps) => (
   <FillFrame {...p}>
-    <Path d="M6 5 L10 6.2 Q12 7.6 14 6.2 L18 5 L17 13.5 Q12 17.5 7 13.5 Z" />
+    <Path d="M8 4 L12 7 L16 4 L21 7 L19 11 L16.5 9.5 L17 20 H7 L7 9.5 L5 11 L3 7 L8 4 Z" />
   </FillFrame>
 );
 

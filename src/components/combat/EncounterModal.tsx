@@ -14,6 +14,7 @@ import { DamageType } from '../../models/DamageType';
 import PressableScale from '../common/PressableScale';
 import StatIcon from '../icons/StatIcon';
 import DamageTypeIcon from '../icons/DamageTypeIcon';
+import CreaturePlate from './CreaturePlate';
 
 interface EncounterModalProps {
   encounter: Encounter | null;
@@ -150,6 +151,9 @@ export default function EncounterModal({
                 <Text style={styles.rarityText}>{creature.rarity.toUpperCase()}</Text>
               </View>
 
+              <View style={styles.creaturePlateWrap}>
+                <CreaturePlate type={creature.type} rarity={creature.rarity} size={84} />
+              </View>
               <Text style={styles.creatureName}>{creature.name}</Text>
               <Text style={styles.creatureType}>
                 {creature.type} · Level {creature.level}
@@ -334,6 +338,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  creaturePlateWrap: {
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 10,
   },
   creatureName: {
     fontSize: 24,

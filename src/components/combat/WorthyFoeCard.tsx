@@ -5,6 +5,7 @@ import { Encounter } from '../../models/Encounter';
 import { getRarityColor } from '../../constants/rarity';
 import PressableScale from '../common/PressableScale';
 import StatIcon from '../icons/StatIcon';
+import CreaturePlate from './CreaturePlate';
 
 /**
  * Inline "worthy foe" card for a held ELITE encounter. Deliberately NOT a Modal — it sits in the
@@ -32,6 +33,9 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
       <View style={styles.labelRow}>
         <StatIcon stat="attack" size={12} color="#FFB74D" />
         <Text style={styles.label}> A WORTHY FOE STALKS YOU</Text>
+      </View>
+      <View style={styles.plateWrap}>
+        <CreaturePlate type={creature.type} rarity={creature.rarity} size={58} />
       </View>
       <Text style={[styles.name, { color }]} numberOfLines={1}>
         {creature.name}
@@ -65,6 +69,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   labelRow: { flexDirection: 'row', alignItems: 'center' },
+  plateWrap: { marginTop: 8, marginBottom: 2, alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: '#FFB74D' },
   name: { fontSize: 20, fontWeight: 'bold', marginTop: 4, textAlign: 'center' },
   meta: { fontSize: 12, fontWeight: '600', color: '#9FB3C8', marginTop: 2, letterSpacing: 1 },

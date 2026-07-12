@@ -52,7 +52,7 @@ const GROUPS = [
       ['weapon', 'fill', 0, '<path d="M12 2 L14 5 V13 H10 V5 Z"/><path d="M7.5 13 H16.5 V15 H7.5 Z"/><path d="M11 15 H13 V19 H11 Z"/><circle cx="12" cy="20.2" r="1.6"/>'],
       ['offhand', 'fill', 0, '<path d="M12 2 L20 5 V11 C20 16 16.5 19.8 12 22 C7.5 19.8 4 16 4 11 V5 Z"/>'],
       ['head', 'fill', 0, '<path d="M4 8 L7.2 12 L12 6.5 L16.8 12 L20 8 L18.6 18 H5.4 Z"/>'],
-      ['chest', 'fill', 0, '<path d="M6 5 L10 6.2 Q12 7.6 14 6.2 L18 5 L17 13.5 Q12 17.5 7 13.5 Z"/>'],
+      ['chest', 'fill', 0, '<path d="M8 4 L12 7 L16 4 L21 7 L19 11 L16.5 9.5 L17 20 H7 L7 9.5 L5 11 L3 7 L8 4 Z"/>'],
       ['legs', 'fill', 0, '<path d="M7 3 H17 L16 21 H12.8 L12 11 L11.2 21 H8 Z"/>'],
       ['boots', 'fill', 0, '<path d="M8 3 H12 V13 H16.5 Q19 13 19 16 V19 H8 Z"/>'],
       ['gloves', 'fill', 0, '<rect x="8.2" y="4.5" width="1.7" height="6.5" rx="0.85"/><rect x="10.5" y="3.5" width="1.7" height="7.5" rx="0.85"/><rect x="12.8" y="3.7" width="1.7" height="7.3" rx="0.85"/><rect x="15.1" y="4.7" width="1.7" height="6.3" rx="0.85"/><path d="M7.8 9.5 H17.2 V15.5 H7.8 Z"/><path d="M7.8 10.5 Q5 10.3 4.9 12.5 Q4.8 14.6 7.8 14.3 Z"/><rect x="6" y="15" width="12" height="4.6" rx="1.3"/>'],
@@ -106,6 +106,28 @@ const GROUPS = [
       ['debuff', 'line', 2.6, '<path d="M5 9 L12 16 L19 9"/>'],
       ['dot', 'fill', 0, '<path d="M12 3 C12 3 5.5 11 5.5 15.2 A6.5 6.5 0 0 0 18.5 15.2 C18.5 11 12 3 12 3 Z"/>'],
       ['flee', 'line', 2, '<path d="M4 8 H16"/><path d="M3 12 H19"/><path d="M6 16 H14"/>'],
+    ],
+  },
+  {
+    title: 'Creature Type Emblems',
+    file: 'ElementEmblem.tsx',
+    note: 'shown in element colors · creature-plate identity',
+    icons: [
+      ['Fire', 'fill', 0, '<path d="M12 2 C16 8 18 10 16.5 15 A5 5 0 1 1 7.5 15 C7 12 8 10.5 9 9.5 C9.5 12 11 12 11 11 C12 9 10.5 5 12 2 Z"/>', '#FF7043'],
+      ['Frost', 'line', 1.8, '<path d="M12 3 V21"/><path d="M4.5 7.5 L19.5 16.5"/><path d="M19.5 7.5 L4.5 16.5"/><path d="M12 6.5 L10 4.5 M12 6.5 L14 4.5 M12 17.5 L10 19.5 M12 17.5 L14 19.5"/>', '#4FC3F7'],
+      ['Water', 'fill', 0, '<path d="M12 3 C12 3 5.5 11 5.5 15.2 A6.5 6.5 0 0 0 18.5 15.2 C18.5 11 12 3 12 3 Z"/>', '#29B6F6'],
+      ['Air', 'line', 2, '<path d="M3 8 H13 A2.6 2.6 0 1 0 10.4 5.4"/><path d="M3 12 H18 A2.6 2.6 0 1 1 15.4 14.6"/><path d="M3 16 H10"/>', '#90CAF9'],
+      ['Earth', 'fill', 0, '<path d="M8 3 H16 L20 10 L12 21 L4 10 Z"/>', '#A1887F'],
+      ['Nature', 'fill', 0, '<path d="M20 4 C9 4 4 11 4 20 C13 20 20 15 20 4 Z"/>', '#66BB6A'],
+      ['Shadow', 'fill', 0, '<path d="M14.5 3.2 A9 9 0 1 0 14.5 20.8 A7 7 0 1 1 14.5 3.2 Z"/>', '#7E57C2'],
+      ['Arcane', 'fill', 0, '<path d="M12 2 L13.4 8.6 L18 5.6 L15.4 10.6 L22 12 L15.4 13.4 L18 18.4 L13.4 15.4 L12 22 L10.6 15.4 L6 18.4 L8.6 13.4 L2 12 L8.6 10.6 L6 5.6 L10.6 8.6 Z"/>', '#BA68C8'],
+      ['Spirit', 'fill', 0, '<path fill-rule="evenodd" d="M6 20.5 V11 A6 6 0 0 1 18 11 V20.5 L15.5 18.5 L13.5 20.5 L12 18.8 L10.5 20.5 L8.5 18.5 Z M10 10.5 m-1.1 0 a1.1 1.1 0 1 0 2.2 0 a1.1 1.1 0 1 0 -2.2 0 M14 10.5 m-1.1 0 a1.1 1.1 0 1 0 2.2 0 a1.1 1.1 0 1 0 -2.2 0"/>', '#B39DDB'],
+      ['Undead', 'fill', 0, '<path fill-rule="evenodd" d="M6 10 A6 6 0 0 1 18 10 V14 Q18 16 16 16 V18 H8 V16 Q6 16 6 14 Z M9.8 10 m-1.5 0 a1.5 1.5 0 1 0 3 0 a1.5 1.5 0 1 0 -3 0 M14.2 10 m-1.5 0 a1.5 1.5 0 1 0 3 0 a1.5 1.5 0 1 0 -3 0 M12 12 L11.1 13.4 H12.9 Z"/>', '#90A4AE'],
+      ['Beast', 'fill', 0, '<path d="M12 12 C15.5 12 18 14.5 18 17.5 C18 20 16 20.5 14 19.5 C13 19 11 19 10 19.5 C8 20.5 6 20 6 17.5 C6 14.5 8.5 12 12 12 Z"/><circle cx="6.5" cy="8.5" r="2"/><circle cx="17.5" cy="8.5" r="2"/><circle cx="9.5" cy="5.5" r="1.9"/><circle cx="14.5" cy="5.5" r="1.9"/>', '#FF8A65'],
+      ['Vermin', 'fill', 0, '<path d="M12 4 C14.5 4 16 7 16 11 C16 16 14.5 20 12 20 C9.5 20 8 16 8 11 C8 7 9.5 4 12 4 Z"/><path d="M10.5 4 L8 2 M13.5 4 L16 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>', '#9CCC65'],
+      ['Ooze', 'fill', 0, '<path d="M5 14 C5 8.5 8.5 7 12 7 C15.5 7 19 8.5 19 14 C19 18 16.5 19.5 15.5 18.5 C15 20 13.5 20.5 13 19 C12.5 20.5 11 20.5 10.5 19 C9.5 20 6.5 19.5 5 14 Z"/>', '#26A69A'],
+      ['Fungus', 'fill', 0, '<path d="M4 12 A8 6 0 0 1 20 12 Z"/><path d="M9.5 12 H14.5 V19 Q14.5 20.5 12 20.5 Q9.5 20.5 9.5 19 Z"/>', '#AB47BC'],
+      ['Construct', 'fill', 0, '<path fill-rule="evenodd" d="M12 3 L20 7.5 V16.5 L12 21 L4 16.5 V7.5 Z M12 9 A3 3 0 1 0 12.01 9 Z"/>', '#78909C'],
     ],
   },
 ];
@@ -216,8 +238,8 @@ const html = `<!doctype html>
   const sheet = document.getElementById('sheet');
   for (const grp of groups) {
     const sec = document.createElement('section');
-    const tiles = grp.icons.map(([name, mode, w, inner]) =>
-      '<figure class="tile"><div class="glyph">' + svgFor(mode, w, inner) + '</div><figcaption>' + name + '</figcaption></figure>'
+    const tiles = grp.icons.map(([name, mode, w, inner, fixed]) =>
+      '<figure class="tile"><div class="glyph"' + (fixed ? ' style="color:' + fixed + '"' : '') + '>' + svgFor(mode, w, inner) + '</div><figcaption>' + name + '</figcaption></figure>'
     ).join('');
     sec.innerHTML =
       '<div class="sec-head"><h2>' + grp.title + '</h2><span class="count">' + grp.icons.length + ' · ' + grp.file + '</span><span class="note">' + grp.note + '</span></div>' +
