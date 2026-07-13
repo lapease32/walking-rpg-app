@@ -19,6 +19,7 @@ import {
   deriveAttack,
   deriveDefense,
   deriveMaxHp,
+  deriveSpeed,
 } from './Archetype';
 
 export { Archetype };
@@ -249,6 +250,15 @@ export class Player {
 
   calculateDamage(creatureDefense: number, damageMultiplier: number = 1.0): number {
     return mitigateDamage(this.attack, creatureDefense, damageMultiplier);
+  }
+
+  /**
+   * Combat SPEED — agility-derived, drives evasion vs a creature's speed (see models/evasion).
+   * A computed getter (not a stored/serialized field): it's a pure function of `agi`, so there's no
+   * migration and it always tracks the current attribute. No gear grants speed yet.
+   */
+  get speed(): number {
+    return deriveSpeed(this.agi);
   }
 
   takeDamage(amount: number): void {

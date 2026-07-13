@@ -276,6 +276,7 @@ export default function CombatModal({
             <View style={styles.statsRow}>
               <Text style={styles.statChip}>ATK {creature.attack}</Text>
               <Text style={styles.statChip}>DEF {creature.defense}</Text>
+              <Text style={styles.statChip}>SPD {creature.speed}</Text>
               {(Object.entries(creature.resistances) as [DamageType, number][])
                 .filter(([, v]) => v !== 0)
                 .map(([type, value]) => {
@@ -372,6 +373,7 @@ export default function CombatModal({
             <View style={styles.statsRow}>
               <Text style={styles.statChip}>ATK {player.attack}</Text>
               <Text style={styles.statChip}>DEF {player.defense}</Text>
+              <Text style={styles.statChip}>SPD {player.speed}</Text>
             </View>
             <Animated.View
               pointerEvents="none"

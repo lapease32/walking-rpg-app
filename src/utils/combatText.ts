@@ -61,6 +61,9 @@ const RESISTED_COLOR = '#90A4AE'; // muted blue-grey — the hit "bounced"
 const BUFF_COLOR = '#FFD54F'; // warm gold — empowered
 const DEBUFF_COLOR = '#B39DDB'; // desaturated violet — weakened
 const STATUS_FONT_SIZE = 18;
+const DODGE_COLOR = '#4FC3F7'; // airy blue — the hit was evaded
+const GLANCE_COLOR = '#B0BEC5'; // muted grey — a soft, reduced hit
+const EVADE_FONT_SIZE = 18;
 
 /**
  * Style a floating number for a typed combat hit (Phase 2b). Reuses combatTextStyle for the
@@ -86,6 +89,24 @@ export function hitFloaterStyle(event: CombatHitEvent): CombatTextStyle {
   const typeColor = event.damageType
     ? DAMAGE_TYPE_COLOR[event.damageType]
     : DAMAGE_TYPE_COLOR.physical;
+
+  // Speed-driven evasion takes precedence over the resist tell — it's the notable per-hit event.
+  // A full dodge shows only the tell (no number): "DODGE" when the player evades, "MISS" when the
+  // creature evades the player's swing. A glancing hit keeps its (reduced) number, muted + tagged.
+  if (event.evade === 'dodged') {
+    return {
+      label: event.target === 'player' ? 'DODGE' : 'MISS',
+      color: DODGE_COLOR,
+      fontSize: EVADE_FONT_SIZE,
+    };
+  }
+  if (event.evade === 'glancing') {
+    return {
+      label: `${amount} GLANCING`,
+      color: GLANCE_COLOR,
+      fontSize: Math.round(fontSize * 0.85),
+    };
+  }
 
   if (event.resist === 'resisted') {
     return {

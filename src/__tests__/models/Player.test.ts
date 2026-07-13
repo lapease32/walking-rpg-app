@@ -6,6 +6,7 @@ import {
   deriveAttack,
   deriveDefense,
   deriveMaxHp,
+  deriveSpeed,
 } from '../../models/Archetype';
 import { WeaponItem, AccessoryItem } from '../../models/Item';
 
@@ -605,6 +606,19 @@ describe('Player', () => {
       expect(player.level).toBe(1);
       expect(player.str).toBe(expected.str);
       expect(player.agi).toBe(expected.agi);
+    });
+  });
+
+  describe('speed (evasion stat)', () => {
+    it('derives from agility (mirrors attack/defense derivation)', () => {
+      const player = new Player();
+      expect(player.speed).toBe(deriveSpeed(player.agi));
+    });
+
+    it('a higher-agility build is faster', () => {
+      const nimble = new Player({ agi: 40 });
+      const sluggish = new Player({ agi: 5 });
+      expect(nimble.speed).toBeGreaterThan(sluggish.speed);
     });
   });
 });

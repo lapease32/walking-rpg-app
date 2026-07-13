@@ -37,6 +37,7 @@ import {
 } from '../models/Ability';
 import { applyResistance } from '../models/DamageType';
 import { mitigateDamage } from '../models/combat';
+import { rollEvasion, applyEvasionDamage } from '../models/evasion';
 import {
   classifyResist,
   formatStatModLabel,
@@ -140,6 +141,10 @@ export function useEncounter({
   // freezes input during the beat so a rapid tap can't take a second turn before the creature strikes.
   const counterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const counterPendingRef = useRef<boolean>(false);
+  // Consecutive non-dodge counts per defender, for the evasion PRD streak protection (see
+  // models/evasion). Reset at the start of each fight.
+  const playerDodgeStreakRef = useRef<number>(0);
+  const creatureDodgeStreakRef = useRef<number>(0);
 
   useEffect(() => {
     encounterRef.current = currentEncounter;
@@ -706,6 +711,9 @@ export function useEncounter({
       // Fresh hit feed for this fight (only on the first open — reopening mid-encounter keeps state).
       setCombatHits([]);
       setCombatLog([]);
+      // Fresh evasion streaks for the new fight.
+      playerDodgeStreakRef.current = 0;
+      creatureDodgeStreakRef.current = 0;
     }
     if (creatureCombatStateRef.current === null) {
       creatureCombatStateRef.current = { statusEffects: [], resource: 0 };
@@ -810,26 +818,40 @@ export function useEncounter({
       // Count this beat as an active-combat turn (drives the auto-shortening pace) even if the
       // counter is fully mitigated to 0 — the player still saw the beat.
       counteredPlayer.incrementCombatTurns();
-      const creatureDamage = mitigateDamage(creatureAttack, playerDefense);
+      const baseDamage = mitigateDamage(creatureAttack, playerDefense);
+      // The player (defender) may glance or fully dodge the counter based on speed — player-favored
+      // (see models/evasion): a dodge negates the counter entirely ("DODGE").
+      const evasion = rollEvasion({
+        attackerSpeed: creature.speed,
+        defenderSpeed: counteredPlayer.speed,
+        defender: 'player',
+        dodgeStreak: playerDodgeStreakRef.current,
+      });
+      playerDodgeStreakRef.current = evasion.nextDodgeStreak;
+      const creatureDamage = applyEvasionDamage(baseDamage, evasion.outcome);
+      const evadeTag = evasion.outcome === 'normal' ? undefined : evasion.outcome;
       if (creatureDamage > 0) {
         counteredPlayer.takeDamage(creatureDamage);
-        // Basic counter is physical; the player has no resistances yet, so it's always neutral.
-        pushHit({
-          target: 'player',
-          amount: creatureDamage,
-          damageType: 'physical',
-          resist: 'neutral',
-          kind: 'hit',
-          targetMaxHp: counteredPlayer.maxHp,
-        });
-        pushLog({
-          kind: 'attack',
-          actor: 'creature',
-          target: 'player',
-          amount: creatureDamage,
-          damageType: 'physical',
-        });
       }
+      // Always emit the tell — even a full dodge (0 damage) must surface as "DODGE". Basic counter is
+      // physical; the player has no resistances yet, so it's always neutral.
+      pushHit({
+        target: 'player',
+        amount: creatureDamage,
+        damageType: 'physical',
+        resist: 'neutral',
+        kind: 'hit',
+        targetMaxHp: counteredPlayer.maxHp,
+        evade: evadeTag,
+      });
+      pushLog({
+        kind: 'attack',
+        actor: 'creature',
+        target: 'player',
+        amount: creatureDamage,
+        damageType: 'physical',
+        tags: evadeTag ? [evadeTag] : undefined,
+      });
       setPlayerAndSave(counteredPlayer);
 
       if (counteredPlayer.isDefeated()) {
@@ -949,28 +971,41 @@ export function useEncounter({
       updatedPlayer.maxHp,
     );
 
-    creature.takeDamage(abilityResult.damage);
-    if (abilityResult.damage > 0) {
-      // Only 'direct' abilities deal immediate typed damage (dot/buff/defensive have 0 here).
-      const dmgType = ability.primitive === 'direct' ? ability.damageType : null;
-      const resistVal = dmgType ? (creature.resistances[dmgType] ?? 0) : 0;
-      const resist = classifyResist(resistVal);
+    // Only 'direct' abilities deal an immediate, evadable swing (dot/buff/defensive have 0 here and
+    // aren't dodged). The creature (defender) may glance or fully dodge based on its speed vs the
+    // player's — telegraphed as GLANCING / MISS so a low/zero number is always explained.
+    if (ability.primitive === 'direct') {
+      const evasion = rollEvasion({
+        attackerSpeed: updatedPlayer.speed,
+        defenderSpeed: creature.speed,
+        defender: 'creature',
+        dodgeStreak: creatureDodgeStreakRef.current,
+      });
+      creatureDodgeStreakRef.current = evasion.nextDodgeStreak;
+      const dealt = applyEvasionDamage(abilityResult.damage, evasion.outcome);
+      creature.takeDamage(dealt);
+
+      const dmgType = ability.damageType;
+      const resist = classifyResist(creature.resistances[dmgType] ?? 0);
+      const evadeTag = evasion.outcome === 'normal' ? undefined : evasion.outcome;
+      const tags: CombatLogTag[] = [...(resistTags(resist) ?? []), ...(evadeTag ? [evadeTag] : [])];
       pushHit({
         target: 'creature',
-        amount: abilityResult.damage,
+        amount: dealt,
         damageType: dmgType,
         resist,
         kind: 'hit',
         targetMaxHp: creature.maxHp,
+        evade: evadeTag,
       });
       pushLog({
         kind: 'attack',
         actor: 'player',
         target: 'creature',
-        amount: abilityResult.damage,
+        amount: dealt,
         damageType: dmgType,
         source: ability.name,
-        tags: resistTags(resist),
+        tags: tags.length > 0 ? tags : undefined,
       });
     }
     if (abilityResult.heal > 0) {
