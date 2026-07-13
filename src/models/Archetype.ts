@@ -99,3 +99,12 @@ export function deriveDefense(str: number, agi: number): number {
 export function deriveMaxHp(archetype: Archetype, str: number, agi: number): number {
   return ARCHETYPE_CONFIGS[archetype].hpConstant + str * 3 + agi * 1;
 }
+
+/**
+ * Player combat SPEED — drives evasion (glancing/dodge, see models/evasion). Agility-only (mirrors
+ * how attack/defense derive from str/agi), so the Agile archetype is tangibly harder to hit. Scaled
+ * to sit alongside creature speeds (single digits to ~30s) so the differential reads meaningfully.
+ */
+export function deriveSpeed(agi: number): number {
+  return Math.max(1, Math.floor(agi * 0.6 + 5));
+}

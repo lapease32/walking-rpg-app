@@ -155,6 +155,10 @@ export function useCombatImpact({ encounterId, hits }: UseCombatImpactParams) {
         continue;
       }
 
+      // A full dodge deals no damage — show only the "DODGE"/"MISS" floater (spawned above), with no
+      // flash/shake/burst so a miss never reads as a landed hit.
+      if (h.evade === 'dodged') continue;
+
       // Damage (hit / dot): impact feedback.
       triggerShake(shake, h.amount, h.targetMaxHp);
       if (h.target === 'creature') {

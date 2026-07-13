@@ -25,6 +25,9 @@ export interface CombatHitEvent {
   targetMaxHp: number;
   /** Pre-formatted stat-change text for buff/debuff events (e.g. "ATK ↑ +10"). */
   label?: string;
+  /** Speed-driven evasion outcome for a direct hit (see models/evasion): a glancing (half) hit or a
+   *  full dodge (amount 0). Absent for a normal hit. Drives the GLANCING/DODGE/MISS floater tell. */
+  evade?: 'glancing' | 'dodged';
 }
 
 /**

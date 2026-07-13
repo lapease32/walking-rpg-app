@@ -118,4 +118,26 @@ describe('hitFloaterStyle', () => {
       hitFloaterStyle(makeEvent({ kind: 'buff', damageType: null, label: undefined })).label,
     ).toBe('▲');
   });
+
+  describe('evasion tells', () => {
+    it('a dodged hit on the player reads "DODGE" (no number)', () => {
+      const s = hitFloaterStyle(makeEvent({ target: 'player', amount: 0, evade: 'dodged' }));
+      expect(s.label).toBe('DODGE');
+    });
+
+    it('a dodged hit on the creature reads "MISS" (the player whiffed)', () => {
+      const s = hitFloaterStyle(makeEvent({ target: 'creature', amount: 0, evade: 'dodged' }));
+      expect(s.label).toBe('MISS');
+    });
+
+    it('a glancing hit keeps its reduced number and is tagged GLANCING', () => {
+      const s = hitFloaterStyle(makeEvent({ amount: 7, evade: 'glancing' }));
+      expect(s.label).toBe('7 GLANCING');
+    });
+
+    it('the evasion tell wins over the resist tell', () => {
+      const s = hitFloaterStyle(makeEvent({ amount: 7, evade: 'glancing', resist: 'resisted' }));
+      expect(s.label).toBe('7 GLANCING');
+    });
+  });
 });
