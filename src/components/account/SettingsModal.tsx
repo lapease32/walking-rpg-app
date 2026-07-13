@@ -272,8 +272,10 @@ const makeStyles = (t: ThemeTokens) =>
       fontSize: 16,
       fontWeight: '600',
     },
+    // Apple brand asset, NOT a themed surface — the Sign in with Apple HIG mandates black (or
+    // white/outlined). Theming its ground made it white-on-bone (illegible) in the day palette.
     appleButton: {
-      backgroundColor: t.bg,
+      backgroundColor: '#000000',
       borderRadius: 8,
       paddingVertical: 12,
       paddingHorizontal: 16,

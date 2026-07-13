@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from 'react';
 import { NIGHT, THEMES, type ThemeName, type ThemeTokens } from '../constants/theme';
 import { loadSettings, saveSettings } from '../utils/storage';
 import logger from '../utils/logger';
@@ -28,6 +36,9 @@ export const DEFAULT_THEME_NAME: ThemeName = 'night';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeName, setName] = useState<ThemeName>(DEFAULT_THEME_NAME);
+  // The restore below is async. If the player picks a theme BEFORE it resolves, the stale load
+  // would stomp their fresh choice — so a live choice always wins over the restore.
+  const userChoseRef = useRef(false);
 
   // Restore the persisted choice once on mount; a failure just leaves the default in place.
   useEffect(() => {
@@ -35,7 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     loadSettings()
       .then(settings => {
         const saved = settings?.themeName;
-        if (!cancelled && (saved === 'night' || saved === 'day')) {
+        if (!cancelled && !userChoseRef.current && (saved === 'night' || saved === 'day')) {
           setName(saved);
         }
       })
@@ -46,6 +57,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setThemeName = useCallback((name: ThemeName) => {
+    userChoseRef.current = true;
     setName(name);
     // Persist alongside any other settings rather than clobbering them.
     loadSettings()

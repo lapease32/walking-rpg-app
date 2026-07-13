@@ -340,7 +340,7 @@ export default function HomeScreen() {
   if (!player) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Loading...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
         {conflictState && (
           <AccountConflictModal conflictState={conflictState} onResolve={resolveConflict} />
         )}
@@ -594,6 +594,7 @@ export default function HomeScreen() {
 
 const makeStyles = (t: ThemeTokens) =>
   StyleSheet.create({
+    loadingText: { color: t.text, fontSize: 16 },
     container: {
       flex: 1,
       backgroundColor: t.surfaceAlt,
