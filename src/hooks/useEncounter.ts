@@ -972,9 +972,11 @@ export function useEncounter({
     );
 
     // Only 'direct' abilities deal an immediate, evadable swing (dot/buff/defensive have 0 here and
-    // aren't dodged). The creature (defender) may glance or fully dodge based on its speed vs the
-    // player's — telegraphed as GLANCING / MISS so a low/zero number is always explained.
-    if (ability.primitive === 'direct') {
+    // aren't dodged). Gate on damage > 0 so a fully-resisted/immune swing is a no-op: rolling evasion
+    // there would advance/reset the dodge PRD streak with no visible attack, skewing later odds — and
+    // it stays silent (as before this feature). The creature (defender) may glance or fully dodge
+    // based on its speed vs the player's — telegraphed as GLANCING / MISS so a low number is explained.
+    if (ability.primitive === 'direct' && abilityResult.damage > 0) {
       const evasion = rollEvasion({
         attackerSpeed: updatedPlayer.speed,
         defenderSpeed: creature.speed,
@@ -988,33 +990,25 @@ export function useEncounter({
       const dmgType = ability.damageType;
       const resist = classifyResist(creature.resistances[dmgType] ?? 0);
       const evadeTag = evasion.outcome === 'normal' ? undefined : evasion.outcome;
-      // Emit a tell only when something visible happened: real damage dealt, or a genuine dodge of a
-      // hit that WOULD have dealt damage. A fully-resisted 0-damage swing stays silent (as before this
-      // feature) rather than surfacing a misleading "0"/"MISS".
-      if (dealt > 0 || (evasion.outcome === 'dodged' && abilityResult.damage > 0)) {
-        const tags: CombatLogTag[] = [
-          ...(resistTags(resist) ?? []),
-          ...(evadeTag ? [evadeTag] : []),
-        ];
-        pushHit({
-          target: 'creature',
-          amount: dealt,
-          damageType: dmgType,
-          resist,
-          kind: 'hit',
-          targetMaxHp: creature.maxHp,
-          evade: evadeTag,
-        });
-        pushLog({
-          kind: 'attack',
-          actor: 'player',
-          target: 'creature',
-          amount: dealt,
-          damageType: dmgType,
-          source: ability.name,
-          tags: tags.length > 0 ? tags : undefined,
-        });
-      }
+      const tags: CombatLogTag[] = [...(resistTags(resist) ?? []), ...(evadeTag ? [evadeTag] : [])];
+      pushHit({
+        target: 'creature',
+        amount: dealt,
+        damageType: dmgType,
+        resist,
+        kind: 'hit',
+        targetMaxHp: creature.maxHp,
+        evade: evadeTag,
+      });
+      pushLog({
+        kind: 'attack',
+        actor: 'player',
+        target: 'creature',
+        amount: dealt,
+        damageType: dmgType,
+        source: ability.name,
+        tags: tags.length > 0 ? tags : undefined,
+      });
     }
     if (abilityResult.heal > 0) {
       updatedPlayer.restoreHp(abilityResult.heal);
