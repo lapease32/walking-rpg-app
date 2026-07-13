@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Player } from '../../models/Player';
 import { Rarity } from '../../models/Creature';
@@ -6,6 +6,8 @@ import { Archetype, ARCHETYPE_CONFIGS } from '../../models/Archetype';
 import { getRarityColor } from '../../constants/rarity';
 import { DebugController } from '../../hooks/useDebugActions';
 import { ENV_CONFIG } from '../../constants/environment';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface Props {
   debugMode: boolean;
@@ -25,6 +27,8 @@ const RARITY_SHORT: Record<Rarity, string> = {
 };
 
 export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   // Hard gate: in a production build (enableDebugMode=false) the debug panel must
   // not render at all — including the "Show Debug Mode" toggle, which would
   // otherwise let a user re-enable force-encounter / instant-defeat in a shipped
@@ -281,166 +285,167 @@ export default function DebugPanel({ debugMode, onToggleDebug, player, debug }: 
   );
 }
 
-const styles = StyleSheet.create({
-  debugContainer: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#fff3cd',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffc107',
-  },
-  debugTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#856404',
-  },
-  debugStatsBlock: {
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ffc107',
-    padding: 8,
-    marginBottom: 12,
-    gap: 4,
-  },
-  debugStatRow: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#856404',
-  },
-  encounterChanceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 8,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#ffc107',
-  },
-  encounterChanceLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#856404',
-  },
-  encounterChanceValueContainer: {
-    alignItems: 'flex-end',
-  },
-  encounterChanceValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#856404',
-  },
-  timeBlockingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#F44336',
-    marginTop: 2,
-  },
-  toggleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#9E9E9E',
-    borderRadius: 6,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    backgroundColor: '#4CAF50',
-  },
-  toggleButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  raritySelectorBlock: {
-    padding: 8,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#ffc107',
-    gap: 8,
-  },
-  rarityRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  rarityButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#9E9E9E',
-    minWidth: 40,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  rarityButtonActive: {
-    backgroundColor: '#856404',
-    borderColor: '#856404',
-  },
-  rarityButtonText: {
-    color: '#856404',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  rarityButtonTextActive: {
-    color: '#fff',
-  },
-  previewButton: {
-    backgroundColor: '#7E57C2',
-  },
-  debugButton: {
-    padding: 12,
-    backgroundColor: '#ffc107',
-    borderRadius: 6,
-    marginVertical: 4,
-    alignItems: 'center',
-  },
-  forceEncounterButton: {
-    backgroundColor: '#ff9800',
-    marginTop: 8,
-  },
-  levelControlButton: {
-    backgroundColor: '#4CAF50',
-    marginTop: 8,
-  },
-  resetButton: {
-    backgroundColor: '#F44336',
-    marginTop: 8,
-  },
-  xpButtonContainer: {
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  xpButtonLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#856404',
-    marginBottom: 8,
-  },
-  xpButton: {
-    backgroundColor: '#2196F3',
-    marginVertical: 2,
-  },
-  debugButtonText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  debugToggle: {
-    padding: 8,
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  debugToggleText: {
-    color: '#999',
-    fontSize: 12,
-    textDecorationLine: 'underline',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    debugContainer: {
+      marginTop: 24,
+      padding: 16,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: t.warning,
+    },
+    debugTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 12,
+      color: t.warning,
+    },
+    debugStatsBlock: {
+      backgroundColor: t.surface,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: t.warning,
+      padding: 8,
+      marginBottom: 12,
+      gap: 4,
+    },
+    debugStatRow: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: t.warning,
+    },
+    encounterChanceContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 8,
+      backgroundColor: t.surface,
+      borderRadius: 6,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: t.warning,
+    },
+    encounterChanceLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.warning,
+    },
+    encounterChanceValueContainer: {
+      alignItems: 'flex-end',
+    },
+    encounterChanceValue: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: t.warning,
+    },
+    timeBlockingText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: t.danger,
+      marginTop: 2,
+    },
+    toggleButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: t.textMuted,
+      borderRadius: 6,
+      minWidth: 60,
+      alignItems: 'center',
+    },
+    toggleButtonActive: {
+      backgroundColor: t.success,
+    },
+    toggleButtonText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+    raritySelectorBlock: {
+      padding: 8,
+      backgroundColor: t.surface,
+      borderRadius: 6,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: t.warning,
+      gap: 8,
+    },
+    rarityRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    rarityButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: t.textMuted,
+      minWidth: 40,
+      alignItems: 'center',
+      backgroundColor: t.surface,
+    },
+    rarityButtonActive: {
+      backgroundColor: t.warning,
+      borderColor: t.warning,
+    },
+    rarityButtonText: {
+      color: t.warning,
+      fontSize: 13,
+      fontWeight: 'bold',
+    },
+    rarityButtonTextActive: {
+      color: '#fff',
+    },
+    previewButton: {
+      backgroundColor: t.arcane,
+    },
+    debugButton: {
+      padding: 12,
+      backgroundColor: t.warning,
+      borderRadius: 6,
+      marginVertical: 4,
+      alignItems: 'center',
+    },
+    forceEncounterButton: {
+      backgroundColor: t.warning,
+      marginTop: 8,
+    },
+    levelControlButton: {
+      backgroundColor: t.success,
+      marginTop: 8,
+    },
+    resetButton: {
+      backgroundColor: t.danger,
+      marginTop: 8,
+    },
+    xpButtonContainer: {
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    xpButtonLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.warning,
+      marginBottom: 8,
+    },
+    xpButton: {
+      backgroundColor: t.info,
+      marginVertical: 2,
+    },
+    debugButtonText: {
+      color: t.onAccent,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    debugToggle: {
+      padding: 8,
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    debugToggleText: {
+      color: t.textMuted,
+      fontSize: 12,
+      textDecorationLine: 'underline',
+    },
+  });

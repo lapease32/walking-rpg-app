@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import ResourceIcon from '../components/icons/ResourceIcon';
 import StatIcon from '../components/icons/StatIcon';
@@ -10,6 +10,8 @@ import {
   deriveDefense,
   deriveMaxHp,
 } from '../models/Archetype';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeTokens } from '../constants/theme';
 
 interface Props {
   onSelect: (archetype: Archetype) => void;
@@ -18,6 +20,8 @@ interface Props {
 const ARCHETYPES: Archetype[] = [Archetype.Martial, Archetype.Agile, Archetype.Mage];
 
 export default function ArchetypeSelectionScreen({ onSelect }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <ScrollView
       testID="archetype-selection-screen"
@@ -44,21 +48,21 @@ export default function ArchetypeSelectionScreen({ onSelect }: Props) {
             activeOpacity={0.8}>
             <Text style={styles.archetypeName}>{cfg.name}</Text>
             <View style={styles.resourceRow}>
-              <ResourceIcon resource={cfg.resource} size={14} color="#888" />
+              <ResourceIcon resource={cfg.resource} size={14} color={theme.textMuted} />
               <Text style={styles.resource}> {resourceLabel}</Text>
             </View>
             <Text style={styles.description}>{cfg.description}</Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <StatIcon stat="hp" size={13} color="#555" />
+                <StatIcon stat="hp" size={13} color={theme.textSecondary} />
                 <Text style={styles.stat}> {hp} HP</Text>
               </View>
               <View style={styles.statItem}>
-                <StatIcon stat="attack" size={13} color="#555" />
+                <StatIcon stat="attack" size={13} color={theme.textSecondary} />
                 <Text style={styles.stat}> {atk} ATK</Text>
               </View>
               <View style={styles.statItem}>
-                <StatIcon stat="defense" size={13} color="#555" />
+                <StatIcon stat="defense" size={13} color={theme.textSecondary} />
                 <Text style={styles.stat}> {def} DEF</Text>
               </View>
             </View>
@@ -72,87 +76,88 @@ export default function ArchetypeSelectionScreen({ onSelect }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 40,
-    marginBottom: 8,
-    color: '#1a1a2e',
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 28,
-    lineHeight: 20,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  archetypeName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-    marginBottom: 4,
-  },
-  resource: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  description: {
-    fontSize: 14,
-    color: '#444',
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  resourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stat: {
-    fontSize: 13,
-    color: '#555',
-    fontWeight: '500',
-  },
-  selectButton: {
-    backgroundColor: '#4a90d9',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  selectButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.surfaceAlt,
+    },
+    content: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+    title: {
+      fontSize: 26,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      marginTop: 40,
+      marginBottom: 8,
+      color: t.text,
+    },
+    subtitle: {
+      fontSize: 14,
+      textAlign: 'center',
+      color: t.textSecondary,
+      marginBottom: 28,
+      lineHeight: 20,
+    },
+    card: {
+      backgroundColor: t.surface,
+      borderRadius: 12,
+      padding: 20,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    archetypeName: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 4,
+    },
+    resource: {
+      fontSize: 13,
+      color: t.textMuted,
+      marginBottom: 10,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    description: {
+      fontSize: 14,
+      color: t.textSecondary,
+      lineHeight: 20,
+      marginBottom: 14,
+    },
+    resourceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 16,
+    },
+    statItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    stat: {
+      fontSize: 13,
+      color: t.textSecondary,
+      fontWeight: '500',
+    },
+    selectButton: {
+      backgroundColor: t.info,
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    selectButtonText: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 15,
+    },
+  });

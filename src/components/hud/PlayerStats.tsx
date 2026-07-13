@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -11,6 +11,8 @@ import { Player } from '../../models/Player';
 import StatIcon from '../icons/StatIcon';
 import { ARCHETYPE_CONFIGS } from '../../models/Archetype';
 import { MOTION_BAR_TIMING, MOTION_SPRING } from '../../constants/motion';
+import { useTheme } from '../../hooks/useTheme';
+import { hpColor, type ThemeTokens } from '../../constants/theme';
 
 interface PlayerStatsProps {
   player: Player | null;
@@ -21,6 +23,8 @@ interface PlayerStatsProps {
  * and the level pops on level-up — graphics roadmap Phase 1 micro-polish.
  */
 export default function PlayerStats({ player }: PlayerStatsProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const stats = player ? player.getStats() : null;
   const progressPercentage =
     stats && stats.experienceForNextLevel > 0
@@ -70,7 +74,7 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
     return null;
   }
 
-  const hpBarColor = hpPercentage > 0.5 ? '#4CAF50' : hpPercentage > 0.25 ? '#FF9800' : '#F44336';
+  const hpBarColor = hpColor(stats.hp, stats.maxHp, theme);
 
   return (
     <View style={styles.container}>
@@ -101,14 +105,14 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
         <View style={styles.combatStatItem}>
           <Text style={styles.combatStatValue}>{stats.attack}</Text>
           <View style={styles.combatStatLabelRow}>
-            <StatIcon stat="attack" size={13} color="#666" />
+            <StatIcon stat="attack" size={13} color={theme.textSecondary} />
             <Text style={styles.combatStatLabel}> Attack</Text>
           </View>
         </View>
         <View style={styles.combatStatItem}>
           <Text style={styles.combatStatValue}>{stats.defense}</Text>
           <View style={styles.combatStatLabelRow}>
-            <StatIcon stat="defense" size={13} color="#666" />
+            <StatIcon stat="defense" size={13} color={theme.textSecondary} />
             <Text style={styles.combatStatLabel}> Defense</Text>
           </View>
         </View>
@@ -132,115 +136,116 @@ export default function PlayerStats({ player }: PlayerStatsProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  playerName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  level: {
-    fontSize: 18,
-    color: '#666',
-    fontWeight: '600',
-  },
-  hpContainer: {
-    marginBottom: 12,
-  },
-  hpBar: {
-    height: 20,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  hpFill: {
-    height: '100%',
-    borderRadius: 10,
-  },
-  hpText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-  },
-  expContainer: {
-    marginBottom: 16,
-  },
-  expBar: {
-    height: 20,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  expFill: {
-    height: '100%',
-    backgroundColor: '#2196F3', // Blue color to distinguish from HP bar (green/orange/red)
-    borderRadius: 10,
-  },
-  expText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-  },
-  combatStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-  },
-  combatStatItem: {
-    alignItems: 'center',
-  },
-  combatStatValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  combatStatLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  combatStatLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '600',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    width: '48%',
-    padding: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    container: {
+      padding: 16,
+      backgroundColor: t.surface,
+      borderRadius: 8,
+      marginVertical: 8,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    playerName: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: t.text,
+    },
+    level: {
+      fontSize: 18,
+      color: t.textSecondary,
+      fontWeight: '600',
+    },
+    hpContainer: {
+      marginBottom: 12,
+    },
+    hpBar: {
+      height: 20,
+      backgroundColor: t.track,
+      borderRadius: 10,
+      overflow: 'hidden',
+      marginBottom: 4,
+    },
+    hpFill: {
+      height: '100%',
+      borderRadius: 10,
+    },
+    hpText: {
+      fontSize: 12,
+      color: t.textSecondary,
+      textAlign: 'center',
+    },
+    expContainer: {
+      marginBottom: 16,
+    },
+    expBar: {
+      height: 20,
+      backgroundColor: t.track,
+      borderRadius: 10,
+      overflow: 'hidden',
+      marginBottom: 4,
+    },
+    expFill: {
+      height: '100%',
+      backgroundColor: t.info, // Blue color to distinguish from HP bar (green/orange/red)
+      borderRadius: 10,
+    },
+    expText: {
+      fontSize: 12,
+      color: t.textSecondary,
+      textAlign: 'center',
+    },
+    combatStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 16,
+      paddingVertical: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+    },
+    combatStatItem: {
+      alignItems: 'center',
+    },
+    combatStatValue: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 4,
+    },
+    combatStatLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    combatStatLabel: {
+      fontSize: 14,
+      color: t.textSecondary,
+      fontWeight: '600',
+    },
+    statsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    statItem: {
+      width: '48%',
+      padding: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      marginBottom: 8,
+      alignItems: 'center',
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: t.textSecondary,
+    },
+  });

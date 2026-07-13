@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -16,6 +16,8 @@ import ItemSlotIcon from '../icons/ItemSlotIcon';
 import StatIcon from '../icons/StatIcon';
 import { TrophyIcon, WarningIcon } from '../icons/UiIcon';
 import RewardGlowCanvas from './RewardGlowCanvas';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 /**
  * Data describing a single victory's rewards. Built by useEncounter and handed to
@@ -98,6 +100,8 @@ type Particle = {
 };
 
 export default function RewardRevealModal({ reveal, onDismiss }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const backdrop = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -122,7 +126,7 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
 
   const rarity: Rarity | null = reveal?.item?.rarity ?? null;
   const fx = rarity ? RARITY_FX[rarity] : null;
-  const color = rarity ? getRarityColor(rarity) : '#FFD54F';
+  const color = rarity ? getRarityColor(rarity) : theme.warning;
 
   // Re-show fix: the Animated values persist across reveals (useRef), so a NEW reveal would
   // first PAINT with the PREVIOUS reveal's end-state (card already fully visible) for a frame
@@ -300,8 +304,8 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
               {
                 opacity: cardOpacity,
                 transform: [{ scale: cardScale }],
-                borderColor: item ? color : '#FFD54F',
-                shadowColor: item ? color : '#FFD54F',
+                borderColor: item ? color : theme.warning,
+                shadowColor: item ? color : theme.warning,
               },
             ]}>
             {item ? (
@@ -338,7 +342,7 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
                 )}
                 {reveal.inventoryFull && (
                   <View style={styles.warningRow}>
-                    <WarningIcon size={13} color="#FFB74D" />
+                    <WarningIcon size={13} color={theme.warning} />
                     <Text style={styles.warning}>
                       {' '}
                       Inventory full — this drop was lost. Clear space to keep future finds.
@@ -348,7 +352,7 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
               </>
             ) : (
               <>
-                <TrophyIcon size={50} color="#FFD54F" style={styles.icon} />
+                <TrophyIcon size={50} color={theme.warning} style={styles.icon} />
                 <Text style={styles.victoryTitle}>Victory!</Text>
                 <Text style={styles.subtle}>Defeated {reveal.creatureName}</Text>
               </>
@@ -366,73 +370,74 @@ export default function RewardRevealModal({ reveal, onDismiss }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.78)',
-  },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  particleOrigin: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  particle: { position: 'absolute' },
-  card: {
-    minWidth: 240,
-    maxWidth: '82%',
-    backgroundColor: '#11202E',
-    borderRadius: 18,
-    borderWidth: 2,
-    paddingVertical: 22,
-    paddingHorizontal: 26,
-    alignItems: 'center',
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 12,
-  },
-  icon: { fontSize: 52, marginBottom: 6 },
-  itemName: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
-  rarityLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
-  victoryTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFD54F' },
-  subtle: { fontSize: 14, color: '#9FB3C8', marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: 14, marginTop: 12 },
-  stat: { flexDirection: 'row', alignItems: 'center' },
-  statText: { fontSize: 15, color: '#E0E0E0', fontWeight: '600' },
-  upgradeBadge: {
-    marginTop: 12,
-    color: '#2e7d32',
-    backgroundColor: 'rgba(46,125,50,0.18)',
-    fontWeight: 'bold',
-    fontSize: 13,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  newBadge: {
-    marginTop: 12,
-    color: '#90A4AE',
-    fontWeight: 'bold',
-    fontSize: 12,
-    letterSpacing: 2,
-  },
-  warningRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  warning: { color: '#FFB74D', fontSize: 12, flexShrink: 1 },
-  xp: { marginTop: 14, color: '#FFD54F', fontSize: 16, fontWeight: 'bold' },
-  levelUp: { marginTop: 6, color: '#4FC3F7', fontSize: 15, fontWeight: 'bold', letterSpacing: 1 },
-  prompt: { marginTop: 26, color: '#7E8C9A', fontSize: 13 },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    fill: { flex: 1 },
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.78)',
+    },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    particleOrigin: {
+      position: 'absolute',
+      width: 0,
+      height: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    particle: { position: 'absolute' },
+    card: {
+      minWidth: 240,
+      maxWidth: '82%',
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 18,
+      borderWidth: 2,
+      paddingVertical: 22,
+      paddingHorizontal: 26,
+      alignItems: 'center',
+      shadowOpacity: 0.9,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 12,
+    },
+    icon: { fontSize: 52, marginBottom: 6 },
+    itemName: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
+    rarityLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
+    victoryTitle: { fontSize: 24, fontWeight: 'bold', color: t.warning },
+    subtle: { fontSize: 14, color: t.textSecondary, marginTop: 2 },
+    statsRow: { flexDirection: 'row', gap: 14, marginTop: 12 },
+    stat: { flexDirection: 'row', alignItems: 'center' },
+    statText: { fontSize: 15, color: t.text, fontWeight: '600' },
+    upgradeBadge: {
+      marginTop: 12,
+      color: t.success,
+      backgroundColor: 'rgba(46,125,50,0.18)',
+      fontWeight: 'bold',
+      fontSize: 13,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    newBadge: {
+      marginTop: 12,
+      color: t.textMuted,
+      fontWeight: 'bold',
+      fontSize: 12,
+      letterSpacing: 2,
+    },
+    warningRow: {
+      marginTop: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+    },
+    warning: { color: t.warning, fontSize: 12, flexShrink: 1 },
+    xp: { marginTop: 14, color: t.warning, fontSize: 16, fontWeight: 'bold' },
+    levelUp: { marginTop: 6, color: t.info, fontSize: 15, fontWeight: 'bold', letterSpacing: 1 },
+    prompt: { marginTop: 26, color: t.textMuted, fontSize: 13 },
+  });

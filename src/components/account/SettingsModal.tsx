@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Switch,
 } from 'react-native';
 import { AuthUser } from '../../services/AuthService';
+import { useTheme, useThemeControls } from '../../hooks/useTheme';
+import type { ThemeName, ThemeTokens } from '../../constants/theme';
 
 const PRIVACY_POLICY_URL = 'https://lapease32.github.io/walking-rpg-app/privacy-policy.html';
 
@@ -42,6 +44,9 @@ export default function SettingsModal({
   autoResolveBelowRare,
   onToggleAutoResolveBelowRare,
 }: SettingsModalProps) {
+  const theme = useTheme();
+  const { themeName, setThemeName } = useThemeControls();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const isSignedIn = authUser && !authUser.isAnonymous;
   const displayName = authUser?.displayName ?? authUser?.email ?? 'Signed in';
 
@@ -73,7 +78,7 @@ export default function SettingsModal({
               <Text style={styles.sectionTitle}>Account</Text>
 
               {authLoading ? (
-                <ActivityIndicator style={styles.loader} color="#2196F3" />
+                <ActivityIndicator style={styles.loader} color={theme.accent} />
               ) : isSignedIn ? (
                 <View>
                   <Text style={styles.sectionDescription}>
@@ -126,6 +131,37 @@ export default function SettingsModal({
               </View>
             </View>
 
+            {/* Appearance section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Appearance</Text>
+              <View style={styles.settingRow}>
+                <View style={styles.settingRowText}>
+                  <Text style={styles.settingLabel}>Theme</Text>
+                  <Text style={styles.settingDescription}>
+                    Night is the game&apos;s home key. Day is a weathered, daylit palette — easier
+                    to read in bright sun.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.themeRow}>
+                {(['night', 'day'] as ThemeName[]).map(name => (
+                  <TouchableOpacity
+                    key={name}
+                    testID={`theme-option-${name}`}
+                    style={[styles.themeOption, themeName === name && styles.themeOptionActive]}
+                    onPress={() => setThemeName(name)}>
+                    <Text
+                      style={[
+                        styles.themeOptionText,
+                        themeName === name && styles.themeOptionTextActive,
+                      ]}>
+                      {name === 'night' ? 'Night' : 'Day'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             {/* Legal section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Legal</Text>
@@ -140,139 +176,166 @@ export default function SettingsModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    minHeight: '50%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  modalBody: {
-    flex: 1,
-  },
-  section: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  settingRowText: {
-    flex: 1,
-    marginRight: 12,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  settingDescription: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
-  loader: {
-    marginVertical: 16,
-  },
-  googleButton: {
-    backgroundColor: '#4285F4',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  googleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  appleButton: {
-    backgroundColor: '#000000',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  signOutButton: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  signOutButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkText: {
-    fontSize: 16,
-    color: '#2196F3',
-  },
-  deleteAccountButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  deleteAccountButtonText: {
-    color: '#C62828',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: t.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      minHeight: '50%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: t.text,
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: t.surfaceAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonText: {
+      fontSize: 20,
+      color: t.textSecondary,
+      fontWeight: 'bold',
+    },
+    modalBody: {
+      flex: 1,
+    },
+    section: {
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 8,
+    },
+    sectionDescription: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    settingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    settingRowText: {
+      flex: 1,
+      marginRight: 12,
+    },
+    settingLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: t.text,
+      marginBottom: 4,
+    },
+    settingDescription: {
+      fontSize: 13,
+      color: t.textSecondary,
+      lineHeight: 18,
+    },
+    loader: {
+      marginVertical: 16,
+    },
+    googleButton: {
+      backgroundColor: t.info,
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    googleButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    appleButton: {
+      backgroundColor: t.bg,
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    appleButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    signOutButton: {
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    signOutButtonText: {
+      color: t.textSecondary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    themeRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 4,
+    },
+    themeOption: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.surfaceAlt,
+      alignItems: 'center',
+    },
+    themeOptionActive: {
+      backgroundColor: t.accent,
+      borderColor: t.accent,
+    },
+    themeOptionText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+    },
+    themeOptionTextActive: {
+      color: t.onAccent,
+    },
+    linkText: {
+      fontSize: 16,
+      color: t.info,
+    },
+    deleteAccountButton: {
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    deleteAccountButtonText: {
+      color: t.danger,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+  });

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Encounter } from '../../models/Encounter';
 import { getRarityColor } from '../../constants/rarity';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 import PressableScale from '../common/PressableScale';
 import StatIcon from '../icons/StatIcon';
 import CreaturePlate from './CreaturePlate';
@@ -18,10 +20,14 @@ interface Props {
 }
 
 export default function WorthyFoeCard({ foe, onFight }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   if (!foe) {
     return null;
   }
   const { creature } = foe;
+  // Rarity is game semantics, not theme — it stays constant across day/night.
   const color = getRarityColor(creature.rarity);
 
   return (
@@ -31,7 +37,7 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
       style={[styles.card, { borderColor: color, shadowColor: color }]}
       testID="worthy-foe-card">
       <View style={styles.labelRow}>
-        <StatIcon stat="attack" size={12} color="#FFB74D" />
+        <StatIcon stat="attack" size={12} color={theme.warning} />
         <Text style={styles.label}> A WORTHY FOE STALKS YOU</Text>
       </View>
       <View style={styles.plateWrap}>
@@ -58,31 +64,38 @@ export default function WorthyFoeCard({ foe, onFight }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
-    backgroundColor: '#11202E',
-    borderRadius: 14,
-    borderWidth: 2,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
-  },
-  labelRow: { flexDirection: 'row', alignItems: 'center' },
-  plateWrap: { marginTop: 8, marginBottom: 2, alignItems: 'center' },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: '#FFB74D' },
-  name: { fontSize: 20, fontWeight: 'bold', marginTop: 4, textAlign: 'center' },
-  meta: { fontSize: 12, fontWeight: '600', color: '#9FB3C8', marginTop: 2, letterSpacing: 1 },
-  button: {
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-    borderRadius: 10,
-  },
-  buttonText: { color: '#0B1622', fontSize: 15, fontWeight: 'bold' },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    card: {
+      marginHorizontal: 16,
+      marginVertical: 8,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 14,
+      borderWidth: 2,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      shadowOpacity: 0.6,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 8,
+    },
+    labelRow: { flexDirection: 'row', alignItems: 'center' },
+    plateWrap: { marginTop: 8, marginBottom: 2, alignItems: 'center' },
+    label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: t.warning },
+    name: { fontSize: 20, fontWeight: 'bold', marginTop: 4, textAlign: 'center' },
+    meta: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginTop: 2,
+      letterSpacing: 1,
+    },
+    button: {
+      marginTop: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 28,
+      borderRadius: 10,
+    },
+    buttonText: { color: t.onAccent, fontSize: 15, fontWeight: 'bold' },
+  });

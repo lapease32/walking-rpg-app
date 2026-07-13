@@ -1,5 +1,5 @@
 import logger from '../utils/logger';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,11 +42,15 @@ import ArchetypeSelectionScreen from './ArchetypeSelectionScreen';
 import { APP_CONFIG } from '../constants/config';
 import { ENV_CONFIG } from '../constants/environment';
 import { EquipmentSlot } from '../models/Player';
+import { useTheme } from '../hooks/useTheme';
+import type { ThemeTokens } from '../constants/theme';
 
 /**
  * Main home screen with location tracking and encounter handling
  */
 export default function HomeScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const {
     player,
     playerRef,
@@ -394,7 +398,7 @@ export default function HomeScreen() {
                 setShowSettingsModal(true);
               }}
               activeOpacity={0.7}>
-              <SettingsIcon size={22} color="#444" />
+              <SettingsIcon size={22} color={theme.textSecondary} />
             </TouchableOpacity>
             <Text style={styles.title}>StrideQuest</Text>
           </View>
@@ -437,7 +441,7 @@ export default function HomeScreen() {
                 styles.statusIndicator,
                 {
                   backgroundColor:
-                    isTracking || LocationService.getIsTracking() ? '#4CAF50' : '#9E9E9E',
+                    isTracking || LocationService.getIsTracking() ? theme.success : theme.textMuted,
                 },
               ]}
             />
@@ -588,161 +592,162 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  // Offset the ScrollView FRAME below the absolute top banner so a pinned sticky header clears it.
-  scrollViewBetaTopOffset: {
-    marginTop: 60, // banner height (Android; banner sits at top: 0)
-  },
-  scrollViewBetaTopOffsetIOS: {
-    marginTop: 120, // banner offset from Dynamic Island (59) + banner height (~60)
-  },
-  scrollViewWithBetaBottom: {
-    paddingBottom: 60, // Add padding when beta indicator is at bottom
-  },
-  scrollView: {
-    flex: 1,
-  },
-  contentTop: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  // Opaque wrapper (matches the screen bg) so that when the worthy-foe card is pinned (sticky),
-  // scrolled content never shows through around the card's own margins.
-  stickyFoeWrap: {
-    backgroundColor: '#f5f5f5',
-  },
-  contentRest: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    position: 'relative',
-  },
-  settingsButton: {
-    position: 'absolute',
-    left: 0,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 22,
-    backgroundColor: '#F5F5F5',
-    zIndex: 10,
-  },
-  settingsButtonText: {
-    fontSize: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    flex: 1,
-    color: '#333',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-  statusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  statusText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
-  },
-  locationInfo: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-  locationLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  locationText: {
-    fontSize: 12,
-    color: '#333',
-    fontFamily: 'monospace',
-  },
-  speedText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  trackButton: {
-    padding: 16,
-    borderRadius: 8,
-    marginVertical: 16,
-    alignItems: 'center',
-  },
-  startButton: {
-    backgroundColor: '#4CAF50',
-  },
-  stopButton: {
-    backgroundColor: '#F44336',
-  },
-  trackButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  infoText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  inventoryButton: {
-    padding: 12,
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-    marginVertical: 8,
-    marginHorizontal: 16,
-    alignItems: 'center',
-  },
-  inventoryButtonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inventoryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  minimizedEncounterButton: {
-    padding: 12,
-    backgroundColor: '#FF9800',
-    borderRadius: 8,
-    marginVertical: 8,
-    alignItems: 'center',
-  },
-  minimizedEncounterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  minimizedEncounterText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.surfaceAlt,
+    },
+    // Offset the ScrollView FRAME below the absolute top banner so a pinned sticky header clears it.
+    scrollViewBetaTopOffset: {
+      marginTop: 60, // banner height (Android; banner sits at top: 0)
+    },
+    scrollViewBetaTopOffsetIOS: {
+      marginTop: 120, // banner offset from Dynamic Island (59) + banner height (~60)
+    },
+    scrollViewWithBetaBottom: {
+      paddingBottom: 60, // Add padding when beta indicator is at bottom
+    },
+    scrollView: {
+      flex: 1,
+    },
+    contentTop: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    // Opaque wrapper (matches the screen bg) so that when the worthy-foe card is pinned (sticky),
+    // scrolled content never shows through around the card's own margins.
+    stickyFoeWrap: {
+      backgroundColor: t.surfaceAlt,
+    },
+    contentRest: {
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+    },
+    titleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+      position: 'relative',
+    },
+    settingsButton: {
+      position: 'absolute',
+      left: 0,
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 22,
+      backgroundColor: t.surfaceAlt,
+      zIndex: 10,
+    },
+    settingsButtonText: {
+      fontSize: 20,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      flex: 1,
+      color: t.text,
+    },
+    statusContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 12,
+      backgroundColor: t.surface,
+      borderRadius: 8,
+      marginVertical: 8,
+    },
+    statusIndicator: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginRight: 8,
+    },
+    statusText: {
+      fontSize: 16,
+      color: t.text,
+      fontWeight: '600',
+    },
+    locationInfo: {
+      padding: 12,
+      backgroundColor: t.surface,
+      borderRadius: 8,
+      marginVertical: 8,
+    },
+    locationLabel: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginBottom: 4,
+    },
+    locationText: {
+      fontSize: 12,
+      color: t.text,
+      fontFamily: 'monospace',
+    },
+    speedText: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginTop: 4,
+    },
+    trackButton: {
+      padding: 16,
+      borderRadius: 8,
+      marginVertical: 16,
+      alignItems: 'center',
+    },
+    startButton: {
+      backgroundColor: t.success,
+    },
+    stopButton: {
+      backgroundColor: t.danger,
+    },
+    trackButtonText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    infoText: {
+      textAlign: 'center',
+      color: t.textSecondary,
+      fontSize: 14,
+      marginTop: 8,
+      fontStyle: 'italic',
+    },
+    inventoryButton: {
+      padding: 12,
+      backgroundColor: t.info,
+      borderRadius: 8,
+      marginVertical: 8,
+      marginHorizontal: 16,
+      alignItems: 'center',
+    },
+    inventoryButtonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    inventoryButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    minimizedEncounterButton: {
+      padding: 12,
+      backgroundColor: t.warning,
+      borderRadius: 8,
+      marginVertical: 8,
+      alignItems: 'center',
+    },
+    minimizedEncounterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    minimizedEncounterText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+  });

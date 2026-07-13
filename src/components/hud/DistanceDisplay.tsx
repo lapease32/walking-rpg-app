@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface DistanceDisplayProps {
   distance: number;
@@ -10,6 +12,8 @@ interface DistanceDisplayProps {
  * Display component for showing distance traveled
  */
 export default function DistanceDisplay({ distance, unit = 'km' }: DistanceDisplayProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const formatDistance = (meters: number): string => {
     if (unit === 'km') {
       const km = meters / 1000;
@@ -35,22 +39,23 @@ export default function DistanceDisplay({ distance, unit = 'km' }: DistanceDispl
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  label: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  value: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    container: {
+      padding: 16,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      alignItems: 'center',
+      marginVertical: 8,
+    },
+    label: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginBottom: 4,
+    },
+    value: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: t.text,
+    },
+  });

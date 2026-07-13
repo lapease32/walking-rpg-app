@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Equipment, EquipmentSlot } from '../../models/Player';
 import ItemSlotIcon from '../icons/ItemSlotIcon';
 import { getRarityColor } from '../../constants/rarity';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface EquipmentProps {
   equipment: Equipment;
@@ -13,6 +15,8 @@ interface EquipmentProps {
  * Component to display player equipment slots
  */
 export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const slotLabels: Record<keyof Equipment, string> = {
     weapon: 'Weapon',
     offhand: 'Offhand',
@@ -34,7 +38,7 @@ export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentPr
         <ItemSlotIcon
           slot={slotKey}
           size={30}
-          color={isEmpty || !item ? '#78909c' : getRarityColor(item.rarity)}
+          color={isEmpty || !item ? theme.textMuted : getRarityColor(item.rarity)}
           style={styles.slotIcon}
         />
         <Text style={[styles.slotLabel, isEmpty && styles.emptySlotText]}>
@@ -101,95 +105,96 @@ export default function EquipmentDisplay({ equipment, onSlotPress }: EquipmentPr
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-  },
-  slotsGrid: {
-    gap: 12,
-  },
-  weaponRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  equipmentRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  accessoriesRow: {
-    marginTop: 8,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-  },
-  accessoriesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  slotContainer: {
-    flex: 1,
-    maxWidth: '48%',
-  },
-  slot: {
-    padding: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    alignItems: 'center',
-    minHeight: 100,
-    justifyContent: 'center',
-  },
-  emptySlot: {
-    backgroundColor: '#fafafa',
-    borderColor: '#d0d0d0',
-    borderStyle: 'dashed',
-  },
-  slotIcon: {
-    marginBottom: 8,
-  },
-  slotLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  emptySlotText: {
-    color: '#999',
-  },
-  emptyText: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  itemInfo: {
-    marginTop: 4,
-    alignItems: 'center',
-  },
-  itemName: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-  },
-  itemLevel: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 2,
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    container: {
+      padding: 16,
+      backgroundColor: t.surface,
+      borderRadius: 8,
+      marginVertical: 8,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 16,
+    },
+    slotsGrid: {
+      gap: 12,
+    },
+    weaponRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    equipmentRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    accessoriesRow: {
+      marginTop: 8,
+    },
+    sectionLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      marginBottom: 8,
+    },
+    accessoriesContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    slotContainer: {
+      flex: 1,
+      maxWidth: '48%',
+    },
+    slot: {
+      padding: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: t.divider,
+      alignItems: 'center',
+      minHeight: 100,
+      justifyContent: 'center',
+    },
+    emptySlot: {
+      backgroundColor: t.surfaceRaised,
+      borderColor: t.border,
+      borderStyle: 'dashed',
+    },
+    slotIcon: {
+      marginBottom: 8,
+    },
+    slotLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.text,
+      marginBottom: 4,
+    },
+    emptySlotText: {
+      color: t.textMuted,
+    },
+    emptyText: {
+      fontSize: 12,
+      color: t.textMuted,
+      fontStyle: 'italic',
+    },
+    itemInfo: {
+      marginTop: 4,
+      alignItems: 'center',
+    },
+    itemName: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: t.text,
+      textAlign: 'center',
+    },
+    itemLevel: {
+      fontSize: 10,
+      color: t.textSecondary,
+      marginTop: 2,
+    },
+  });
