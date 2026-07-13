@@ -1,5 +1,14 @@
 import type { CreatureBody, CreatureAnimState } from './types';
 import SumpOozeBody from './SumpOozeBody';
+import ForestSpriteBody from './ForestSpriteBody';
+import UrbanPhantomBody from './UrbanPhantomBody';
+import AlleyCurBody from './AlleyCurBody';
+import GutterSwarmBody from './GutterSwarmBody';
+import MossbackToadBody from './MossbackToadBody';
+import GritGolemlingBody from './GritGolemlingBody';
+import PaleStrayBody from './PaleStrayBody';
+import AshWretchBody from './AshWretchBody';
+import CopperSentinelBody from './CopperSentinelBody';
 
 /**
  * Hand-authored vector creature bodies, keyed by the creature template `id` (see
@@ -12,7 +21,17 @@ import SumpOozeBody from './SumpOozeBody';
  * Rive/Skia body behind the same component without touching callers. Pilot: `sump_ooze`.
  */
 export const CREATURE_BODIES: Record<string, CreatureBody> = {
+  // Common tier
   sump_ooze: SumpOozeBody,
+  forest_sprite: ForestSpriteBody,
+  urban_phantom: UrbanPhantomBody,
+  alley_cur: AlleyCurBody,
+  gutter_swarm: GutterSwarmBody,
+  mossback_toad: MossbackToadBody,
+  grit_golemling: GritGolemlingBody,
+  pale_stray: PaleStrayBody,
+  ash_wretch: AshWretchBody,
+  copper_sentinel: CopperSentinelBody,
 };
 
 /** The vector body for a creature id, or `undefined` when it should fall back to the emblem. */
