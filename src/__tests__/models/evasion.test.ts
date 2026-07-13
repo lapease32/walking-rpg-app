@@ -103,7 +103,10 @@ describe('applyEvasionDamage', () => {
     ['glancing', 20, 10],
     ['glancing', 21, 10], // floor(21 × 0.5)
     ['glancing', 1, 1], // never drops a glancing hit below 1
+    ['glancing', 0, 0], // but never INVENTS damage on a fully-resisted/immune 0 hit
+    ['normal', 0, 0],
     ['dodged', 20, 0],
+    ['dodged', 0, 0],
   ];
   it.each(cases)('%s of %d → %d', (outcome, base, expected) => {
     expect(applyEvasionDamage(base, outcome)).toBe(expected);

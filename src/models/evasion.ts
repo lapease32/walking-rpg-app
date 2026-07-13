@@ -82,9 +82,13 @@ export function rollEvasion(params: {
   return { outcome: 'normal', nextDodgeStreak: dodgeStreak + 1 };
 }
 
-/** Apply an evasion outcome to a mitigated base damage. Glancing floors to a minimum of 1. */
+/**
+ * Apply an evasion outcome to a mitigated base damage. A glancing hit is half (floored) with a
+ * minimum of 1 — BUT only when the hit already dealt something: a fully-resisted/immune 0-damage
+ * swing stays 0 (glancing must never invent chip damage that a normal hit wouldn't deal).
+ */
 export function applyEvasionDamage(baseDamage: number, outcome: EvadeOutcome): number {
-  if (outcome === 'dodged') {
+  if (outcome === 'dodged' || baseDamage <= 0) {
     return 0;
   }
   if (outcome === 'glancing') {

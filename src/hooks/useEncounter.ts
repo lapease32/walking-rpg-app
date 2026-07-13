@@ -988,25 +988,33 @@ export function useEncounter({
       const dmgType = ability.damageType;
       const resist = classifyResist(creature.resistances[dmgType] ?? 0);
       const evadeTag = evasion.outcome === 'normal' ? undefined : evasion.outcome;
-      const tags: CombatLogTag[] = [...(resistTags(resist) ?? []), ...(evadeTag ? [evadeTag] : [])];
-      pushHit({
-        target: 'creature',
-        amount: dealt,
-        damageType: dmgType,
-        resist,
-        kind: 'hit',
-        targetMaxHp: creature.maxHp,
-        evade: evadeTag,
-      });
-      pushLog({
-        kind: 'attack',
-        actor: 'player',
-        target: 'creature',
-        amount: dealt,
-        damageType: dmgType,
-        source: ability.name,
-        tags: tags.length > 0 ? tags : undefined,
-      });
+      // Emit a tell only when something visible happened: real damage dealt, or a genuine dodge of a
+      // hit that WOULD have dealt damage. A fully-resisted 0-damage swing stays silent (as before this
+      // feature) rather than surfacing a misleading "0"/"MISS".
+      if (dealt > 0 || (evasion.outcome === 'dodged' && abilityResult.damage > 0)) {
+        const tags: CombatLogTag[] = [
+          ...(resistTags(resist) ?? []),
+          ...(evadeTag ? [evadeTag] : []),
+        ];
+        pushHit({
+          target: 'creature',
+          amount: dealt,
+          damageType: dmgType,
+          resist,
+          kind: 'hit',
+          targetMaxHp: creature.maxHp,
+          evade: evadeTag,
+        });
+        pushLog({
+          kind: 'attack',
+          actor: 'player',
+          target: 'creature',
+          amount: dealt,
+          damageType: dmgType,
+          source: ability.name,
+          tags: tags.length > 0 ? tags : undefined,
+        });
+      }
     }
     if (abilityResult.heal > 0) {
       updatedPlayer.restoreHp(abilityResult.heal);
