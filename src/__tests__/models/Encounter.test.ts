@@ -102,6 +102,12 @@ describe('Encounter', () => {
       const encounter = Encounter.createRandomEncounter(makeLocation(), 1);
       expect(encounter.status).toBe('active');
     });
+
+    it('records the daylight at spawn, so the stage art matches the light that chose the creature', () => {
+      const encounter = Encounter.createRandomEncounter(makeLocation(), 1);
+      // Derived from the real sun at the encounter's coordinates — a concrete boolean, either way.
+      expect(typeof encounter.daylight).toBe('boolean');
+    });
   });
 
   describe('rarityOverride (debug forcing)', () => {
