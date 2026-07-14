@@ -15,7 +15,13 @@ import {
 } from 'react-native';
 import { AuthUser } from '../../services/AuthService';
 import { useTheme, useThemeControls } from '../../hooks/useTheme';
-import type { ThemeName, ThemeTokens } from '../../constants/theme';
+import type { ThemePreference, ThemeTokens } from '../../constants/theme';
+
+const THEME_OPTION_LABELS: Record<ThemePreference, string> = {
+  auto: 'Auto',
+  night: 'Night',
+  day: 'Day',
+};
 
 const PRIVACY_POLICY_URL = 'https://lapease32.github.io/walking-rpg-app/privacy-policy.html';
 
@@ -45,7 +51,7 @@ export default function SettingsModal({
   onToggleAutoResolveBelowRare,
 }: SettingsModalProps) {
   const theme = useTheme();
-  const { themeName, setThemeName } = useThemeControls();
+  const { themeName, preference, setPreference } = useThemeControls();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const isSignedIn = authUser && !authUser.isAnonymous;
   const displayName = authUser?.displayName ?? authUser?.email ?? 'Signed in';
@@ -144,22 +150,28 @@ export default function SettingsModal({
                 </View>
               </View>
               <View style={styles.themeRow}>
-                {(['night', 'day'] as ThemeName[]).map(name => (
+                {(['auto', 'night', 'day'] as ThemePreference[]).map(option => (
                   <TouchableOpacity
-                    key={name}
-                    testID={`theme-option-${name}`}
-                    style={[styles.themeOption, themeName === name && styles.themeOptionActive]}
-                    onPress={() => setThemeName(name)}>
+                    key={option}
+                    testID={`theme-option-${option}`}
+                    style={[styles.themeOption, preference === option && styles.themeOptionActive]}
+                    onPress={() => setPreference(option)}>
                     <Text
                       style={[
                         styles.themeOptionText,
-                        themeName === name && styles.themeOptionTextActive,
+                        preference === option && styles.themeOptionTextActive,
                       ]}>
-                      {name === 'night' ? 'Night' : 'Day'}
+                      {THEME_OPTION_LABELS[option]}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              {preference === 'auto' && (
+                <Text style={styles.themeHint}>
+                  Following the sun — currently {themeName === 'day' ? 'day' : 'night'} where you
+                  are.
+                </Text>
+              )}
             </View>
 
             {/* Legal section */}
@@ -324,6 +336,12 @@ const makeStyles = (t: ThemeTokens) =>
     },
     themeOptionTextActive: {
       color: t.onAccent,
+    },
+    themeHint: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 8,
+      fontStyle: 'italic',
     },
     linkText: {
       fontSize: 16,
