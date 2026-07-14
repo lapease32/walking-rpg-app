@@ -15,6 +15,61 @@ export interface CreatureTemplate {
   description?: string;
   encounterRate: number;
   resistances?: Partial<Resistances>;
+  /** Overrides the type default — see SPAWN_WINDOW_BY_TYPE / spawnWindowFor. */
+  spawnWindow?: SpawnWindow;
+}
+
+/**
+ * When a creature can be met. The axis is MUNDANE vs SUPERNATURAL, not "friendly vs scary":
+ * daylight creatures are still horrible — a mangy street hound, a boiling knot of vermin — they're
+ * just things that could plausibly exist. Night is for the things that shouldn't.
+ */
+export type SpawnWindow = 'day' | 'night' | 'any';
+
+/**
+ * The creature `type` already encodes the mundane/supernatural axis, so it supplies the default
+ * spawn window and almost no creature needs an explicit one. A template can still override via
+ * `spawnWindow` when its flavour disagrees with its element.
+ */
+export const SPAWN_WINDOW_BY_TYPE: Record<string, SpawnWindow> = {
+  // Mundane — grounded, believable, could exist. Daylight.
+  Beast: 'day',
+  Vermin: 'day',
+  Earth: 'day',
+  Construct: 'day',
+  Nature: 'day',
+  // Supernatural — things that shouldn't exist. Night.
+  Shadow: 'night',
+  Undead: 'night',
+  Spirit: 'night',
+  Arcane: 'night',
+  // Elemental / liminal — at home in either light.
+  Fire: 'any',
+  Frost: 'any',
+  Water: 'any',
+  Air: 'any',
+  Ooze: 'any',
+  Fungus: 'any',
+};
+
+/** A template's spawn window: its explicit override, else its type default, else 'any'. */
+export function spawnWindowFor(
+  template: Pick<CreatureTemplate, 'type' | 'spawnWindow'>,
+): SpawnWindow {
+  return template.spawnWindow ?? SPAWN_WINDOW_BY_TYPE[template.type] ?? 'any';
+}
+
+/** Can this template be met right now? `daylight` comes from the REAL sun (models/sun) — never from
+ *  the app's theme, which is only a cosmetic preference (a theme toggle must not be a spawn switch). */
+export function canSpawnAt(
+  template: Pick<CreatureTemplate, 'type' | 'spawnWindow'>,
+  daylight: boolean,
+): boolean {
+  const window = spawnWindowFor(template);
+  if (window === 'any') {
+    return true;
+  }
+  return daylight ? window === 'day' : window === 'night';
 }
 
 export interface CreatureConstructorParams {
@@ -249,6 +304,9 @@ export const CREATURE_TEMPLATES: CreatureTemplate[] = [
     description: 'A mountain given wrath; its every step splits the earth.',
     encounterRate: 0.06,
     resistances: { fire: 0.4, physical: 0.15, frost: -0.2 },
+    // Overrides its Earth default (day). A fire-forged titan is ELEMENTAL, not mundane — and epic
+    // had only one night-eligible template, so every epic night encounter would be the same foe.
+    spawnWindow: 'any',
   },
   {
     id: 'tempest_djinn',
@@ -527,20 +585,45 @@ export function rollEncounterRarity(playerLevel: number): Rarity {
  * Pick an encounter creature template weighted by player level: roll a rarity (level-scaled),
  * then a uniform-random template of that rarity. Falls back to the full pool if no template of
  * the rolled rarity exists (keeps the function safe if the template set changes).
+ *
+ * `daylight` (from the REAL sun — see models/sun) narrows WHICH creature you meet, never HOW GOOD
+ * the encounter is: see pickEncounterTemplateOfRarity for why rarity is untouched.
  */
-export function pickEncounterTemplate(playerLevel: number = 1): CreatureTemplate {
+export function pickEncounterTemplate(
+  playerLevel: number = 1,
+  daylight?: boolean,
+): CreatureTemplate {
   const rarity = rollEncounterRarity(playerLevel);
-  return pickEncounterTemplateOfRarity(rarity);
+  return pickEncounterTemplateOfRarity(rarity, daylight);
 }
 
 /**
- * Pick a random template of a SPECIFIC rarity — used by debug encounter-forcing to reliably spawn a
- * common (→ passive) or elite (→ held) creature. Falls back to the full pool if no template of that
- * rarity exists (e.g. legendary, none authored yet), so callers always get a real template.
+ * Pick a random template of a SPECIFIC rarity — also used by debug encounter-forcing to reliably
+ * spawn a common (→ passive) or elite (→ held) creature.
+ *
+ * TIME OF DAY IS COSMETIC. The rarity is decided BEFORE this function is reached, and the day/night
+ * filter is applied strictly WITHIN that rarity's pool — so the rarity distribution (and therefore
+ * loot, XP and progression) is provably identical by day and by night. Night is DIFFERENT, never
+ * BETTER: a game that rewarded night walking would be pushing people to walk alone in the dark.
+ *
+ * If a rarity has no time-eligible template, we fall back to that rarity's full pool rather than
+ * re-rolling — re-rolling would skew the rarity odds, which is exactly the balance impact this is
+ * designed to avoid. (Falling back to ALL templates likewise guards a rarity with no templates.)
  */
-export function pickEncounterTemplateOfRarity(rarity: Rarity): CreatureTemplate {
+export function pickEncounterTemplateOfRarity(
+  rarity: Rarity,
+  daylight?: boolean,
+): CreatureTemplate {
   const ofRarity = CREATURE_TEMPLATES.filter(t => t.rarity === rarity);
-  const pool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
+  const rarityPool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
+
+  // `undefined` = caller has no sun information (e.g. a unit test, or a debug force) → no filter.
+  if (daylight === undefined) {
+    return rarityPool[Math.floor(Math.random() * rarityPool.length)];
+  }
+
+  const inWindow = rarityPool.filter(t => canSpawnAt(t, daylight));
+  const pool = inWindow.length > 0 ? inWindow : rarityPool;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
