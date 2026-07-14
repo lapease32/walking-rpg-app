@@ -63,7 +63,14 @@ export interface ThemeTokens {
   statusBar: 'light-content' | 'dark-content';
 }
 
+/** A resolved palette — what actually gets rendered. */
 export type ThemeName = 'night' | 'day';
+
+/**
+ * What the PLAYER picked. `auto` follows the real sun at their coordinates (see models/sun) — the
+ * whole point of a walking game: you're outside, so the app is lit like the world is.
+ */
+export type ThemePreference = ThemeName | 'auto';
 
 export const NIGHT: ThemeTokens = {
   bg: '#0A0A0E',
@@ -134,6 +141,31 @@ export const DAY: ThemeTokens = {
 };
 
 export const THEMES: Record<ThemeName, ThemeTokens> = { night: NIGHT, day: DAY };
+
+/** With `auto` selected and no fix on the player's position yet, fall back to the game's home key. */
+export const DEFAULT_THEME_NAME: ThemeName = 'night';
+
+/**
+ * Resolve the player's preference into a palette. Pure — the sun and the clock are inputs, so every
+ * branch is unit-testable and the provider stays a thin shell.
+ *
+ * An explicit night/day choice always wins; `auto` follows the sun at the given coordinates, and
+ * falls back to night when we don't have a position yet (permission not granted, no fix, etc.).
+ */
+export function resolveThemeName(
+  preference: ThemePreference,
+  now: Date,
+  coords: { latitude: number; longitude: number } | null,
+  daylight: (date: Date, latitude: number, longitude: number) => boolean,
+): ThemeName {
+  if (preference !== 'auto') {
+    return preference;
+  }
+  if (!coords) {
+    return DEFAULT_THEME_NAME;
+  }
+  return daylight(now, coords.latitude, coords.longitude) ? 'day' : 'night';
+}
 
 /** HP-bar fill by remaining fraction — themed, so it stays legible on both grounds. */
 export function hpColor(hp: number, maxHp: number, t: ThemeTokens): string {

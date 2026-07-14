@@ -4,7 +4,7 @@ import { PlayerData } from '../models/Player';
 import { CreatureConstructorParams, Rarity } from '../models/Creature';
 import { Item } from '../models/Item';
 import { Location, EncounterStatus, ENCOUNTER_STATUSES } from '../models/Encounter';
-import type { ThemeName } from '../constants/theme';
+import type { ThemeName, ThemePreference } from '../constants/theme';
 import CloudSyncService from '../services/CloudSyncService';
 
 /**
@@ -40,7 +40,12 @@ export interface PendingConflictRecord {
  * consumers) so a bad key is a compile error. New settings add a field here.
  */
 export interface AppSettings {
-  /** Which palette the player picked. Absent = the default (night). */
+  /** What the player picked: 'auto' (follow the real sun), 'night', or 'day'. Absent = 'auto'. */
+  themePreference?: ThemePreference;
+  /**
+   * @deprecated Superseded by `themePreference` when 'auto' was introduced. Still READ, so a save
+   * written before the sun clock keeps the player's explicit night/day choice; never written.
+   */
   themeName?: ThemeName;
 }
 

@@ -7,67 +7,202 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { NIGHT, THEMES, type ThemeName, type ThemeTokens } from '../constants/theme';
+import { AppState } from 'react-native';
+import {
+  THEMES,
+  NIGHT,
+  DEFAULT_THEME_NAME,
+  resolveThemeName,
+  type ThemeName,
+  type ThemePreference,
+  type ThemeTokens,
+} from '../constants/theme';
+import { isDaylight } from '../models/sun';
+import LocationService from '../services/LocationService';
 import { loadSettings, saveSettings } from '../utils/storage';
 import logger from '../utils/logger';
 
 /**
  * Theme context — hands every component its palette (see constants/theme).
  *
- * The player's choice persists in AppSettings. Default is NIGHT (the game's home key); DAY is the
- * grim-but-daylit palette, not a light mode.
+ * The player picks night, day, or AUTO. Auto follows the real sun at their coordinates: a walking
+ * game is played outside, so the app is lit the way the world is. That makes the light/dark question
+ * diegetic instead of a settings preference.
  *
- * A follow-up adds an 'auto' preference that follows the real sunrise/sunset — this provider is the
- * seam for it: only `resolveThemeName` changes, every consumer stays put.
+ * Coordinates come from the position LocationService has already cached for the walking loop — no
+ * extra permission, no extra fix, no network. If there's no position yet, auto falls back to night.
  */
 interface ThemeContextValue {
   theme: ThemeTokens;
+  /** The palette actually being rendered. */
   themeName: ThemeName;
-  setThemeName: (name: ThemeName) => void;
+  /** What the player chose (may be 'auto'). */
+  preference: ThemePreference;
+  setPreference: (preference: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: NIGHT,
-  themeName: 'night',
-  setThemeName: () => {},
+  themeName: DEFAULT_THEME_NAME,
+  preference: 'auto',
+  setPreference: () => {},
 });
 
-export const DEFAULT_THEME_NAME: ThemeName = 'night';
+export const DEFAULT_PREFERENCE: ThemePreference = 'auto';
+
+/** How often `auto` re-checks the sun. Pure maths on a cached position — negligible cost, and it
+ *  means the app turns over within a minute of the actual sunrise/sunset while you're walking. */
+const SUN_TICK_MS = 60_000;
+
+/** While `auto` is still waiting on the first GPS fix it has no coordinates and sits on its night
+ *  fallback — so poll fast until one lands, or a daytime cold start stays wrongly dark for a whole
+ *  tick. Drops back to SUN_TICK_MS the moment there's a position. */
+const AWAITING_FIX_MS = 3_000;
+
+/**
+ * How many fast polls to spend waiting for that first fix before giving up on the quick path.
+ * If location permission was denied — or tracking simply never started — a position will NEVER
+ * arrive, and an unbounded 3s loop would then run for the whole session on a battery-sensitive
+ * GPS app. After this many tries we drop to the slow cadence, which still costs nothing and still
+ * picks it up if the player grants permission later in the session.
+ */
+const MAX_FAST_POLLS = 10; // ~30s of fast polling — ample for a real fix
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeName, setName] = useState<ThemeName>(DEFAULT_THEME_NAME);
+  const [preference, setPref] = useState<ThemePreference>(DEFAULT_PREFERENCE);
+  const [themeName, setThemeName] = useState<ThemeName>(DEFAULT_THEME_NAME);
   // The restore below is async. If the player picks a theme BEFORE it resolves, the stale load
   // would stomp their fresh choice — so a live choice always wins over the restore.
   const userChoseRef = useRef(false);
+  // Has the persisted preference been read yet? Until it has, we do NOT know what the player
+  // picked, and `preference` is still the 'auto' default — so resolving via the sun here would
+  // flash a sun-derived palette at a returning player who explicitly chose night or day.
+  const [hydrated, setHydrated] = useState(false);
+  // The last position we've seen. LocationService deliberately CLEARS its cache whenever it
+  // switches accuracy mode — it resets the distance anchor so the network↔GPS coordinate jump
+  // isn't counted as travelled distance — and that happens routinely, e.g. when the player stops
+  // walking. A cleared cache means "the anchor was reset", NOT "we don't know where you are", so
+  // holding the last position ourselves is what stops a daytime pause from flipping the app to
+  // night. Coordinates only matter to the sun at continental scale; a stale one is harmless.
+  const lastCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  // Fast polls spent waiting for the first fix — bounded, see MAX_FAST_POLLS.
+  const fastPollsRef = useRef(0);
 
   // Restore the persisted choice once on mount; a failure just leaves the default in place.
   useEffect(() => {
     let cancelled = false;
     loadSettings()
       .then(settings => {
-        const saved = settings?.themeName;
-        if (!cancelled && !userChoseRef.current && (saved === 'night' || saved === 'day')) {
-          setName(saved);
+        // `themeName` is the pre-sun-clock field: honour an explicit night/day choice made before
+        // 'auto' existed rather than silently resetting the player to auto.
+        const saved = settings?.themePreference ?? settings?.themeName;
+        if (
+          !cancelled &&
+          !userChoseRef.current &&
+          (saved === 'night' || saved === 'day' || saved === 'auto')
+        ) {
+          setPref(saved);
         }
       })
-      .catch(error => logger.warn('Failed to load theme preference', error));
+      .catch(error => logger.warn('Failed to load theme preference', error))
+      // Hydrated either way — a failed read still means "we're done guessing", and holding the
+      // default forever would leave 'auto' permanently inert.
+      .finally(() => {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const setThemeName = useCallback((name: ThemeName) => {
+  // Resolve preference → palette. For 'auto' this re-checks the sun on a tick and whenever the app
+  // returns to the foreground (a walk can easily straddle sunset with the screen off).
+  useEffect(() => {
+    // Hold the default palette until we know the player's choice — UNLESS they've just made one,
+    // in which case it must apply immediately rather than waiting on the read.
+    if (!hydrated && !userChoseRef.current) {
+      return;
+    }
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    // Re-selecting 'auto' is a fair moment to try hard for a fix again.
+    fastPollsRef.current = 0;
+
+    // Self-scheduling rather than a fixed interval, so the cadence can ADAPT: until the first GPS
+    // fix lands there are no coordinates, `auto` sits on its night fallback, and a daytime cold
+    // start would otherwise stay wrongly dark for a full tick. Poll fast while we're waiting, then
+    // settle. Clearing any pending timer first keeps it idempotent — the AppState listener calls
+    // straight back into it, and must not stack a second timer.
+    const applyAndSchedule = () => {
+      if (stopped) {
+        return;
+      }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+
+      const cached = LocationService.getCurrentLocationCached();
+      if (cached) {
+        lastCoordsRef.current = { latitude: cached.latitude, longitude: cached.longitude };
+      }
+      // Resolve from the last position we've EVER seen, not the momentary cache — see lastCoordsRef.
+      // Only a player we've never had a fix for falls back to night.
+      const coords = lastCoordsRef.current;
+      const next = resolveThemeName(preference, new Date(), coords, isDaylight);
+      // Only set when it actually changes, so the tick never re-renders the tree for nothing.
+      setThemeName(current => (current === next ? current : next));
+
+      if (preference !== 'auto') {
+        return; // an explicit choice never changes on its own — resolve once, then stop
+      }
+      // Fast-poll only while we have never had a fix — and only for a bounded number of tries, so a
+      // denied permission (where a position will never arrive) can't leave a 3s loop running all
+      // session. Once a fix lands it never goes away again (a cleared cache no longer counts), so
+      // we settle into the slow cadence for good.
+      if (!coords) {
+        fastPollsRef.current += 1;
+      }
+      const stillWaitingFast = !coords && fastPollsRef.current <= MAX_FAST_POLLS;
+      timer = setTimeout(applyAndSchedule, stillWaitingFast ? AWAITING_FIX_MS : SUN_TICK_MS);
+    };
+
+    applyAndSchedule();
+
+    // A walk easily straddles sunset with the screen off, so re-resolve on foreground too.
+    const sub =
+      preference === 'auto'
+        ? AppState.addEventListener('change', state => {
+            if (state === 'active') {
+              applyAndSchedule();
+            }
+          })
+        : null;
+
+    return () => {
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      sub?.remove();
+    };
+  }, [preference, hydrated]);
+
+  const setPreference = useCallback((next: ThemePreference) => {
     userChoseRef.current = true;
-    setName(name);
+    setPref(next);
     // Persist alongside any other settings rather than clobbering them.
     loadSettings()
-      .then(settings => saveSettings({ ...(settings ?? {}), themeName: name }))
+      .then(settings => saveSettings({ ...(settings ?? {}), themePreference: next }))
       .catch(error => logger.warn('Failed to persist theme preference', error));
   }, []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme: THEMES[themeName], themeName, setThemeName }),
-    [themeName, setThemeName],
+    () => ({ theme: THEMES[themeName], themeName, preference, setPreference }),
+    [themeName, preference, setPreference],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -78,8 +213,8 @@ export function useTheme(): ThemeTokens {
   return useContext(ThemeContext).theme;
 }
 
-/** The active theme name + setter — for the Settings toggle. */
+/** The player's preference + the resolved palette — for the Settings control. */
 export function useThemeControls(): Omit<ThemeContextValue, 'theme'> {
-  const { themeName, setThemeName } = useContext(ThemeContext);
-  return { themeName, setThemeName };
+  const { themeName, preference, setPreference } = useContext(ThemeContext);
+  return { themeName, preference, setPreference };
 }

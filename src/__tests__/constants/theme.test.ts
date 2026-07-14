@@ -1,4 +1,11 @@
-import { NIGHT, DAY, THEMES, hpColor, type ThemeTokens } from '../../constants/theme';
+import {
+  NIGHT,
+  DAY,
+  THEMES,
+  hpColor,
+  resolveThemeName,
+  type ThemeTokens,
+} from '../../constants/theme';
 
 describe('theme palettes', () => {
   it('exposes both palettes through THEMES', () => {
@@ -52,5 +59,36 @@ describe('hpColor', () => {
 
   it('treats a zero maxHp as empty rather than dividing by zero', () => {
     expect(hpColor(0, 0, NIGHT)).toBe(NIGHT.danger);
+  });
+});
+
+describe('resolveThemeName', () => {
+  const coords = { latitude: 51.5, longitude: -0.13 };
+  const now = new Date('2026-06-21T12:00:00Z');
+  const alwaysDay = () => true;
+  const alwaysNight = () => false;
+
+  it('an explicit choice always wins — the sun is never consulted', () => {
+    const sun = jest.fn(() => true);
+    expect(resolveThemeName('night', now, coords, sun)).toBe('night');
+    expect(resolveThemeName('day', now, coords, sun)).toBe('day');
+    expect(sun).not.toHaveBeenCalled();
+  });
+
+  it('auto follows the sun', () => {
+    expect(resolveThemeName('auto', now, coords, alwaysDay)).toBe('day');
+    expect(resolveThemeName('auto', now, coords, alwaysNight)).toBe('night');
+  });
+
+  it('auto falls back to night when there is no position yet', () => {
+    // No GPS fix (permission not granted, cold start, indoors…) — never leave the player on a
+    // half-resolved theme; default to the game's home key.
+    expect(resolveThemeName('auto', now, null, alwaysDay)).toBe('night');
+  });
+
+  it('passes the caller-supplied clock and coordinates straight through to the sun', () => {
+    const sun = jest.fn(() => true);
+    resolveThemeName('auto', now, coords, sun);
+    expect(sun).toHaveBeenCalledWith(now, coords.latitude, coords.longitude);
   });
 });
