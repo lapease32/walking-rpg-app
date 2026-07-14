@@ -276,6 +276,7 @@ export function useEncounter({
             timestamp: pendingEncounterData.timestamp,
             playerLevel: pendingEncounterData.playerLevel,
             status: pendingEncounterData.status,
+            daylight: pendingEncounterData.daylight,
           }),
         );
       } else {
@@ -467,6 +468,7 @@ export function useEncounter({
         timestamp: encounter.timestamp,
         playerLevel: encounter.playerLevel,
         status: encounter.status,
+        daylight: encounter.daylight,
       };
       const saveSuccess = await savePendingEncounter(encounterData);
       if (!saveSuccess) {
@@ -1104,6 +1106,9 @@ export function useEncounter({
       timestamp: currentEncounterState.timestamp,
       playerLevel: currentEncounterState.playerLevel,
       status: currentEncounterState.status,
+      // Carry daylight forward — the stage keys its art + ground off it, so dropping it here would
+      // flip a day fight to a night creature on night ground after the first ability.
+      daylight: currentEncounterState.daylight,
     });
 
     encounterRef.current = updatedEncounter;
@@ -1149,6 +1154,9 @@ export function useEncounter({
       timestamp: currentEncounterState.timestamp,
       playerLevel: currentEncounterState.playerLevel,
       status: currentEncounterState.status,
+      // Carry daylight forward — the stage keys its art + ground off it, so dropping it here would
+      // flip a day fight to a night creature on night ground after the first ability.
+      daylight: currentEncounterState.daylight,
     });
 
     encounterRef.current = updatedEncounter;

@@ -58,6 +58,9 @@ export interface EncounterData {
   timestamp: number;
   playerLevel: number;
   status: EncounterStatus;
+  /** Daylight at spawn — so a held elite reloaded from storage keeps its stage art key.
+   *  Optional for backward-compat with encounters persisted before the field existed. */
+  daylight?: boolean;
 }
 
 export async function savePlayerData(player: { toJSON(): PlayerData }): Promise<boolean> {
