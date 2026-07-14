@@ -15,6 +15,8 @@ import { CloseIcon } from '../icons/UiIcon';
 import { getRarityColor } from '../../constants/rarity';
 import { Player, EquipmentSlot } from '../../models/Player';
 import ItemDetailsModal from './ItemDetailsModal';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface InventoryModalProps {
   inventory: (Item | null)[];
@@ -33,9 +35,10 @@ const STAT_DISPLAY: { key: StatKey; prefix: string }[] = [
   { key: 'defense', prefix: '' },
   { key: 'maxHp', prefix: '+' },
 ];
-const STAT_UP = '#2e7d32'; // green: beats the equipped item's stat
-const STAT_DOWN = '#c62828'; // red: worse than equipped
-const STAT_NEUTRAL = '#444'; // equal, or nothing equipped to compare against
+// Comparison tint vs the equipped item — themed, so it stays legible on both grounds.
+const statUp = (t: ThemeTokens) => t.success; // beats the equipped item's stat
+const statDown = (t: ThemeTokens) => t.danger; // worse than equipped
+const statNeutral = (t: ThemeTokens) => t.textSecondary; // equal, or nothing to compare against
 
 /**
  * Modal component for displaying player inventory
@@ -49,6 +52,8 @@ export default function InventoryModal({
   onItemDeleted,
   equipmentSlot,
 }: InventoryModalProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number>(-1);
   const [showItemDetails, setShowItemDetails] = useState<boolean>(false);
@@ -189,14 +194,14 @@ export default function InventoryModal({
               // Compare against the equipped item's same stat (treat missing as 0).
               // Only color/arrow when something is equipped to compare against.
               const equippedValue = equipped ? (equipped[key] ?? 0) : undefined;
-              let color = STAT_NEUTRAL;
+              let color = statNeutral(theme);
               let arrow = '';
               if (equippedValue !== undefined) {
                 if (value > equippedValue) {
-                  color = STAT_UP;
+                  color = statUp(theme);
                   arrow = ' ▲';
                 } else if (value < equippedValue) {
-                  color = STAT_DOWN;
+                  color = statDown(theme);
                   arrow = ' ▼';
                 }
               }
@@ -252,7 +257,7 @@ export default function InventoryModal({
               {equipmentSlot ? `${getSlotLabel(equipmentSlot)} Items` : 'Inventory'}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <CloseIcon size={18} color="#333" />
+              <CloseIcon size={18} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -267,8 +272,8 @@ export default function InventoryModal({
           </View>
           {player && (
             <Text style={styles.legend}>
-              <Text style={{ color: STAT_UP }}>▲ better</Text> /{' '}
-              <Text style={{ color: STAT_DOWN }}>▼ worse</Text> than equipped
+              <Text style={{ color: statUp(theme) }}>▲ better</Text> /{' '}
+              <Text style={{ color: statDown(theme) }}>▼ worse</Text> than equipped
             </Text>
           )}
 
@@ -298,114 +303,115 @@ export default function InventoryModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    width: '90%',
-    maxHeight: '90%',
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: '#333',
-    fontWeight: 'bold',
-  },
-  statsBar: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  statsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    textAlign: 'center',
-  },
-  legend: {
-    fontSize: 11,
-    color: '#999',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  scrollContent: {
-    paddingBottom: 10,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    fontSize: 14,
-    lineHeight: 20,
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fafafa',
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#e0e0e0',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-  },
-  rowIcon: {
-    marginRight: 12,
-  },
-  rowBody: {
-    flex: 1,
-  },
-  rowName: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  rowMeta: {
-    fontSize: 11,
-    color: '#888',
-    marginBottom: 5,
-  },
-  statRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 14,
-    marginBottom: 2,
-  },
-  statChipText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      width: '90%',
+      maxHeight: '90%',
+      padding: 20,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: t.text,
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: t.surfaceAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonText: {
+      fontSize: 18,
+      color: t.text,
+      fontWeight: 'bold',
+    },
+    statsBar: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    statsText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.textSecondary,
+      textAlign: 'center',
+    },
+    legend: {
+      fontSize: 11,
+      color: t.textMuted,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    scrollContent: {
+      paddingBottom: 10,
+    },
+    emptyText: {
+      textAlign: 'center',
+      color: t.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+      paddingVertical: 40,
+      paddingHorizontal: 20,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: t.surfaceRaised,
+      borderRadius: 10,
+      borderLeftWidth: 4,
+      borderLeftColor: t.divider,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 8,
+    },
+    rowIcon: {
+      marginRight: 12,
+    },
+    rowBody: {
+      flex: 1,
+    },
+    rowName: {
+      fontSize: 15,
+      fontWeight: 'bold',
+      marginBottom: 2,
+    },
+    rowMeta: {
+      fontSize: 11,
+      color: t.textMuted,
+      marginBottom: 5,
+    },
+    statRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+    },
+    statChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: 14,
+      marginBottom: 2,
+    },
+    statChipText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+  });

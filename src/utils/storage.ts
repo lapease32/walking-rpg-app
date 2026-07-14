@@ -4,6 +4,7 @@ import { PlayerData } from '../models/Player';
 import { CreatureConstructorParams, Rarity } from '../models/Creature';
 import { Item } from '../models/Item';
 import { Location, EncounterStatus, ENCOUNTER_STATUSES } from '../models/Encounter';
+import type { ThemeName } from '../constants/theme';
 import CloudSyncService from '../services/CloudSyncService';
 
 /**
@@ -34,8 +35,13 @@ export interface PendingConflictRecord {
   cloudSavedAt: number;
 }
 
+/**
+ * Persisted user settings. Concrete + typed (it was an untyped `[key: string]: any` bag with no
+ * consumers) so a bad key is a compile error. New settings add a field here.
+ */
 export interface AppSettings {
-  [key: string]: any;
+  /** Which palette the player picked. Absent = the default (night). */
+  themeName?: ThemeName;
 }
 
 /**

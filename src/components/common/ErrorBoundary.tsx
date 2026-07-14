@@ -57,10 +57,17 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 }
 
+/**
+ * Deliberately NOT themed. ErrorBoundary is a class component (React requires one for
+ * componentDidCatch) so it can't use the useTheme hook — and, more importantly, it sits ABOVE the
+ * ThemeProvider in the tree and renders precisely when the app has already failed. Depending on the
+ * theme context here would mean the crash screen could itself crash. So it hardcodes the NIGHT
+ * palette's values: always readable, zero dependencies.
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0A0A0E', // NIGHT.bg
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
@@ -68,19 +75,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#333333',
+    color: '#ECE7EA', // NIGHT.text
     marginBottom: 12,
     textAlign: 'center',
   },
   body: {
     fontSize: 15,
-    color: '#666666',
+    color: '#A09AA2', // NIGHT.textSecondary
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 32,
   },
   devBox: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#14141B', // NIGHT.surface
     borderRadius: 8,
     padding: 12,
     maxHeight: 200,
@@ -88,18 +95,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   devText: {
-    color: '#ff6b6b',
+    color: '#C4453B', // NIGHT.danger
     fontSize: 12,
     fontFamily: 'monospace',
   },
   button: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#FF6A2A', // NIGHT.accent
     paddingHorizontal: 40,
     paddingVertical: 14,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#ffffff',
+    color: '#14141B', // NIGHT.onAccent
     fontSize: 16,
     fontWeight: '600',
   },

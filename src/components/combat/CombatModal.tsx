@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, MutableRefObject } from 'react';
+import React, { useEffect, useMemo, useRef, MutableRefObject } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,8 @@ import CombatLog from './CombatLog';
 import CreaturePlate from './CreaturePlate';
 import { deriveCreatureAnimState } from './creatures/registry';
 import { MOTION_BAR_TIMING } from '../../constants/motion';
+import { useTheme } from '../../hooks/useTheme';
+import { hpColor, type ThemeTokens } from '../../constants/theme';
 
 interface CombatModalProps {
   encounter: Encounter | null;
@@ -51,11 +53,19 @@ interface CombatModalProps {
   isEnemyTurn: boolean;
 }
 
-const DAMAGE_TYPE_COLORS: Record<string, string> = {
-  physical: '#2196F3',
-  fire: '#FF5722',
-  frost: '#03A9F4',
-  arcane: '#9C27B0',
+/** Ability-button color by damage type — themed, so the buttons sit in the palette instead of
+ *  fighting it (the FX/floater colors stay fixed; they render on the always-dark creature plate). */
+const damageTypeColor = (type: DamageType, t: ThemeTokens): string => {
+  switch (type) {
+    case 'fire':
+      return t.fire;
+    case 'frost':
+      return t.frost;
+    case 'arcane':
+      return t.arcane;
+    default:
+      return t.physical;
+  }
 };
 
 /** Clamp a raw percentage into [0, 100] for animated bar widths. */
@@ -78,6 +88,9 @@ export default function CombatModal({
   combatLog,
   isEnemyTurn,
 }: CombatModalProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   // ─── Tier-1 combat motion: HP + resource bars ease between values instead of jumping. ───
   // Shared values hold each bar's current width % (0–100); useAnimatedStyle maps them to `width`.
   // Declared before the early return below so hook order stays stable when encounter/player are null.
@@ -200,17 +213,11 @@ export default function CombatModal({
 
   const getButtonColor = (ability: Ability): string => {
     if (ability.primitive === 'direct' || ability.primitive === 'dot') {
-      const dmgType = ability.damageType;
-      return DAMAGE_TYPE_COLORS[dmgType] ?? '#2196F3';
+      return damageTypeColor(ability.damageType, theme);
     }
-    if (ability.primitive === 'buff_debuff') return '#607D8B';
-    if (ability.primitive === 'defensive') return '#4CAF50';
-    return '#2196F3';
-  };
-
-  const hpColor = (hp: number, maxHp: number): string => {
-    const ratio = maxHp > 0 ? hp / maxHp : 0;
-    return ratio > 0.5 ? '#4CAF50' : ratio > 0.25 ? '#FF9800' : '#F44336';
+    if (ability.primitive === 'buff_debuff') return theme.textMuted;
+    if (ability.primitive === 'defensive') return theme.success;
+    return theme.physical;
   };
 
   return (
@@ -231,7 +238,7 @@ export default function CombatModal({
               onPress={onClose}
               style={styles.closeButton}
               testID="combat-close-button">
-              <CloseIcon size={16} color="#666" />
+              <CloseIcon size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -265,7 +272,7 @@ export default function CombatModal({
               <Animated.View
                 style={[
                   styles.hpFill,
-                  { backgroundColor: hpColor(creature.hp, creature.maxHp) },
+                  { backgroundColor: hpColor(creature.hp, creature.maxHp, theme) },
                   creatureHpAnimStyle,
                 ]}
               />
@@ -281,14 +288,11 @@ export default function CombatModal({
                 .filter(([, v]) => v !== 0)
                 .map(([type, value]) => {
                   const pct = Math.round(value * 100);
-                  const c = value > 0 ? '#2e7d32' : '#c62828';
+                  const c = value > 0 ? theme.success : theme.danger;
                   return (
-                    <View
-                      key={type}
-                      style={[
-                        styles.resistChip,
-                        value > 0 ? styles.resistChipPos : styles.resistChipNeg,
-                      ]}>
+                    // The sign is carried by the icon + text colour (success/danger), so the chip
+                    // itself just needs the neutral track ground.
+                    <View key={type} style={styles.resistChip}>
                       <DamageTypeIcon type={type} size={11} color={c} />
                       <Text style={[styles.resistChipText, { color: c }]}>
                         {' '}
@@ -329,7 +333,7 @@ export default function CombatModal({
               <Animated.View
                 style={[
                   styles.hpFill,
-                  { backgroundColor: hpColor(player.hp, player.maxHp) },
+                  { backgroundColor: hpColor(player.hp, player.maxHp, theme) },
                   playerHpAnimStyle,
                 ]}
               />
@@ -355,11 +359,11 @@ export default function CombatModal({
                 {playerCombatState.statusEffects.map((effect, i) => (
                   <View key={`${effect.id}-${i}`} style={styles.statusBadge}>
                     {effect.type === 'buff' ? (
-                      <BuffIcon size={11} color="#444" />
+                      <BuffIcon size={11} color={theme.textSecondary} />
                     ) : effect.type === 'debuff' ? (
-                      <DebuffIcon size={11} color="#444" />
+                      <DebuffIcon size={11} color={theme.textSecondary} />
                     ) : (
-                      <DotIcon size={11} color="#444" />
+                      <DotIcon size={11} color={theme.textSecondary} />
                     )}
                     <Text style={styles.statusBadgeText}>
                       {' '}
@@ -457,150 +461,146 @@ export default function CombatModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    width: '92%',
-    maxHeight: '88%',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: { fontSize: 16, color: '#666', fontWeight: 'bold' },
-  combatantInfo: {
-    padding: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#f9f9f9',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    // Transparent by default so toggling the active-turn accent never shifts panel layout.
-    borderLeftWidth: 4,
-    borderLeftColor: 'transparent',
-  },
-  playerInfoBg: { backgroundColor: '#f0f7ff' },
-  // The combatant whose turn it is gets an accent edge (paired with the turn banner + ability dim).
-  activePanel: { borderLeftColor: '#FFC107' },
-  turnBanner: { paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
-  turnBannerPlayer: { backgroundColor: '#2E7D32' },
-  turnBannerEnemy: { backgroundColor: '#C62828' },
-  turnBannerText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.5 },
-  // Phase 2a impact FX: both overlays fill their combatant panel; opacity/children are animated.
-  hitFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  hitFlashCreature: { backgroundColor: '#ffffff' }, // a white flash reads as a landed hit
-  hitFlashPlayer: { backgroundColor: '#ff3b30' }, // red when the player is the one struck
-  floaterLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  combatantHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  combatantName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
-  hpBar: {
-    height: 12,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: 2,
-  },
-  hpFill: { height: '100%', borderRadius: 6 },
-  hpText: { fontSize: 11, color: '#666', textAlign: 'center', marginBottom: 4 },
-  resourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  resourceLabel: { fontSize: 11, color: '#555', fontWeight: '600', width: 42 },
-  resourceBarBg: {
-    flex: 1,
-    height: 10,
-    backgroundColor: '#d0d0d0',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  resourceBarFill: {
-    height: '100%',
-    backgroundColor: '#9C27B0',
-    borderRadius: 5,
-  },
-  resourceText: { fontSize: 10, color: '#555', width: 36, textAlign: 'right' },
-  statusEffects: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  statusBadgeText: { fontSize: 10, color: '#444' },
-  resistChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  resistChipText: { fontSize: 11 },
-  statsRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  statChip: {
-    fontSize: 11,
-    color: '#555',
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  resistChipPos: {
-    color: '#2e7d32',
-    backgroundColor: 'rgba(76,175,80,0.12)',
-  },
-  resistChipNeg: {
-    color: '#c62828',
-    backgroundColor: 'rgba(244,67,54,0.12)',
-  },
-  scrollContent: { padding: 14 },
-  abilityScroll: { flexShrink: 1 },
-  logPane: { paddingHorizontal: 14, paddingBottom: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 10 },
-  abilityButton: {
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  abilityButtonDisabled: { opacity: 0.45 },
-  abilityContent: { flexDirection: 'row', alignItems: 'center' },
-  abilityIcon: { marginRight: 10 },
-  abilityInfo: { flex: 1 },
-  abilityName: { fontSize: 15, fontWeight: 'bold', color: '#fff', marginBottom: 2 },
-  abilityPreview: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
-  abilityCost: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  abilityCostInsufficient: { color: '#FFCDD2' },
-  statusMessage: {
-    marginTop: 16,
-    padding: 14,
-    backgroundColor: '#fff3cd',
-    borderRadius: 10,
-  },
-  statusText: { fontSize: 15, fontWeight: 'bold', color: '#856404', textAlign: 'center' },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: t.surface,
+      borderRadius: 20,
+      width: '92%',
+      maxHeight: '88%',
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    title: { fontSize: 22, fontWeight: 'bold', color: t.text },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: t.surfaceAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonText: { fontSize: 16, color: t.textSecondary, fontWeight: 'bold' },
+    combatantInfo: {
+      padding: 10,
+      paddingHorizontal: 16,
+      backgroundColor: t.surfaceAlt,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      // Transparent by default so toggling the active-turn accent never shifts panel layout.
+      borderLeftWidth: 4,
+      borderLeftColor: 'transparent',
+    },
+    playerInfoBg: { backgroundColor: t.surfaceRaised },
+    // The combatant whose turn it is gets an accent edge (paired with the turn banner + ability dim).
+    activePanel: { borderLeftColor: t.warning },
+    turnBanner: { paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
+    turnBannerPlayer: { backgroundColor: t.success },
+    turnBannerEnemy: { backgroundColor: t.danger },
+    turnBannerText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.5 },
+    // Impact FX overlays fill their combatant panel; opacity is animated. The creature flash uses the
+    // theme's INK so it contrasts on both grounds (a white flash would vanish on the day palette).
+    hitFlash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    hitFlashCreature: { backgroundColor: t.text },
+    hitFlashPlayer: { backgroundColor: t.danger },
+    floaterLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    combatantHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+    combatantName: { fontSize: 14, fontWeight: 'bold', color: t.text },
+    hpBar: {
+      height: 12,
+      backgroundColor: t.track,
+      borderRadius: 6,
+      overflow: 'hidden',
+      marginBottom: 2,
+    },
+    hpFill: { height: '100%', borderRadius: 6 },
+    hpText: { fontSize: 11, color: t.textSecondary, textAlign: 'center', marginBottom: 4 },
+    resourceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
+    resourceLabel: { fontSize: 11, color: t.textSecondary, fontWeight: '600', width: 42 },
+    resourceBarBg: {
+      flex: 1,
+      height: 10,
+      backgroundColor: t.track,
+      borderRadius: 5,
+      overflow: 'hidden',
+    },
+    resourceBarFill: {
+      height: '100%',
+      backgroundColor: t.accent,
+      borderRadius: 5,
+    },
+    resourceText: { fontSize: 10, color: t.textSecondary, width: 36, textAlign: 'right' },
+    statusEffects: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: t.track,
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    statusBadgeText: { fontSize: 10, color: t.textSecondary },
+    resistChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      backgroundColor: t.track,
+    },
+    resistChipText: { fontSize: 11 },
+    statsRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
+    statChip: {
+      fontSize: 11,
+      color: t.textSecondary,
+      backgroundColor: t.track,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    scrollContent: { padding: 14 },
+    abilityScroll: { flexShrink: 1 },
+    logPane: { paddingHorizontal: 14, paddingBottom: 14 },
+    sectionTitle: { fontSize: 14, fontWeight: 'bold', color: t.text, marginBottom: 10 },
+    abilityButton: {
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 8,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    abilityButtonDisabled: { opacity: 0.45 },
+    abilityContent: { flexDirection: 'row', alignItems: 'center' },
+    abilityIcon: { marginRight: 10 },
+    abilityInfo: { flex: 1 },
+    // Ability buttons carry a saturated damage-type ground in both themes, so their text stays white.
+    abilityName: { fontSize: 15, fontWeight: 'bold', color: '#fff', marginBottom: 2 },
+    abilityPreview: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
+    abilityCost: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+    abilityCostInsufficient: { color: '#FFCDD2' },
+    statusMessage: {
+      marginTop: 16,
+      padding: 14,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 10,
+    },
+    statusText: { fontSize: 15, fontWeight: 'bold', color: t.warning, textAlign: 'center' },
+  });

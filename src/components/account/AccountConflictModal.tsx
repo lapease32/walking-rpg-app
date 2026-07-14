@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ConflictState } from '../../hooks/useAuth';
 import { PlayerData } from '../../models/Player';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface AccountConflictModalProps {
   conflictState: ConflictState;
@@ -31,6 +33,8 @@ interface SaveCardProps {
 }
 
 function SaveCard({ label, data, savedAt, highlight }: SaveCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={[styles.saveCard, highlight && styles.saveCardHighlight]}>
       <Text style={styles.saveLabel}>{label}</Text>
@@ -44,6 +48,8 @@ function SaveCard({ label, data, savedAt, highlight }: SaveCardProps) {
 }
 
 export function AccountConflictModal({ conflictState, onResolve }: AccountConflictModalProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [resolving, setResolving] = React.useState(false);
 
   const handleResolve = async (choice: 'local' | 'cloud') => {
@@ -81,7 +87,7 @@ export function AccountConflictModal({ conflictState, onResolve }: AccountConfli
           <Text style={styles.warning}>The other save will be permanently lost.</Text>
 
           {resolving ? (
-            <ActivityIndicator size="large" color="#4CAF50" style={styles.loader} />
+            <ActivityIndicator size="large" color={theme.success} style={styles.loader} />
           ) : (
             <View style={styles.buttons}>
               {localData && (
@@ -106,109 +112,110 @@ export function AccountConflictModal({ conflictState, onResolve }: AccountConfli
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 420,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  savesRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  saveCard: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  saveCardHighlight: {
-    borderColor: '#4CAF50',
-  },
-  saveCardUnavailable: {
-    backgroundColor: '#FAFAFA',
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed',
-  },
-  saveUnavailableText: {
-    fontSize: 13,
-    color: '#999',
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  saveLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#555',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  saveStat: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 3,
-  },
-  saveTime: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 6,
-  },
-  warning: {
-    fontSize: 13,
-    color: '#E53935',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  buttons: {
-    gap: 10,
-  },
-  button: {
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  buttonLocal: {
-    backgroundColor: '#4CAF50',
-  },
-  buttonCloud: {
-    backgroundColor: '#1976D2',
-  },
-  buttonCloudUnknown: {
-    backgroundColor: '#78909C',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loader: {
-    marginVertical: 16,
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    container: {
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      padding: 24,
+      width: '100%',
+      maxWidth: 420,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: t.text,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: t.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    savesRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 16,
+    },
+    saveCard: {
+      flex: 1,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 12,
+      padding: 14,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    saveCardHighlight: {
+      borderColor: t.success,
+    },
+    saveCardUnavailable: {
+      backgroundColor: t.surfaceRaised,
+      borderColor: t.border,
+      borderStyle: 'dashed',
+    },
+    saveUnavailableText: {
+      fontSize: 13,
+      color: t.textMuted,
+      lineHeight: 18,
+      marginTop: 4,
+    },
+    saveLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: t.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+    },
+    saveStat: {
+      fontSize: 14,
+      color: t.text,
+      marginBottom: 3,
+    },
+    saveTime: {
+      fontSize: 12,
+      color: t.textMuted,
+      marginTop: 6,
+    },
+    warning: {
+      fontSize: 13,
+      color: t.danger,
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    buttons: {
+      gap: 10,
+    },
+    button: {
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    buttonLocal: {
+      backgroundColor: t.success,
+    },
+    buttonCloud: {
+      backgroundColor: t.info,
+    },
+    buttonCloudUnknown: {
+      backgroundColor: t.textMuted,
+    },
+    buttonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    loader: {
+      marginVertical: 16,
+    },
+  });

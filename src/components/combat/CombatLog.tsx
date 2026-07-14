@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { CombatLogEntry, formatCombatLogEntry, CombatLogNames } from '../../models/CombatLog';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface Props {
   entries: CombatLogEntry[];
@@ -10,22 +12,22 @@ interface Props {
 }
 
 // Color by what happened, so the feed is scannable: harm to the creature reads "good", harm to the
-// player reads "bad", support is gold, defeat is emphasized. New kinds fall back to neutral ink.
-function lineColor(e: CombatLogEntry): string {
+// player reads "bad", support is warm, defeat is emphasized. New kinds fall back to muted ink.
+function lineColor(e: CombatLogEntry, t: ThemeTokens): string {
   switch (e.kind) {
     case 'attack':
     case 'dot':
-      return e.target === 'player' ? '#E57373' : '#66BB6A'; // hit on you (red) vs on the foe (green)
+      return e.target === 'player' ? t.danger : t.success; // hit on you vs on the foe
     case 'heal':
-      return '#4CAF50';
+      return t.success;
     case 'buff':
-      return '#FFB74D';
+      return t.warning;
     case 'debuff':
-      return '#BA68C8';
+      return t.arcane;
     case 'defeat':
-      return e.target === 'player' ? '#E53935' : '#FFD54F';
+      return e.target === 'player' ? t.danger : t.accent;
     default:
-      return '#B0BEC5';
+      return t.textSecondary;
   }
 }
 
@@ -35,6 +37,8 @@ function lineColor(e: CombatLogEntry): string {
  * formatter, so any mechanic that pushes a log entry shows up here with no changes to this component.
  */
 export default function CombatLog({ entries, playerName, creatureName }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView>(null);
   const names: CombatLogNames = { player: playerName, creature: creatureName };
 
@@ -56,7 +60,7 @@ export default function CombatLog({ entries, playerName, creatureName }: Props) 
           <Text style={styles.empty}>The fight begins…</Text>
         ) : (
           entries.map(e => (
-            <Text key={e.id} style={[styles.line, { color: lineColor(e) }]}>
+            <Text key={e.id} style={[styles.line, { color: lineColor(e, theme) }]}>
               {formatCombatLogEntry(e, names)}
             </Text>
           ))
@@ -66,31 +70,32 @@ export default function CombatLog({ entries, playerName, creatureName }: Props) 
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 10,
-    backgroundColor: '#1b1b22',
-    overflow: 'hidden',
-  },
-  title: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: '#8a8499',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  scroll: { maxHeight: 104 },
-  content: { paddingHorizontal: 12, paddingBottom: 10 },
-  line: {
-    fontSize: 12.5,
-    lineHeight: 18,
-    fontFamily: 'monospace',
-  },
-  empty: { fontSize: 12, color: '#6c6780', fontStyle: 'italic' },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    wrap: {
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 10,
+      backgroundColor: t.surfaceAlt,
+      overflow: 'hidden',
+    },
+    title: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: t.textMuted,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+    scroll: { maxHeight: 104 },
+    content: { paddingHorizontal: 12, paddingBottom: 10 },
+    line: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      fontFamily: 'monospace',
+    },
+    empty: { fontSize: 12, color: t.textMuted, fontStyle: 'italic' },
+  });

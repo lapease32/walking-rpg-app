@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import StatIcon from '../icons/StatIcon';
 import { CloseIcon, WarningIcon } from '../icons/UiIcon';
 import { getRarityColor } from '../../constants/rarity';
 import { Player } from '../../models/Player';
+import { useTheme } from '../../hooks/useTheme';
+import type { ThemeTokens } from '../../constants/theme';
 
 interface ItemDetailsModalProps {
   item: Item | null;
@@ -35,6 +37,8 @@ export default function ItemDetailsModal({
   onEquip,
   onDelete,
 }: ItemDetailsModalProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   if (!item) {
     return null;
   }
@@ -68,7 +72,7 @@ export default function ItemDetailsModal({
           <View style={styles.header}>
             <Text style={styles.title}>Item Details</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <CloseIcon size={18} color="#666" />
+              <CloseIcon size={18} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -161,7 +165,7 @@ export default function ItemDetailsModal({
             {/* Level Requirement Warning */}
             {!canEquip && player && (
               <View style={[styles.warningContainer, styles.warningRow]}>
-                <WarningIcon size={14} color="#856404" />
+                <WarningIcon size={14} color={theme.warning} />
                 <Text style={styles.warningText}>
                   {' '}
                   Requires level {item.level} (You are level {player.level})
@@ -192,189 +196,190 @@ export default function ItemDetailsModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    width: '90%',
-    maxHeight: '85%',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  itemName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  metaContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  metaText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  levelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  descriptionContainer: {
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-  },
-  descriptionText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  statsContainer: {
-    marginBottom: 20,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statItem: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  statIcon: {
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  affixContainer: {
-    marginBottom: 20,
-  },
-  affixTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  affixRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    backgroundColor: '#f0f4ff',
-    borderRadius: 6,
-    marginBottom: 4,
-  },
-  affixBullet: {
-    fontSize: 10,
-    color: '#9C27B0',
-    marginRight: 8,
-  },
-  affixText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
-  },
-  warningContainer: {
-    padding: 12,
-    backgroundColor: '#fff3cd',
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  warningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#856404',
-    textAlign: 'center',
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  equipButton: {
-    backgroundColor: '#4CAF50',
-  },
-  deleteButton: {
-    backgroundColor: '#F44336',
-  },
-  actionButtonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.6,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+const makeStyles = (t: ThemeTokens) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: t.surface,
+      borderRadius: 20,
+      width: '90%',
+      maxHeight: '85%',
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: t.text,
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: t.surfaceAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonText: {
+      fontSize: 18,
+      color: t.textSecondary,
+      fontWeight: 'bold',
+    },
+    scrollContent: {
+      padding: 20,
+    },
+    iconContainer: {
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    itemName: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    metaContainer: {
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    metaText: {
+      fontSize: 14,
+      color: t.textSecondary,
+      marginBottom: 4,
+    },
+    levelText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: t.text,
+    },
+    descriptionContainer: {
+      marginBottom: 20,
+      padding: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+    },
+    descriptionText: {
+      fontSize: 14,
+      color: t.textSecondary,
+      lineHeight: 20,
+    },
+    statsContainer: {
+      marginBottom: 20,
+    },
+    statsTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 12,
+    },
+    statsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    statItem: {
+      flex: 1,
+      minWidth: '45%',
+      padding: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    statIcon: {
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: t.textSecondary,
+      marginBottom: 4,
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: t.text,
+    },
+    affixContainer: {
+      marginBottom: 20,
+    },
+    affixTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: t.text,
+      marginBottom: 8,
+    },
+    affixRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+      paddingHorizontal: 12,
+      backgroundColor: t.surfaceRaised,
+      borderRadius: 6,
+      marginBottom: 4,
+    },
+    affixBullet: {
+      fontSize: 10,
+      color: t.arcane,
+      marginRight: 8,
+    },
+    affixText: {
+      fontSize: 14,
+      color: t.text,
+      fontWeight: '600',
+    },
+    warningContainer: {
+      padding: 12,
+      backgroundColor: t.surfaceAlt,
+      borderRadius: 8,
+      marginBottom: 20,
+    },
+    warningRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    warningText: {
+      fontSize: 14,
+      color: t.warning,
+      textAlign: 'center',
+    },
+    actionsContainer: {
+      flexDirection: 'row',
+      padding: 20,
+      borderTopWidth: 1,
+      borderTopColor: t.divider,
+      gap: 12,
+    },
+    actionButton: {
+      flex: 1,
+      padding: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    equipButton: {
+      backgroundColor: t.success,
+    },
+    deleteButton: {
+      backgroundColor: t.danger,
+    },
+    actionButtonDisabled: {
+      backgroundColor: t.track,
+      opacity: 0.6,
+    },
+    actionButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+  });
