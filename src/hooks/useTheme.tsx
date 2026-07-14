@@ -54,6 +54,11 @@ export const DEFAULT_PREFERENCE: ThemePreference = 'auto';
  *  means the app turns over within a minute of the actual sunrise/sunset while you're walking. */
 const SUN_TICK_MS = 60_000;
 
+/** While `auto` is still waiting on the first GPS fix it has no coordinates and sits on its night
+ *  fallback — so poll fast until one lands, or a daytime cold start stays wrongly dark for a whole
+ *  tick. Drops back to SUN_TICK_MS the moment there's a position. */
+const AWAITING_FIX_MS = 3_000;
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPref] = useState<ThemePreference>(DEFAULT_PREFERENCE);
   const [themeName, setThemeName] = useState<ThemeName>(DEFAULT_THEME_NAME);
@@ -103,28 +108,53 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const apply = () => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    // Self-scheduling rather than a fixed interval, so the cadence can ADAPT: until the first GPS
+    // fix lands there are no coordinates, `auto` sits on its night fallback, and a daytime cold
+    // start would otherwise stay wrongly dark for a full tick. Poll fast while we're waiting, then
+    // settle. Clearing any pending timer first keeps it idempotent — the AppState listener calls
+    // straight back into it, and must not stack a second timer.
+    const applyAndSchedule = () => {
+      if (stopped) {
+        return;
+      }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+
       const cached = LocationService.getCurrentLocationCached();
       const coords = cached ? { latitude: cached.latitude, longitude: cached.longitude } : null;
       const next = resolveThemeName(preference, new Date(), coords, isDaylight);
-      // Only set when it actually changes, so the tick doesn't re-render the tree every minute.
+      // Only set when it actually changes, so the tick never re-renders the tree for nothing.
       setThemeName(current => (current === next ? current : next));
+
+      if (preference !== 'auto') {
+        return; // an explicit choice never changes on its own — resolve once, then stop
+      }
+      timer = setTimeout(applyAndSchedule, coords ? SUN_TICK_MS : AWAITING_FIX_MS);
     };
 
-    apply();
-    if (preference !== 'auto') {
-      return; // an explicit choice never changes on its own — no tick, no listener
-    }
+    applyAndSchedule();
 
-    const timer = setInterval(apply, SUN_TICK_MS);
-    const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        apply();
-      }
-    });
+    // A walk easily straddles sunset with the screen off, so re-resolve on foreground too.
+    const sub =
+      preference === 'auto'
+        ? AppState.addEventListener('change', state => {
+            if (state === 'active') {
+              applyAndSchedule();
+            }
+          })
+        : null;
+
     return () => {
-      clearInterval(timer);
-      sub.remove();
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      sub?.remove();
     };
   }, [preference, hydrated]);
 
