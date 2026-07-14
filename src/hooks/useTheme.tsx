@@ -69,6 +69,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // picked, and `preference` is still the 'auto' default — so resolving via the sun here would
   // flash a sun-derived palette at a returning player who explicitly chose night or day.
   const [hydrated, setHydrated] = useState(false);
+  // The last position we've seen. LocationService deliberately CLEARS its cache whenever it
+  // switches accuracy mode — it resets the distance anchor so the network↔GPS coordinate jump
+  // isn't counted as travelled distance — and that happens routinely, e.g. when the player stops
+  // walking. A cleared cache means "the anchor was reset", NOT "we don't know where you are", so
+  // holding the last position ourselves is what stops a daytime pause from flipping the app to
+  // night. Coordinates only matter to the sun at continental scale; a stale one is harmless.
+  const lastCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   // Restore the persisted choice once on mount; a failure just leaves the default in place.
   useEffect(() => {
@@ -126,7 +133,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
 
       const cached = LocationService.getCurrentLocationCached();
-      const coords = cached ? { latitude: cached.latitude, longitude: cached.longitude } : null;
+      if (cached) {
+        lastCoordsRef.current = { latitude: cached.latitude, longitude: cached.longitude };
+      }
+      // Resolve from the last position we've EVER seen, not the momentary cache — see lastCoordsRef.
+      // Only a player we've never had a fix for falls back to night.
+      const coords = lastCoordsRef.current;
       const next = resolveThemeName(preference, new Date(), coords, isDaylight);
       // Only set when it actually changes, so the tick never re-renders the tree for nothing.
       setThemeName(current => (current === next ? current : next));
@@ -134,6 +146,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (preference !== 'auto') {
         return; // an explicit choice never changes on its own — resolve once, then stop
       }
+      // Fast-poll only while we have never had a fix; once we do, the position never goes away
+      // again (a cleared cache no longer counts), so settle into the slow cadence for good.
       timer = setTimeout(applyAndSchedule, coords ? SUN_TICK_MS : AWAITING_FIX_MS);
     };
 
