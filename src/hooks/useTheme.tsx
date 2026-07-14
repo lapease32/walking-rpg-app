@@ -60,6 +60,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // The restore below is async. If the player picks a theme BEFORE it resolves, the stale load
   // would stomp their fresh choice — so a live choice always wins over the restore.
   const userChoseRef = useRef(false);
+  // Has the persisted preference been read yet? Until it has, we do NOT know what the player
+  // picked, and `preference` is still the 'auto' default — so resolving via the sun here would
+  // flash a sun-derived palette at a returning player who explicitly chose night or day.
+  const [hydrated, setHydrated] = useState(false);
 
   // Restore the persisted choice once on mount; a failure just leaves the default in place.
   useEffect(() => {
@@ -77,7 +81,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           setPref(saved);
         }
       })
-      .catch(error => logger.warn('Failed to load theme preference', error));
+      .catch(error => logger.warn('Failed to load theme preference', error))
+      // Hydrated either way — a failed read still means "we're done guessing", and holding the
+      // default forever would leave 'auto' permanently inert.
+      .finally(() => {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -86,6 +97,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Resolve preference → palette. For 'auto' this re-checks the sun on a tick and whenever the app
   // returns to the foreground (a walk can easily straddle sunset with the screen off).
   useEffect(() => {
+    // Hold the default palette until we know the player's choice — UNLESS they've just made one,
+    // in which case it must apply immediately rather than waiting on the read.
+    if (!hydrated && !userChoseRef.current) {
+      return;
+    }
+
     const apply = () => {
       const cached = LocationService.getCurrentLocationCached();
       const coords = cached ? { latitude: cached.latitude, longitude: cached.longitude } : null;
@@ -109,7 +126,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       clearInterval(timer);
       sub.remove();
     };
-  }, [preference]);
+  }, [preference, hydrated]);
 
   const setPreference = useCallback((next: ThemePreference) => {
     userChoseRef.current = true;
