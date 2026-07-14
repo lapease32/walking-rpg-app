@@ -65,8 +65,9 @@ export class Encounter {
     // Pick a creature template weighted by player level (low levels skew to common, so new
     // players aren't thrown unwinnable above-common fights). See pickEncounterTemplate.
     // rarityOverride (debug encounter-forcing) forces a specific rarity instead of rolling.
-    // `daylight` narrows WHICH creature — mundane by day, supernatural by night — and provably not
-    // how rewarding it is (the rarity is rolled first and the filter applies within it).
+    // `daylight` shifts WHICH creature is likely — mundane by day, supernatural by night, with the
+    // out-of-place exception still possible — and provably not how rewarding the fight is (the
+    // rarity is rolled first; the day/night weighting only applies within that tier).
     const template = rarityOverride
       ? pickEncounterTemplateOfRarity(rarityOverride, daylight)
       : pickEncounterTemplate(playerLevel, daylight);

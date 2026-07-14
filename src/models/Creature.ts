@@ -59,17 +59,41 @@ export function spawnWindowFor(
   return template.spawnWindow ?? SPAWN_WINDOW_BY_TYPE[template.type] ?? 'any';
 }
 
-/** Can this template be met right now? `daylight` comes from the REAL sun (models/sun) — never from
- *  the app's theme, which is only a cosmetic preference (a theme toggle must not be a spawn switch). */
-export function canSpawnAt(
+/**
+ * Relative likelihood of meeting a creature at a given time — NOT a yes/no gate.
+ *
+ * A hard binary ("this hound is physically incapable of being outdoors after sunset") is more
+ * absurd than the problem it solves. The world isn't a clock: a day creature might be out at night
+ * because something drove it out, and a night thing might be caught in the light. So a creature is
+ * simply MUCH more likely in its own window, and rare — but possible — outside it. That preserves
+ * the day/night identity while leaving room for an unsettling exception.
+ */
+export const SPAWN_WEIGHTS = {
+  /** In its natural light. */
+  inWindow: 1,
+  /** Out of place — uncommon, but the world doesn't run on a timetable. ~6.7:1 against. */
+  offWindow: 0.15,
+  /** Elemental / liminal — equally at home in either light. */
+  any: 1,
+} as const;
+
+/**
+ * How likely this template is right now, relative to its peers. `daylight` comes from the REAL sun
+ * (models/sun) — NEVER from the app's theme, which is only a cosmetic preference (a theme toggle
+ * must not be a spawn switch).
+ *
+ * Always > 0: every creature stays possible at every hour, which is the point.
+ */
+export function spawnWeightAt(
   template: Pick<CreatureTemplate, 'type' | 'spawnWindow'>,
   daylight: boolean,
-): boolean {
+): number {
   const window = spawnWindowFor(template);
   if (window === 'any') {
-    return true;
+    return SPAWN_WEIGHTS.any;
   }
-  return daylight ? window === 'day' : window === 'night';
+  const inWindow = daylight ? window === 'day' : window === 'night';
+  return inWindow ? SPAWN_WEIGHTS.inWindow : SPAWN_WEIGHTS.offWindow;
 }
 
 export interface CreatureConstructorParams {
@@ -304,8 +328,8 @@ export const CREATURE_TEMPLATES: CreatureTemplate[] = [
     description: 'A mountain given wrath; its every step splits the earth.',
     encounterRate: 0.06,
     resistances: { fire: 0.4, physical: 0.15, frost: -0.2 },
-    // Overrides its Earth default (day). A fire-forged titan is ELEMENTAL, not mundane — and epic
-    // had only one night-eligible template, so every epic night encounter would be the same foe.
+    // Overrides its Earth default (day): a fire-forged titan is ELEMENTAL, not mundane — it belongs
+    // to neither the daylit world nor the dark one, so it is equally at home in both.
     spawnWindow: 'any',
   },
   {
@@ -582,11 +606,11 @@ export function rollEncounterRarity(playerLevel: number): Rarity {
 }
 
 /**
- * Pick an encounter creature template weighted by player level: roll a rarity (level-scaled),
- * then a uniform-random template of that rarity. Falls back to the full pool if no template of
- * the rolled rarity exists (keeps the function safe if the template set changes).
+ * Pick an encounter creature template weighted by player level: roll a rarity (level-scaled), then
+ * a template of that rarity (weighted by the time of day). Falls back to the full pool if no
+ * template of the rolled rarity exists (keeps the function safe if the template set changes).
  *
- * `daylight` (from the REAL sun — see models/sun) narrows WHICH creature you meet, never HOW GOOD
+ * `daylight` (from the REAL sun — see models/sun) shifts WHICH creature you meet, never HOW GOOD
  * the encounter is: see pickEncounterTemplateOfRarity for why rarity is untouched.
  */
 export function pickEncounterTemplate(
@@ -602,29 +626,39 @@ export function pickEncounterTemplate(
  * spawn a common (→ passive) or elite (→ held) creature.
  *
  * TIME OF DAY IS COSMETIC. The rarity is decided BEFORE this function is reached, and the day/night
- * filter is applied strictly WITHIN that rarity's pool — so the rarity distribution (and therefore
- * loot, XP and progression) is provably identical by day and by night. Night is DIFFERENT, never
- * BETTER: a game that rewarded night walking would be pushing people to walk alone in the dark.
+ * WEIGHTING is applied strictly WITHIN that rarity's pool — so the rarity distribution (and
+ * therefore loot, XP and progression) is provably identical by day and by night. Night is
+ * DIFFERENT, never BETTER: a game that rewarded night walking would be pushing people to walk alone
+ * in the dark.
  *
- * If a rarity has no time-eligible template, we fall back to that rarity's full pool rather than
- * re-rolling — re-rolling would skew the rarity odds, which is exactly the balance impact this is
- * designed to avoid. (Falling back to ALL templates likewise guards a rarity with no templates.)
+ * Weighting rather than filtering also means no creature is ever *excluded*, so there is no
+ * "nothing is eligible" edge case to fall back from — only the (unchanged) guard for a rarity that
+ * has no templates at all.
  */
 export function pickEncounterTemplateOfRarity(
   rarity: Rarity,
   daylight?: boolean,
+  rng: () => number = Math.random,
 ): CreatureTemplate {
   const ofRarity = CREATURE_TEMPLATES.filter(t => t.rarity === rarity);
-  const rarityPool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
+  const pool = ofRarity.length > 0 ? ofRarity : CREATURE_TEMPLATES;
 
-  // `undefined` = caller has no sun information (e.g. a unit test, or a debug force) → no filter.
+  // `undefined` = the caller has no sun information (a unit test, or debug encounter-forcing) →
+  // every creature equally likely.
   if (daylight === undefined) {
-    return rarityPool[Math.floor(Math.random() * rarityPool.length)];
+    return pool[Math.floor(rng() * pool.length)];
   }
 
-  const inWindow = rarityPool.filter(t => canSpawnAt(t, daylight));
-  const pool = inWindow.length > 0 ? inWindow : rarityPool;
-  return pool[Math.floor(Math.random() * pool.length)];
+  const weights = pool.map(t => spawnWeightAt(t, daylight));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let roll = rng() * total;
+  for (let i = 0; i < pool.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) {
+      return pool[i];
+    }
+  }
+  return pool[pool.length - 1]; // float drift only
 }
 
 // Rarities that make a creature "elite" — a worthy foe HELD for a deliberate turn-based fight
