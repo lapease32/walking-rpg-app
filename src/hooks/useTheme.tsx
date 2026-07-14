@@ -59,6 +59,15 @@ const SUN_TICK_MS = 60_000;
  *  tick. Drops back to SUN_TICK_MS the moment there's a position. */
 const AWAITING_FIX_MS = 3_000;
 
+/**
+ * How many fast polls to spend waiting for that first fix before giving up on the quick path.
+ * If location permission was denied — or tracking simply never started — a position will NEVER
+ * arrive, and an unbounded 3s loop would then run for the whole session on a battery-sensitive
+ * GPS app. After this many tries we drop to the slow cadence, which still costs nothing and still
+ * picks it up if the player grants permission later in the session.
+ */
+const MAX_FAST_POLLS = 10; // ~30s of fast polling — ample for a real fix
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPref] = useState<ThemePreference>(DEFAULT_PREFERENCE);
   const [themeName, setThemeName] = useState<ThemeName>(DEFAULT_THEME_NAME);
@@ -76,6 +85,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // holding the last position ourselves is what stops a daytime pause from flipping the app to
   // night. Coordinates only matter to the sun at continental scale; a stale one is harmless.
   const lastCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  // Fast polls spent waiting for the first fix — bounded, see MAX_FAST_POLLS.
+  const fastPollsRef = useRef(0);
 
   // Restore the persisted choice once on mount; a failure just leaves the default in place.
   useEffect(() => {
@@ -117,6 +128,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Re-selecting 'auto' is a fair moment to try hard for a fix again.
+    fastPollsRef.current = 0;
 
     // Self-scheduling rather than a fixed interval, so the cadence can ADAPT: until the first GPS
     // fix lands there are no coordinates, `auto` sits on its night fallback, and a daytime cold
@@ -146,9 +159,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (preference !== 'auto') {
         return; // an explicit choice never changes on its own — resolve once, then stop
       }
-      // Fast-poll only while we have never had a fix; once we do, the position never goes away
-      // again (a cleared cache no longer counts), so settle into the slow cadence for good.
-      timer = setTimeout(applyAndSchedule, coords ? SUN_TICK_MS : AWAITING_FIX_MS);
+      // Fast-poll only while we have never had a fix — and only for a bounded number of tries, so a
+      // denied permission (where a position will never arrive) can't leave a 3s loop running all
+      // session. Once a fix lands it never goes away again (a cleared cache no longer counts), so
+      // we settle into the slow cadence for good.
+      if (!coords) {
+        fastPollsRef.current += 1;
+      }
+      const stillWaitingFast = !coords && fastPollsRef.current <= MAX_FAST_POLLS;
+      timer = setTimeout(applyAndSchedule, stillWaitingFast ? AWAITING_FIX_MS : SUN_TICK_MS);
     };
 
     applyAndSchedule();
