@@ -122,6 +122,17 @@ describe('isValidEncounterData', () => {
     expect(isValidEncounterData({ ...validEncounterData(), status: 'fled' })).toBe(true);
   });
 
+  it('accepts the optional daylight flag (so a held elite keeps its stage art key)', () => {
+    expect(isValidEncounterData({ ...validEncounterData(), daylight: true })).toBe(true);
+    expect(isValidEncounterData({ ...validEncounterData(), daylight: false })).toBe(true);
+  });
+
+  it('still accepts data with no daylight (backward-compat with older persisted encounters)', () => {
+    const data = validEncounterData();
+    expect('daylight' in data).toBe(false); // the base fixture omits it
+    expect(isValidEncounterData(data)).toBe(true);
+  });
+
   it('returns false for an invalid status string', () => {
     expect(isValidEncounterData({ ...validEncounterData(), status: 'caught' })).toBe(false);
     expect(isValidEncounterData({ ...validEncounterData(), status: '' })).toBe(false);

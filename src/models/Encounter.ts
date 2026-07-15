@@ -21,6 +21,9 @@ export interface EncounterConstructorParams {
   timestamp?: number;
   playerLevel?: number;
   status?: EncounterStatus;
+  /** Was the sun up where/when this encounter spawned? Drives the creature's art key on the combat
+   *  stage, so the art matches the light that chose the creature. */
+  daylight?: boolean;
 }
 
 /**
@@ -33,6 +36,7 @@ export class Encounter {
   timestamp: number;
   playerLevel: number;
   status: EncounterStatus;
+  daylight?: boolean;
 
   constructor({
     creature,
@@ -40,12 +44,14 @@ export class Encounter {
     timestamp,
     playerLevel,
     status = 'active',
+    daylight,
   }: EncounterConstructorParams) {
     this.creature = creature;
     this.location = location;
     this.timestamp = timestamp || Date.now();
     this.playerLevel = playerLevel || 1;
     this.status = status;
+    this.daylight = daylight;
   }
 
   /**
@@ -78,6 +84,7 @@ export class Encounter {
       creature,
       location,
       playerLevel,
+      daylight,
     });
   }
 

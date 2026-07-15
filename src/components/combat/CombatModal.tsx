@@ -31,7 +31,7 @@ import { useCombatImpact } from '../../hooks/useCombatImpact';
 import type { CombatHitEvent } from '../../models/CombatHitEvent';
 import type { CombatLogEntry } from '../../models/CombatLog';
 import CombatLog from './CombatLog';
-import CreaturePlate from './CreaturePlate';
+import CreatureStage from './CreatureStage';
 import { deriveCreatureAnimState } from './creatures/registry';
 import { MOTION_BAR_TIMING } from '../../constants/motion';
 import { useTheme } from '../../hooks/useTheme';
@@ -232,8 +232,9 @@ export default function CombatModal({
           style={[styles.modalContent, shakeStyle]}
           onStartShouldSetResponder={() => true}
           testID="combat-modal">
+          {/* Compact close bar — the stage announces the fight, so no "Combat" title is needed;
+              this reclaims the vertical room the taller creature stage wants. */}
           <View style={styles.header}>
-            <Text style={styles.title}>Combat</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
@@ -255,68 +256,70 @@ export default function CombatModal({
             </Text>
           </View>
 
-          {/* Creature info */}
+          {/* Creature stage — the painted creature stands on a lit ground, with its HP + stats on a
+              plinth below. The stage hosts the combat FX so hits land on the creature itself. */}
           <Animated.View
-            style={[styles.combatantInfo, isEnemyTurn && styles.activePanel, creatureRecoilStyle]}>
-            <View style={styles.combatantHeader}>
-              <CreaturePlate
-                type={creature.type}
-                rarity={creature.rarity}
-                size={38}
-                creatureId={creature.id}
-                state={deriveCreatureAnimState({ isDefeated, isEnemyTurn })}
-              />
-              <Text style={styles.combatantName}>{creature.name}</Text>
-            </View>
-            <View style={styles.hpBar}>
+            style={[styles.creaturePanel, isEnemyTurn && styles.activePanel, creatureRecoilStyle]}>
+            <CreatureStage
+              creatureId={creature.id}
+              type={creature.type}
+              rarity={creature.rarity}
+              daylight={encounter.daylight}
+              state={deriveCreatureAnimState({ isDefeated, isEnemyTurn })}>
               <Animated.View
-                style={[
-                  styles.hpFill,
-                  { backgroundColor: hpColor(creature.hp, creature.maxHp, theme) },
-                  creatureHpAnimStyle,
-                ]}
+                pointerEvents="none"
+                style={[styles.hitFlash, styles.hitFlashCreature, creatureFlashStyle]}
               />
-            </View>
-            <Text style={styles.hpText}>
-              {creature.hp} / {creature.maxHp} HP
-            </Text>
-            <View style={styles.statsRow}>
-              <Text style={styles.statChip}>ATK {creature.attack}</Text>
-              <Text style={styles.statChip}>DEF {creature.defense}</Text>
-              <Text style={styles.statChip}>SPD {creature.speed}</Text>
-              {(Object.entries(creature.resistances) as [DamageType, number][])
-                .filter(([, v]) => v !== 0)
-                .map(([type, value]) => {
-                  const pct = Math.round(value * 100);
-                  const c = value > 0 ? theme.success : theme.danger;
-                  return (
-                    // The sign is carried by the icon + text colour (success/danger), so the chip
-                    // itself just needs the neutral track ground.
-                    <View key={type} style={styles.resistChip}>
-                      <DamageTypeIcon type={type} size={11} color={c} />
-                      <Text style={[styles.resistChipText, { color: c }]}>
-                        {' '}
-                        {pct > 0 ? '+' : ''}
-                        {pct}%
-                      </Text>
-                    </View>
-                  );
-                })}
-            </View>
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.hitFlash, styles.hitFlashCreature, creatureFlashStyle]}
-            />
-            <CombatFxCanvas
-              bursts={bursts.filter(b => b.target === 'creature')}
-              onBurstDone={removeBurst}
-            />
-            <View pointerEvents="none" style={styles.floaterLayer}>
-              {floaters
-                .filter(f => f.target === 'creature')
-                .map(f => (
-                  <FloatingCombatText key={f.id} item={f} onDone={removeFloater} />
-                ))}
+              <CombatFxCanvas
+                bursts={bursts.filter(b => b.target === 'creature')}
+                onBurstDone={removeBurst}
+              />
+              <View pointerEvents="none" style={styles.floaterLayer}>
+                {floaters
+                  .filter(f => f.target === 'creature')
+                  .map(f => (
+                    <FloatingCombatText key={f.id} item={f} onDone={removeFloater} />
+                  ))}
+              </View>
+            </CreatureStage>
+
+            <View style={styles.plinth}>
+              <Text style={styles.combatantName}>{creature.name}</Text>
+              <View style={styles.hpBar}>
+                <Animated.View
+                  style={[
+                    styles.hpFill,
+                    { backgroundColor: hpColor(creature.hp, creature.maxHp, theme) },
+                    creatureHpAnimStyle,
+                  ]}
+                />
+              </View>
+              <Text style={styles.hpText}>
+                {creature.hp} / {creature.maxHp} HP
+              </Text>
+              <View style={styles.statsRow}>
+                <Text style={styles.statChip}>ATK {creature.attack}</Text>
+                <Text style={styles.statChip}>DEF {creature.defense}</Text>
+                <Text style={styles.statChip}>SPD {creature.speed}</Text>
+                {(Object.entries(creature.resistances) as [DamageType, number][])
+                  .filter(([, v]) => v !== 0)
+                  .map(([type, value]) => {
+                    const pct = Math.round(value * 100);
+                    const c = value > 0 ? theme.success : theme.danger;
+                    return (
+                      // The sign is carried by the icon + text colour (success/danger), so the chip
+                      // itself just needs the neutral track ground.
+                      <View key={type} style={styles.resistChip}>
+                        <DamageTypeIcon type={type} size={11} color={c} />
+                        <Text style={[styles.resistChipText, { color: c }]}>
+                          {' '}
+                          {pct > 0 ? '+' : ''}
+                          {pct}%
+                        </Text>
+                      </View>
+                    );
+                  })}
+              </View>
             </View>
           </Animated.View>
 
@@ -478,13 +481,12 @@ const makeStyles = (t: ThemeTokens) =>
     },
     header: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
       alignItems: 'center',
-      padding: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: t.divider,
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 4,
     },
-    title: { fontSize: 22, fontWeight: 'bold', color: t.text },
     closeButton: {
       width: 32,
       height: 32,
@@ -505,6 +507,19 @@ const makeStyles = (t: ThemeTokens) =>
       borderLeftColor: 'transparent',
     },
     playerInfoBg: { backgroundColor: t.surfaceRaised },
+    // Creature stage + its plinth read as one card: the stage is full-bleed, the plinth sits below.
+    creaturePanel: {
+      borderBottomWidth: 1,
+      borderBottomColor: t.divider,
+      borderLeftWidth: 4,
+      borderLeftColor: 'transparent',
+      overflow: 'hidden',
+    },
+    plinth: {
+      padding: 10,
+      paddingHorizontal: 16,
+      backgroundColor: t.surfaceAlt,
+    },
     // The combatant whose turn it is gets an accent edge (paired with the turn banner + ability dim).
     activePanel: { borderLeftColor: t.warning },
     turnBanner: { paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
@@ -517,7 +532,6 @@ const makeStyles = (t: ThemeTokens) =>
     hitFlashCreature: { backgroundColor: t.text },
     hitFlashPlayer: { backgroundColor: t.danger },
     floaterLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-    combatantHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
     combatantName: { fontSize: 14, fontWeight: 'bold', color: t.text },
     hpBar: {
       height: 12,
