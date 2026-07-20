@@ -28,7 +28,7 @@
     "@react-native-firebase/crashlytics": "^25.1.0",
     "@react-native-firebase/firestore": "^25.1.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
-    "@shopify/react-native-skia": "^2.6.9",
+    "@shopify/react-native-skia": "^2.9.0",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-device-info": "^15.0.2",
