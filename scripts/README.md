@@ -27,6 +27,32 @@ It prints one line of JSON — paste the numbers into the creature's entry in
 - `stanceDepth` — how far up the sprite the contacts spread, so the pool reaches a quadruped's
   raised back feet, not just the lowest paw.
 
+## Options
+
+- `fill=1` (default) fills enclosed cracks by restoring source colour — SOLID creatures. **`fill=0`** for
+  OPEN/tattered creatures OR any creature with large negative-space pockets between limbs (else a black or
+  gray backdrop gets fill-painted into those pockets as opaque blobs).
+- `bgguard=1` — during fill, skip gaps whose source ≈ the bright backdrop (MIXED: solid body + open
+  sub-structure). Bright backdrop only (`bgLum>0.45`).
+- `whitekey=T` — final pass: delete opaque pixels within colour-distance `T` of the sampled backdrop.
+  UNGATED (white OR gray backdrops). Safe only when creature colours are clearly separated from the
+  backdrop — a dark creature on dark-gray is NOT (keying shreds it). Measure T from the image.
+- `despeckle=L` / `maxLum=L` — opt-in speck / brightness-ceiling removal (rarely needed).
+- `shadow=S` / `dropshadow=S` — day ground-shadow experiments, **PARKED**: the project keeps the AI's
+  painted day shadow via **manual Photopea passes** on the day cuts instead (Vision leaves opaque shadow
+  remnants + a light edge fringe that only hand-cleanup removes cleanly).
+
+**Backdrop for cuttability:** a dark NIGHT creature wants a **solid black** source backdrop; a DAY
+creature wants **white** — never a mid-gray (same value as the creature → uncuttable).
+
+## `trim.swift` — trim a hand-cleaned export
+
+`swiftc -O scripts/trim.swift -o /tmp/trim && /tmp/trim in.png out.png` — trims a manually-cleaned
+full-canvas Photopea export (users export at 1024², untrimmed) to its alpha bbox — NO re-cut (Vision would
+reprocess a finished sprite). Prints framing + **`creatureCenterX`** (the SOLID creature's horizontal
+centre, `alpha>200`, excluding a semi-transparent shadow) so the combat stage can centre on the creature,
+not the shadow-inclusive bbox.
+
 ## What it does, and why each stage exists
 
 Each stage fixes a failure mode we actually hit — see the git history of this file for the gory

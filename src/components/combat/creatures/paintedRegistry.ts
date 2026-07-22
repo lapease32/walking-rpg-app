@@ -38,7 +38,7 @@ export const PAINTED_CREATURES: Record<string, PaintedCreature> = {
     scale: 1,
     night: {
       source: require('../../../assets/creatures/ash_wretch_night.png'),
-      framing: { aspect: 0.87, footLeft: 0.017, footRight: 0.884, stanceDepth: 0.223 },
+      framing: { aspect: 0.641, footLeft: 0.01, footRight: 0.952, stanceDepth: 0.21 },
     },
     day: {
       source: require('../../../assets/creatures/ash_wretch_day.png'),
